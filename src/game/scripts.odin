@@ -36,8 +36,19 @@ ALARM_ON  :: rl.RED
 
 // Stepping on the button sinks it and makes another entity, the alarm light, blink.
 trap_button :: proc(self: engine.Entity_Id) {
-	light := engine.find("alarm_light")
-	engine.set_scale(self, {1, 0.4})
+	blink_alarm(self, "alarm_light")
+}
+
+// Wired to an alarm that doesn't exist: find logs a warning and the script stops.
+broken_trap_button :: proc(self: engine.Entity_Id) {
+	blink_alarm(self, "missing_alarm")
+}
+
+blink_alarm :: proc(button: engine.Entity_Id, light_name: string) {
+	light := engine.find(light_name)
+	if !engine.entity_alive(light) do return // find already logged a warning
+
+	engine.set_scale(button, {1, 0.4})
 	for _ in 0..<6 {
 		engine.set_tint(light, ALARM_ON)
 		engine.pause(0.25) or_break
@@ -45,7 +56,7 @@ trap_button :: proc(self: engine.Entity_Id) {
 		engine.pause(0.25) or_break
 	}
 	engine.set_tint(light, ALARM_OFF)
-	engine.scale_to(self, {1, 1}, 0.2, .Back_Out)
+	engine.scale_to(button, {1, 1}, 0.2, .Back_Out)
 }
 
 vanish :: proc(self: engine.Entity_Id) {

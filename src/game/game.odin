@@ -56,6 +56,12 @@ setup :: proc() {
 		trigger = {script = trap_button, radius = 18},
 	})
 	engine.spawn_entity({
+		name    = "broken trap button",
+		pos     = {760, 460},
+		sprite  = engine.sprite_rect({22, 10}, rl.GRAY),
+		trigger = {script = broken_trap_button, radius = 18},
+	})
+	engine.spawn_entity({
 		name   = "alarm_light",
 		pos    = {900, 50},
 		sprite = engine.sprite_rect({18, 18}, ALARM_OFF),
