@@ -47,6 +47,7 @@ main :: proc() {
 		engine.draw_debug_world()
 		rl.EndMode2D()
 		engine.draw_screen_effects()
+		engine.draw_dialogue()
 		engine.draw_debug_hud()
 		rl.DrawText("WASD / arrows: move    Z: talk    F1: debug overlay", 10, 695, 16, rl.GRAY)
 		rl.EndDrawing()

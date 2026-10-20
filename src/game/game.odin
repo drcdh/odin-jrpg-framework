@@ -72,6 +72,12 @@ setup :: proc() {
 		trigger = {script = broken_trap_button},
 	})
 	engine.spawn_entity({
+		name    = "villager",
+		tile    = {10, 5},
+		sprite  = engine.sprite_directional(make_patroller_sheet(rl.PINK)),
+		trigger = {script = villager_talk},
+	})
+	engine.spawn_entity({
 		name    = "flasher",
 		tile    = {6, 8},
 		sprite  = engine.sprite_rect({12, 12}, rl.MAGENTA),
@@ -112,6 +118,12 @@ make_patroller_sheet :: proc(body := rl.SKYBLUE) -> engine.Texture_Id {
 
 update :: proc() {
 	if rl.IsKeyPressed(.F1) do engine.toggle_debug()
+
+	// While a dialogue box is up, Z closes it and the player can't move or talk.
+	if engine.dialogue_active() {
+		if rl.IsKeyPressed(.Z) do engine.dialogue_dismiss()
+		return
+	}
 
 	player := engine.player()
 	if !engine.tween_done(player_step) do return

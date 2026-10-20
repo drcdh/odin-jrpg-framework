@@ -386,6 +386,62 @@ walk_route_loops_back_to_start :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(e).facing, Direction.Up) // last leg goes up
 }
 
+@(test)
+say_blocks_until_dismissed :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	trigger_count = 0
+	s := spawn(proc(_: Entity_Id) {
+		say("first", "Tester")
+		trigger_count = 1
+		say("second")
+		trigger_count = 2
+	})
+	run_for(0.5)
+	testing.expect(t, dialogue_active())
+	testing.expect_value(t, world.dialogue.text, "first")
+	testing.expect_value(t, world.dialogue.speaker, "Tester")
+	testing.expect_value(t, trigger_count, 0)
+
+	dialogue_dismiss()
+	run_for(FRAME)
+	testing.expect_value(t, trigger_count, 1)
+	testing.expect_value(t, world.dialogue.text, "second")
+
+	dialogue_dismiss()
+	run_for(FRAME)
+	testing.expect_value(t, trigger_count, 2)
+	testing.expect(t, !dialogue_active())
+	testing.expect(t, !script_alive(s))
+}
+
+@(test)
+say_waits_for_other_speaker :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) { say("a") })
+	spawn(proc(_: Entity_Id) { say("b") })
+	run_for(0.2)
+	testing.expect_value(t, world.dialogue.text, "a")
+	dialogue_dismiss()
+	run_for(FRAME)
+	testing.expect_value(t, world.dialogue.text, "b")
+	dialogue_dismiss()
+	run_for(FRAME)
+	testing.expect(t, !dialogue_active())
+}
+
+@(test)
+cancelled_speaker_closes_its_dialogue :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	npc := spawn_entity({})
+	spawn(proc(_: Entity_Id) { say("bye") }, npc)
+	run_for(FRAME)
+	testing.expect(t, dialogue_active())
+	destroy_entity(npc)
+	run_for(FRAME * 2)
+	testing.expect(t, !dialogue_active())
+	testing.expect_value(t, len(world.script_order), 0)
+}
+
 @(private = "file") trigger_count: int
 
 @(private = "file")

@@ -15,6 +15,7 @@ World :: struct {
 	clock:           Clock,
 	camera:          rl.Camera2D,
 	flash:           Screen_Flash,
+	dialogue:        Dialogue,
 	player:          Entity_Id,
 	debug_overlay:   bool,
 }

@@ -27,7 +27,7 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 ./build.sh test     # headless engine tests (ODIN_TEST_THREADS=1, because engine state is global)
 ```
 
-Demo controls: WASD or the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state.
+Demo controls: WASD or the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also closes a dialogue box; while one is showing, the player can't move or talk. F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state.
 
 ## Layout
 
@@ -43,9 +43,10 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
 | `src/engine/grid.odin` | Tile size, zoom, `Tile`, `Direction`, tile/world conversions |
 | `src/engine/effects.odin` | Screen flash overlay |
+| `src/engine/dialogue.odin` | Dialogue box: the `say` verb, word-wrapped drawing |
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 27 headless tests |
+| `src/engine/engine_test.odin` | 30 headless tests |
 | `src/game/` | Demo scene setup, player input, example scripts |
 
 ## Key design decisions
@@ -94,6 +95,16 @@ A sprite marked `directional` uses a sheet of four equal frames side by side, in
 
 Demo: the patrollers' sheets are placeholder art drawn in code by `make_patroller_sheet(body_color)` in `src/game/game.odin`. A PNG with the same layout can replace it. The patroller visibly turns at each end of its patrol, and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds. A second, lime-green patroller loops `PATROL_ROUTE` (in `src/game/scripts.odin`) with `walk_route` at the same pace, pausing at corners and between laps.
 
+### Dialogue
+`say(text, speaker = "")` shows `text` in a box along the bottom of the screen and blocks the script until the box is dismissed, so consecutive `say` calls play as a conversation.
+- Only one box shows at a time. If another script's box is up, `say` waits for it to close first.
+- If the speaking script is cancelled, its box closes and `say` returns `false`.
+- The engine doesn't read input. The game calls `dialogue_dismiss()` on Z, and skips movement and `interact` while `dialogue_active()`. The Z press that starts a conversation doesn't also dismiss its first line, because Z only counts on the frame it's pressed.
+- The text is word-wrapped, with the speaker's name in gold and a blinking "Z" prompt. The box fits a speaker line plus about two lines of text, so split longer speeches into several `say` calls.
+- The text string belongs to the speaking script and only needs to stay valid while that script is waiting in `say`.
+
+Demo: the pink villager at (10, 5) says two lines.
+
 ### Screen flash
 `flash_screen(color, duration)` covers the screen with `color` and fades it out over `duration`.
 - The script waits until the flash has faded.
@@ -111,11 +122,11 @@ Demo: talking to the magenta "flasher" flashes a random bright color for 0.25 s.
 3. tweens
 4. scripts
 5. flush destroyed entities
-6. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then, in screen space, the screen flash and the HUD.
+6. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then, in screen space, the screen flash, the dialogue box and the HUD.
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), directional sprites, screen flash, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), directional sprites, screen flash, dialogue (`say`), deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
@@ -124,4 +135,4 @@ Known limitations / next steps:
 - No thread reuse pool yet: each spawned script creates an OS thread.
 - `Handle32` has a 16-bit generation counter, so a slot's generation wraps after 65,536 reuses. Switch to `Handle64` if tween churn gets that high.
 - Overlapping properties (`.Pos` vs `.Pos_X`) aren't detected as conflicting. Two scripts tweening the same property cut each other off, and the cut-off script's wait returns `true`.
-- Ideas: timeline/sequence helpers, a dialogue `say()` verb, camera tweens via `tween_f32`. The script backend (minicoro or stackless) could be swapped behind the same verb API if wasm or very large script counts are ever needed.
+- Ideas: timeline/sequence helpers, a dialogue box that grows with the text and dialogue choices, camera tweens via `tween_f32`. The script backend (minicoro or stackless) could be swapped behind the same verb API if wasm or very large script counts are ever needed.
