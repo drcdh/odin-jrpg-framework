@@ -28,7 +28,7 @@ update :: proc() {
 		// Facing is the direction the player last tried to move, even into a wall.
 		engine.set_facing(player, dir)
 		to := engine.entity_tile(player) + engine.dir_vec(dir)
-		if engine.tile_free(to) do player_step = engine.tween_to_tile(player, to, STEP_TIME)
+		if engine.tile_free(to, player) do player_step = engine.tween_to_tile(player, to, STEP_TIME)
 	} else if rl.IsKeyPressed(.Z) {
 		engine.interact(player)
 	}

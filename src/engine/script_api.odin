@@ -95,9 +95,20 @@ move_entity_to :: proc(id: Entity_Id, to: Tile, duration: f32, easing := Ease.Li
 	return wait_tween(tween_to_tile(id, to, duration, easing), loc)
 }
 
+// Blocks while another solid entity is on `tile` (see tile_occupied).
+wait_tile_clear :: proc(id: Entity_Id, tile: Tile, loc := #caller_location) -> bool {
+	Blocked :: struct { id: Entity_Id, tile: Tile }
+	b := Blocked{id, tile} // on this script's stack, which outlives the wait
+	return wait_until(proc(data: rawptr) -> bool {
+		blocked := (^Blocked)(data)
+		return !tile_occupied(blocked.tile, blocked.id)
+	}, &b, loc)
+}
+
 // Walks one tile at a time, x first and then y, facing each step's direction.
 // The entity's tile always matches the cell it's drawn in. `pause_between`
 // waits that long between tiles (not after the last one).
+// Before each step it waits for the next tile to be clear of solid entities.
 walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
 	first := true
 	for axis in 0..<2 {
@@ -111,7 +122,9 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_bet
 			if !first && pause_between > 0 && !pause(pause_between, loc) do return false
 			first = false
 			set_facing(id, dir)
-			if !wait_tween(tween_to_tile(id, entity_tile(id) + step, seconds_per_tile), loc) do return false
+			next := entity_tile(id) + step
+			if !wait_tile_clear(id, next, loc) do return false
+			if !wait_tween(tween_to_tile(id, next, seconds_per_tile), loc) do return false
 		}
 	}
 	return true

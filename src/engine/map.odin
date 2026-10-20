@@ -1,5 +1,6 @@
 package engine
 
+import hm "core:container/handle_map"
 import "core:fmt"
 import "core:log"
 import rl "vendor:raylib"
@@ -65,20 +66,45 @@ map_contains :: proc(t: Tile) -> bool {
 	return t.x >= 0 && t.y >= 0 && t.x < s.x && t.y < s.y
 }
 
-// Whether the party can step onto `t`. In WRAP mode tiles wrap around the
-// map; otherwise anything outside the map is free, as in the old project.
-// Entities don't block yet.
-tile_free :: proc(t: Tile) -> bool {
+// Whether `mover` can step onto `t`: the map lets the party through and no
+// other entity is in the way. In WRAP mode tiles wrap around the map;
+// otherwise the map counts as passable outside its edges, as in the old project.
+tile_free :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
+	return tile_passable(t) && !tile_occupied(t, mover)
+}
+
+tile_passable :: proc(t: Tile) -> bool {
 	m := &world.level_map
-	t := t
-	if m.mode == .WRAP && m.size.x > 0 && m.size.y > 0 {
-		t.x %%= m.size.x
-		t.y %%= m.size.y
-	} else if !map_contains(t) {
-		return true
-	}
+	w := wrap_tile(t)
+	if !map_contains(w) do return true
 	if m.passability == nil do return true
-	return m.passability(t) & PARTY_IMPASSABLE == 0
+	return m.passability(w) & PARTY_IMPASSABLE == 0
+}
+
+// Whether a solid entity other than `mover` is on `t`. A ghost mover is never
+// blocked, and ghosts never block. An entity's tile changes when its move
+// starts, so a tile being walked onto is already taken.
+tile_occupied :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
+	if m, ok := entity_get(mover); ok && m.ghost do return false
+	w := wrap_tile(t)
+	it := hm.iterator_make(&world.entities)
+	for e, h in hm.iterate(&it) {
+		if h != mover && !e.ghost && wrap_tile(e.tile) == w do return true
+	}
+	return false
+}
+
+// `t` wrapped into the map in WRAP mode; unchanged otherwise.
+wrap_tile :: proc(t: Tile) -> Tile {
+	m := &world.level_map
+	if m.mode != .WRAP || m.size.x <= 0 || m.size.y <= 0 do return t
+	return {t.x %% m.size.x, t.y %% m.size.y}
+}
+
+// A route from the map's Tiled polylines and polygons, by index (the
+// generated <LEVEL>_<NAME> constants).
+map_route :: proc(i: int) -> []Tile {
+	return world.level_map.routes[i]
 }
 
 // --- Rendering, main thread only. Without a window these do nothing. ---

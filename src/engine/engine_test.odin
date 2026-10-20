@@ -776,3 +776,51 @@ tile_free_checks_passability :: proc(t: ^testing.T) {
 	set_map_passability(proc(_: Tile) -> u8 { return BOAT_IMPASSABLE })
 	testing.expect(t, tile_free({0, 0}))
 }
+
+@(test)
+entities_block_unless_ghost :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	a := spawn_entity({tile = {0, 0}})
+	spawn_entity({tile = {1, 0}})
+	spawn_entity({tile = {2, 0}, ghost = true})
+	g := spawn_entity({tile = {3, 0}, ghost = true})
+
+	testing.expect(t, !tile_free({1, 0}, a), "solid entity blocks")
+	testing.expect(t, tile_free({2, 0}, a), "ghost doesn't block")
+	testing.expect(t, tile_free({0, 0}, a), "a mover doesn't block itself")
+	testing.expect(t, !tile_free({0, 0}), "no mover: every solid entity counts")
+	testing.expect(t, tile_free({1, 0}, g), "a ghost mover is never blocked")
+
+	// A move claims its destination as soon as it starts.
+	tween_to_tile(a, {0, 1}, 1)
+	testing.expect(t, !tile_free({0, 1}))
+	testing.expect(t, tile_free({0, 0}))
+}
+
+@(test)
+walk_entity_waits_for_blocker :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	walker  := spawn_entity({tile = {0, 0}})
+	blocker := spawn_entity({tile = {2, 0}})
+	s := spawn(proc(self: Entity_Id) { walk_entity(self, {3, 0}, 0.1) }, walker)
+
+	run_for(1)
+	testing.expect_value(t, entity_tile(walker), Tile{1, 0})
+	testing.expect(t, script_alive(s), "waiting behind the blocker")
+
+	set_tile(blocker, {2, 1})
+	run_for(0.5)
+	testing.expect_value(t, entity_tile(walker), Tile{3, 0})
+	testing.expect(t, !script_alive(s))
+}
+
+@(test)
+ghost_walks_through :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	ghost := spawn_entity({tile = {0, 0}, ghost = true})
+	spawn_entity({tile = {1, 0}})
+	s := spawn(proc(self: Entity_Id) { walk_entity(self, {2, 0}, 0.1) }, ghost)
+	run_for(0.5)
+	testing.expect_value(t, entity_tile(ghost), Tile{2, 0})
+	testing.expect(t, !script_alive(s))
+}

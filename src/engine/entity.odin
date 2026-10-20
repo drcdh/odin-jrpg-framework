@@ -12,6 +12,7 @@ Entity :: struct {
 	tile:    Tile,      // logical cell; changes as soon as a move starts
 	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
 	facing:  Direction,
+	ghost:   bool,      // neither blocks nor is blocked by other entities
 	sprite:  Sprite_State,
 	trigger: Trigger,
 }
