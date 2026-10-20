@@ -356,7 +356,7 @@ walk_entity_pauses_between_tiles :: proc(t: ^testing.T) {
 }
 
 // --- Sprites ---
-// These register metadata and add a Sprite record with no image, so all the
+// These add a Sprite record with no image, so all the
 // frame/row/playback logic runs without a window.
 
 @(private = "file") hero_tags   := [?]Sprite_Tag{.Left, .Down, .Right, .Up, .Cheer}
@@ -373,10 +373,10 @@ blink_meta :: proc() -> Sprite_Metadata {
 	return {frame_size = {8, 8}, type = .Anim, num_frames = blink_frames[:], frame_t = 100}
 }
 
+// Made-up sheets, so the tests don't depend on what's in assets/sprites.
 @(private = "file")
-fake_sprite :: proc(name: Sprite_Name, m: Sprite_Metadata) -> Sprite_State {
-	register_sprite_metadata(name, m)
-	h, _ := hm.add(&world.sprites, Sprite{name = name})
+fake_sprite :: proc(m: Sprite_Metadata) -> Sprite_State {
+	h, _ := hm.add(&world.sprites, Sprite{meta = m})
 	s := Sprite_State{sprite = h, tint = rl.WHITE, origin = {0.5, 0.5}, scale = {1, 1}, speed = 1}
 	if m.type == .Tagged do s.tag = m.tags[0]
 	return s
@@ -385,7 +385,7 @@ fake_sprite :: proc(name: Sprite_Name, m: Sprite_Metadata) -> Sprite_State {
 @(test)
 sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := fake_sprite("hero", hero_meta())
+	s := fake_sprite(hero_meta())
 	testing.expect_value(t, s.tag, Sprite_Tag.Left) // first tag by default
 	testing.expect_value(t, sprite_src(s), rl.Rectangle{0, 0, 16, 24})
 	s.tag = .Right
@@ -394,7 +394,7 @@ sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
 	s.tag = .Cheer
 	testing.expect_value(t, sprite_src(s).y, 96)
 
-	b := fake_sprite("blink", blink_meta())
+	b := fake_sprite(blink_meta())
 	b.frame = 3
 	testing.expect_value(t, sprite_src(b), rl.Rectangle{24, 0, 8, 8})
 }
@@ -402,7 +402,7 @@ sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
 @(test)
 update_sprite_advances_and_loops :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := fake_sprite("blink", blink_meta())
+	s := fake_sprite(blink_meta())
 	testing.expect(t, !update_sprite(0.5, &s), "not playing yet")
 	testing.expect_value(t, s.frame, 0)
 
@@ -424,7 +424,7 @@ update_sprite_advances_and_loops :: proc(t: ^testing.T) {
 @(test)
 static_sprite_never_animates :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := fake_sprite("rock", {frame_size = {16, 16}, type = .Static})
+	s := fake_sprite({frame_size = {16, 16}, type = .Static})
 	play_sprite(&s)
 	testing.expect(t, !update_sprite(10, &s))
 	testing.expect_value(t, s.frame, 0)
@@ -434,7 +434,7 @@ static_sprite_never_animates :: proc(t: ^testing.T) {
 @(test)
 sprite_playback_controls :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := fake_sprite("hero", hero_meta())
+	s := fake_sprite(hero_meta())
 	play_sprite(&s)
 	update_sprite(0.16, &s)
 	testing.expect_value(t, s.frame, 1)
@@ -461,9 +461,9 @@ sprite_playback_controls :: proc(t: ^testing.T) {
 @(test)
 animation_length_per_row :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	b := fake_sprite("blink", blink_meta())
+	b := fake_sprite(blink_meta())
 	expect_near(t, animation_length(b), 0.4)
-	h := fake_sprite("hero", hero_meta())
+	h := fake_sprite(hero_meta())
 	expect_near(t, animation_length(h), 0.3) // 2 frames x 150 ms
 	h.tag = .Cheer
 	expect_near(t, animation_length(h), 0.45)
@@ -472,12 +472,12 @@ animation_length_per_row :: proc(t: ^testing.T) {
 @(test)
 follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := fake_sprite("hero", hero_meta())
+	s := fake_sprite(hero_meta())
 	s.follow_facing = true
 	s.anim = true
 	s.frame = 1
 	e := spawn_entity({facing = .Up, sprite = s})
-	b := fake_sprite("blink", blink_meta())
+	b := fake_sprite(blink_meta())
 	b.follow_facing = true // no direction rows: ignored
 	other := spawn_entity({facing = .Right, sprite = b})
 
@@ -498,9 +498,9 @@ follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
 @(test)
 create_sprite_state_without_window :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := create_sprite_state("hero", play = true, speed = 2, follow_facing = true, layer = 3)
+	s := create_sprite_state(.Patroller, tint = rl.GOLD, play = true, speed = 2, follow_facing = true, layer = 3)
 	testing.expect_value(t, s.sprite, Sprite_Handle{})
-	testing.expect_value(t, s.tint, rl.WHITE)
+	testing.expect_value(t, s.tint, rl.GOLD)
 	testing.expect_value(t, s.scale, [2]f32{1, 1})
 	testing.expect_value(t, s.origin, [2]f32{0.5, 0.5})
 	testing.expect(t, s.anim && s.speed == 2 && s.follow_facing && s.layer == 3)

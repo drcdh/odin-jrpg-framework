@@ -45,15 +45,18 @@ Sprite_Type :: enum {
 	Tagged, // one row per tag, each with its own frame count
 }
 
-Sprite_Name :: distinct string
-Pixel_Dim   :: [2]f32
+// `Sprite_Name` and the `sprite_metadata` table are generated into
+// sprite_data.odin by src/build_tools/process_sprites.py from the Aseprite
+// files in assets/sprites (build.sh runs it).
+
+Pixel_Dim :: [2]f32
 
 // Sheet layout: frames go left to right, tags (in `tags` order) top to bottom.
 Sprite_Metadata :: struct {
-	filename:   string,      // in SPRITE_DIR, without ".png"
+	filename:   string,       // in SPRITE_DIR, without ".png"
 	frame_size: Pixel_Dim,
 	type:       Sprite_Type,
-	tags:       []Sprite_Tag, // Tagged only
+	tags:       []Sprite_Tag, // Tagged only; Aseprite tag names must match Sprite_Tag members
 	num_frames: []u16,        // per tag; Anim uses [0]
 	frame_t:    f32,          // milliseconds per frame
 }
@@ -67,11 +70,13 @@ Image :: struct {
 }
 
 // A loaded sheet. Palette-swapped copies share the name (and metadata) but
-// have their own image.
+// have their own image. `meta` is copied from sprite_metadata on load, so
+// lookups don't go back to the table.
 Sprite :: struct {
 	handle: Sprite_Handle,
 	name:   Sprite_Name,
 	img_h:  Image_Handle,
+	meta:   Sprite_Metadata,
 }
 
 Color_Swap :: struct {
@@ -101,17 +106,13 @@ Sprite_State :: struct {
 
 // --- Registry and loading ---
 
-// The slices in `m` must outlive the world (static tables are fine).
-register_sprite_metadata :: proc(name: Sprite_Name, m: Sprite_Metadata) {
-	world.sprite_metadata[name] = m
-}
-
 // Loads the sheet unless it's cached. Unswapped sprites are cached by name;
 // palette-swapped ones are loaded fresh every call. Main thread only: it may
 // upload a texture.
+// TODO: cache palette-swapped sprites by name and palette.
 get_sprite_h :: proc(name: Sprite_Name, palette: Palette_Swap = {}) -> Sprite_Handle {
 	if len(palette) == 0 {
-		if h, ok := world.sprite_handles[name]; ok do return h
+		if h := world.sprite_handles[name]; hm.is_valid(&world.sprites, h) do return h
 	}
 	h := load_sprite(name, palette)
 	if len(palette) == 0 do world.sprite_handles[name] = h
@@ -126,19 +127,16 @@ preload_sprite :: proc(name: Sprite_Name) {
 @(private)
 load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 	assert(!in_script(), "sprites must be loaded on the main thread (preload_sprite)")
-	sprite := Sprite{name = name}
+	m := sprite_metadata[name]
+	sprite := Sprite{name = name, meta = m}
 
-	if m, ok := world.sprite_metadata[name]; !ok {
-		log.errorf("no sprite metadata registered for %q", name)
+	img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, m.filename))
+	defer rl.UnloadImage(img)
+	if img.data == nil {
+		log.errorf("could not load %s/%s.png for sprite %v (run process_sprites.py?)", SPRITE_DIR, m.filename, name)
 	} else {
-		img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, m.filename))
-		defer rl.UnloadImage(img)
-		if img.data == nil {
-			log.errorf("could not load %s/%s.png for sprite %q", SPRITE_DIR, m.filename, name)
-		} else {
-			for cs in palette do rl.ImageColorReplace(&img, cs.from, cs.to)
-			sprite.img_h, _ = hm.add(&world.images, Image{texture = rl.LoadTextureFromImage(img)})
-		}
+		for cs in palette do rl.ImageColorReplace(&img, cs.from, cs.to)
+		sprite.img_h, _ = hm.add(&world.images, Image{texture = rl.LoadTextureFromImage(img)})
 	}
 
 	h, err := hm.add(&world.sprites, sprite)
@@ -154,12 +152,13 @@ create_sprite_state :: proc(
 	name: Sprite_Name,
 	tag: Maybe(Sprite_Tag) = nil,
 	palette: Palette_Swap = {},
+	tint := rl.WHITE,
 	play := false,
 	speed: f32 = 1,
 	follow_facing := false,
 	layer: i32 = 0,
 ) -> (s: Sprite_State) {
-	s.tint = rl.WHITE
+	s.tint = tint
 	s.origin = {0.5, 0.5}
 	s.scale = {1, 1}
 	s.anim = play
@@ -168,18 +167,18 @@ create_sprite_state :: proc(
 	s.layer = layer
 
 	if !rl.IsWindowReady() {
-		log.warnf("raylib not initialized; sprite state for %q has no sheet", name)
+		log.warnf("raylib not initialized; sprite state for %v has no sheet", name)
 		return
 	}
 	s.sprite = get_sprite_h(name, palette)
-	if m, ok := world.sprite_metadata[name]; ok && m.type == .Tagged && len(m.tags) > 0 {
+	if m := sprite_metadata[name]; m.type == .Tagged && len(m.tags) > 0 {
 		s.tag = tag.? or_else m.tags[0]
 	}
 	return
 }
 
 update_sprite :: proc(dt: f32, state: ^Sprite_State) -> (looped: bool) {
-	m := sprite_metadata(state^) or_return
+	m := state_metadata(state^) or_return
 	if m.type == .Static || !state.anim do return false
 	n := frame_count(m, state.tag)
 	if n == 0 || m.frame_t <= 0 do return false
@@ -229,7 +228,7 @@ set_sprite_tag :: proc(state: ^Sprite_State, tag: Sprite_Tag, reset := true) {
 
 // Seconds for one pass through the current row (0 for Static).
 animation_length :: proc(state: Sprite_State) -> f32 {
-	m, ok := sprite_metadata(state)
+	m, ok := state_metadata(state)
 	if !ok || m.type == .Static do return 0
 	return f32(frame_count(m, state.tag)) * m.frame_t / 1000
 }
@@ -246,7 +245,7 @@ direction_tag :: proc(d: Direction) -> Sprite_Tag {
 
 // The frame to draw: column by frame, row by the tag's index in the sheet.
 sprite_src :: proc(state: Sprite_State) -> rl.Rectangle {
-	m, ok := sprite_metadata(state)
+	m, ok := state_metadata(state)
 	if !ok do return {}
 	row := 0
 	if m.type == .Tagged do row, _ = tag_index(m.tags, state.tag)
@@ -254,11 +253,11 @@ sprite_src :: proc(state: Sprite_State) -> rl.Rectangle {
 }
 
 raw_sprite_size_name :: proc(name: Sprite_Name) -> Pixel_Dim {
-	return world.sprite_metadata[name].frame_size
+	return sprite_metadata[name].frame_size
 }
 
 raw_sprite_size_state :: proc(state: Sprite_State) -> Pixel_Dim {
-	m, _ := sprite_metadata(state)
+	m, _ := state_metadata(state)
 	return m.frame_size
 }
 
@@ -289,7 +288,7 @@ sprites_update :: proc(dt: f32) {
 		s := &e.sprite
 		if s.follow_facing {
 			want := direction_tag(e.facing)
-			if m, ok := sprite_metadata(s^); ok && want != s.tag {
+			if m, ok := state_metadata(s^); ok && want != s.tag {
 				if _, has := tag_index(m.tags, want); has {
 					s.tag = want
 					if n := frame_count(m, want); n > 0 do s.frame %= n
@@ -340,11 +339,10 @@ draw_world :: proc() {
 // --- Helpers ---
 
 @(private)
-sprite_metadata :: proc(state: Sprite_State) -> (Sprite_Metadata, bool) {
+state_metadata :: proc(state: Sprite_State) -> (Sprite_Metadata, bool) {
 	sprite, ok := hm.get(&world.sprites, state.sprite)
 	if !ok do return {}, false
-	m, found := world.sprite_metadata[sprite.name]
-	return m, found
+	return sprite.meta, true
 }
 
 @(private)

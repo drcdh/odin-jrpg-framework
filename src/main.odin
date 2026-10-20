@@ -43,7 +43,6 @@ main :: proc() {
 		rl.BeginMode2D(engine.camera())
 		game.draw_floor()
 		engine.draw_world()
-		game.draw_overlay_world()
 		engine.draw_debug_world()
 		rl.EndMode2D()
 		engine.draw_screen_effects()

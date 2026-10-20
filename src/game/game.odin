@@ -9,25 +9,23 @@ STEP_TIME :: 0.15 // seconds per tile
 player_step: engine.Tween_Id
 
 setup :: proc() {
-	register_sprites()
-
 	player := engine.spawn_entity({
 		name   = "player",
 		tile   = {10, 8},
-		sprite = tinted_sprite("player", rl.WHITE, layer = 1),
+		sprite = character_sprite(PLAYER_BODY, layer = 1),
 	})
 	engine.set_player(player)
 
 	engine.spawn_entity({
 		name    = "glider",
 		tile    = {3, 3},
-		sprite  = engine.create_sprite_state("crate"),
+		sprite  = engine.create_sprite_state(.Crate),
 		trigger = {script = glide_away},
 	})
 	engine.spawn_entity({
 		name    = "glider 2",
 		tile    = {3, 5},
-		sprite  = engine.create_sprite_state("crate"),
+		sprite  = engine.create_sprite_state(.Crate),
 		trigger = {script = glide_away},
 	})
 
@@ -50,7 +48,7 @@ setup :: proc() {
 	chest := engine.spawn_entity({
 		name    = "chest",
 		tile    = {16, 5},
-		sprite  = tinted_sprite("chest", rl.GOLD),
+		sprite  = engine.create_sprite_state(.Chest, tint = rl.GOLD),
 		trigger = {script = vanish, mode = .Once},
 	})
 	// A plain tween started from game code, no script involved.
@@ -60,13 +58,13 @@ setup :: proc() {
 	engine.spawn_entity({
 		name    = "trap button",
 		tile    = {12, 9},
-		sprite  = tinted_sprite("button", rl.GRAY),
+		sprite  = engine.create_sprite_state(.Button),
 		trigger = {script = trap_button},
 	})
 	engine.spawn_entity({
 		name    = "broken trap button",
 		tile    = {14, 9},
-		sprite  = tinted_sprite("button", rl.GRAY),
+		sprite  = engine.create_sprite_state(.Button),
 		trigger = {script = broken_trap_button},
 	})
 	engine.spawn_entity({
@@ -78,13 +76,13 @@ setup :: proc() {
 	engine.spawn_entity({
 		name    = "flasher",
 		tile    = {6, 8},
-		sprite  = tinted_sprite("flasher", rl.MAGENTA, play = true),
+		sprite  = engine.create_sprite_state(.Flasher, tint = rl.MAGENTA, play = true),
 		trigger = {script = flash_random},
 	})
 	engine.spawn_entity({
 		name   = "alarm_light",
 		tile   = {19, 0},
-		sprite = tinted_sprite("light", ALARM_OFF),
+		sprite = engine.create_sprite_state(.Light, tint = ALARM_OFF),
 	})
 }
 
@@ -129,13 +127,4 @@ draw_floor :: proc() {
 			rl.DrawRectangle(x * engine.TILE_SIZE, y * engine.TILE_SIZE, engine.TILE_SIZE, engine.TILE_SIZE, color)
 		}
 	}
-}
-
-// World space, over the entities: a marker on the player's facing edge (no directional art yet).
-draw_overlay_world :: proc() {
-	p, ok := engine.entity_get(engine.player())
-	if !ok do return
-	d := engine.dir_vec(p.facing)
-	center := p.pos + [2]f32{f32(d.x), f32(d.y)} * 5
-	rl.DrawRectangleV(center - 2, {4, 4}, rl.DARKGRAY)
 }

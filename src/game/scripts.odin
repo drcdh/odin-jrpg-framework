@@ -67,7 +67,7 @@ blink_alarm :: proc(button: engine.Entity_Id, light_name: string, loc := #caller
 	light := engine.find(light_name, loc)
 	if !engine.entity_alive(light) do return // find already logged a warning
 
-	engine.set_scale(button, {1, 0.4})
+	engine.set_sprite_tag_of(button, .Down)
 	for _ in 0..<6 {
 		engine.set_tint(light, ALARM_ON)
 		engine.pause(0.25) or_break
@@ -75,7 +75,7 @@ blink_alarm :: proc(button: engine.Entity_Id, light_name: string, loc := #caller
 		engine.pause(0.25) or_break
 	}
 	engine.set_tint(light, ALARM_OFF)
-	engine.scale_to(button, {1, 1}, 0.2, .Back_Out)
+	engine.set_sprite_tag_of(button, .Up)
 }
 
 // Each line stays up until the player presses Z.

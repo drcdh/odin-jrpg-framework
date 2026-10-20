@@ -27,6 +27,8 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 ./build.sh test     # headless engine tests (ODIN_TEST_THREADS=1, because engine state is global)
 ```
 
+Every target first runs `src/build_tools/process_sprites.py`, which needs Python 3 and the `aseprite` CLI on `PATH`. It exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/engine/sprite_data.odin`. Both outputs are gitignored.
+
 Demo controls: WASD or the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also closes a dialogue box; while one is showing, the player can't move or talk. F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state.
 
 ## Layout
@@ -37,7 +39,8 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/world.odin` | `World` global state, `init` / `shutdown` / `update` |
 | `src/engine/clock.odin` | Game time: dt clamp (1/20 s), pause, time scale |
 | `src/engine/entity.odin` | `Entity`, stored in `core:container/handle_map`; deferred destroy |
-| `src/engine/sprite.odin` | Sprite metadata registry, sheet loading with palette swaps, `Sprite_State` animation, y- and layer-sorted drawing |
+| `src/engine/sprite.odin` | Sprite types, sheet loading with palette swaps, `Sprite_State` animation, y- and layer-sorted drawing |
+| `src/engine/sprite_data.odin` | Generated: the `Sprite_Name` enum and the `sprite_metadata` table |
 | `src/engine/tween.odin` | Tweens over `[4]f32` lanes, easing from `core:math/ease` |
 | `src/engine/script.odin` | Script runtime (thread handoff) |
 | `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
@@ -47,8 +50,9 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
 | `src/engine/engine_test.odin` | 36 headless tests |
-| `src/game/` | Demo scene setup, sprite registrations, player input, example scripts |
-| `assets/sprites/` | Demo sprite sheets (PNG) |
+| `src/game/` | Demo scene setup, player input, example scripts |
+| `src/build_tools/` | `process_sprites.py` (Aseprite to PNG sheets plus `sprite_data.odin`) |
+| `assets/sprites/` | Aseprite sources for the demo sprites |
 
 ## Key design decisions
 
@@ -93,13 +97,17 @@ Rules for script bodies: no raylib GPU or draw calls (the GL context belongs to 
 
 ### Sprites
 An entity's `sprite` is a `Sprite_State`. It holds which sheet and frame to show, the playback state, and the draw transforms (`tint`, `origin`, `scale`, `rotation`, `flip_x`/`flip_y`, `layer`, `hidden`). Tweens and the `set_*` verbs act on the transforms.
-- **Metadata:** the game registers each sheet with `register_sprite_metadata(name, Sprite_Metadata{filename, frame_size, type, tags, num_frames, frame_t})`. `Sprite_Name` is a string. The `tags` and `num_frames` slices must stay alive, so static tables are fine.
+- **Names and metadata:** sprites are named by the generated `Sprite_Name` enum. There's one member per `.ase` file, named from the file name in title case (`patroller.ase` becomes `.Patroller`). The generated table `sprite_metadata: [Sprite_Name]Sprite_Metadata` holds `{filename, frame_size, type, tags, num_frames, frame_t}` for each. Adding a sprite means adding an `.ase` file; there's no registration code.
+- **From Aseprite:** the type is decided per file.
+  - A file with tags becomes `Tagged`, with one row per tag. Tag names must match `Sprite_Tag` members exactly (`Left`, `Down`, ...).
+  - A file without tags becomes `Anim` if it has several frames, or `Static` if it has one.
+  - `frame_t` comes from the frame durations. The tool assumes they're all equal.
 - **Sheet layout:** frames run left to right and tags top to bottom, in the order of `tags`. There are three types:
   - `Static`: one frame.
   - `Anim`: one row of `num_frames[0]` frames.
   - `Tagged`: one row per tag, each with its own frame count.
   - `frame_t` is milliseconds per frame.
-- **Loading:** `create_sprite_state(name, tag, palette, play, speed, follow_facing, layer)` loads `assets/sprites/<filename>.png` the first time. Sprites without a palette swap are cached by name; palette-swapped ones (`Palette_Swap`, a list of from/to colors applied on load) get their own texture.
+- **Loading:** `create_sprite_state(.Name, tag, palette, tint, play, speed, follow_facing, layer)` loads `assets/sprites/<filename>.png` the first time. The loaded `Sprite` keeps a copy of its metadata. Sprites without a palette swap are cached by name; palette-swapped ones (`Palette_Swap`, a list of from/to colors applied on load) get their own texture.
   - Loading uploads a texture, so it must happen on the main thread. Scripts must never trigger a load; the game can load up front with `preload_sprite`.
   - Without a window, for example in tests, `create_sprite_state` returns a state with no sheet that draws nothing.
 - **Playback:**
@@ -108,12 +116,15 @@ An entity's `sprite` is a `Sprite_State`. It holds which sheet and frame to show
   - Scripts can use the entity-level wrappers `play_anim`, `stop_anim`, `freeze_anim` and `set_sprite_tag_of`.
   - `animation_length` gives the duration of the current row.
 - **Facing:** with `follow_facing`, the tag tracks the entity's facing (the Left/Down/Right/Up rows) without restarting playback.
-- **Storage:** images and sprites live in `World` handle maps (`world.images`, `world.sprites`), alongside the caches `world.sprite_handles` and `world.sprite_metadata`.
+- **Storage:** images and sprites live in `World` handle maps (`world.images`, `world.sprites`). The unswapped cache is `world.sprite_handles: [Sprite_Name]Sprite_Handle`.
 
-Demo sheets live in `assets/sprites/` and are registered in `src/game/sprites.odin`. The plain shapes are white so tints color them.
-- **The patroller sheet** has rows Left/Down/Right/Up, each a 2-frame idle bob, with a sky-blue body. The route patroller (lime) and the villager (pink) are palette swaps of it. All three use `follow_facing`.
+Demo sprites in `assets/sprites/`:
+- **Chest, light and flasher** are white shapes that tints color. The crate is a static checker, and the flasher is a 4-frame `Anim` pulse.
+- **The button** has Up and Down rows. The trap button's script switches it to `.Down` while the alarm blinks.
+- **The patroller sheet** has rows Left/Down/Right/Up, each a 2-frame idle bob, with a sky-blue body.
+  - The player (white, so script tints show true), the route patroller (lime) and the villager (pink) are palette swaps of it, all made by `character_sprite` in `src/game/sprites.odin`.
+  - All four characters use `follow_facing`, so the player's sprite turns with input.
 - **The patrollers' movement:** the first patroller turns at each end of its patrol and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds. The lime patroller loops `PATROL_ROUTE` (in `src/game/scripts.odin`) with `walk_route` at the same pace, pausing at corners and between laps.
-- **The flasher** plays a 4-frame `Anim` pulse.
 
 ### Dialogue
 `say(text, speaker = "")` shows `text` in a box along the bottom of the screen and blocks the script until the box is dismissed, so consecutive `say` calls play as a conversation.
@@ -143,13 +154,14 @@ Demo: talking to the magenta "flasher" flashes a random bright color for 0.25 s.
 4. scripts
 5. sprite animations
 6. flush destroyed entities
-7. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then, in screen space, the screen flash, the dialogue box and the HUD.
+7. draw. Inside `BeginMode2D(camera)`: floor, entities, debug world overlay. Then, in screen space, the screen flash, the dialogue box and the HUD.
 
 ## Status
 
 Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`), deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
+- TODO: cache palette-swapped sprites by name and palette. Today every `create_sprite_state` call with a palette swap loads a new texture.
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - No movement collisions; the camera doesn't follow the player.
 - Holding a direction can pause for one frame between steps.

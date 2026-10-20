@@ -2,6 +2,9 @@
 # Usage: ./build.sh [run|build|release|test]
 set -euo pipefail
 cd "$(dirname "$0")"
+
+python src/build_tools/process_sprites.py
+
 mkdir -p build
 
 case "${1:-run}" in
