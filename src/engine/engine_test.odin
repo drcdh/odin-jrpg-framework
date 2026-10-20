@@ -118,6 +118,19 @@ tween_raw_f32 :: proc(t: ^testing.T) {
 	expect_near(t, zoom, 3)
 }
 
+@(test)
+find_by_name :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn_entity({name = "a"})
+	b := spawn_entity({name = "b"})
+	testing.expect_value(t, find("b"), b)
+	testing.expect_value(t, find("missing"), Entity_Id{})
+
+	destroy_entity(b)
+	run_for(FRAME)
+	testing.expect_value(t, find("b"), Entity_Id{})
+}
+
 // --- Scripts ---
 
 @(private = "file") log_buf: [dynamic]int
@@ -238,6 +251,22 @@ script_spawned_by_script_and_waited_on :: proc(t: ^testing.T) {
 	})
 	run_for(0.6)
 	testing.expectf(t, resumed_at >= 0.3 && resumed_at < 0.4, "resumed at %v", resumed_at)
+}
+
+@(test)
+script_drives_entity_found_by_name :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	light := spawn_entity({name = "light", sprite = sprite_rect({1, 1}, rl.BLACK)})
+	spawn(proc(_: Entity_Id) {
+		l := find("light")
+		set_tint(l, rl.RED)
+		pause(0.2)
+		set_tint(l, rl.BLACK)
+	})
+	run_for(FRAME)
+	testing.expect_value(t, entity_get(light).sprite.tint, rl.RED)
+	run_for(0.3)
+	testing.expect_value(t, entity_get(light).sprite.tint, rl.BLACK)
 }
 
 @(private = "file") trigger_count: int

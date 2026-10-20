@@ -31,6 +31,23 @@ spin :: proc(self: engine.Entity_Id) {
 	engine.wait_tween(turn)
 }
 
+ALARM_OFF :: rl.Color{90, 20, 20, 255}
+ALARM_ON  :: rl.RED
+
+// Stepping on the button sinks it and makes another entity, the alarm light, blink.
+trap_button :: proc(self: engine.Entity_Id) {
+	light := engine.find("alarm_light")
+	engine.set_scale(self, {1, 0.4})
+	for _ in 0..<6 {
+		engine.set_tint(light, ALARM_ON)
+		engine.pause(0.25) or_break
+		engine.set_tint(light, ALARM_OFF)
+		engine.pause(0.25) or_break
+	}
+	engine.set_tint(light, ALARM_OFF)
+	engine.scale_to(self, {1, 1}, 0.2, .Back_Out)
+}
+
 vanish :: proc(self: engine.Entity_Id) {
 	if !engine.scale_to(self, {1.8, 1.8}, 0.25, .Back_Out) do return
 	if !engine.fade_to(self, 0, 0.6) do return

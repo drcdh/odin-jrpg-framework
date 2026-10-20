@@ -51,6 +51,9 @@ Demo controls: WASD or the arrow keys move the player. F1 toggles the debug over
 ### Handles, never pointers
 Entities, tweens and scripts each live in a `hm.Dynamic_Handle_Map` (`Entity_Id`, `Tween_Id` and `Script_Id` are `distinct hm.Handle32`). A zero handle means "none". Code keeps only handles. An `^Entity` from `entity_get` is valid only for the current scope and must never be held across a script yield.
 
+### Referring to other entities by name
+`engine.find(name)` does a linear scan of the entity map. It returns `Entity_Id{}` and logs a warning when no entity has that name, and if two share a name the first one wins. A script calls it once at the top and keeps the handle; it's never used per frame. Example: `trap_button` finds `"alarm_light"` and blinks it.
+
 ### Script runtime: thread handoff
 Odin's core library has no coroutines. Instead, each running script gets an OS thread, and **only one thread runs at a time**:
 

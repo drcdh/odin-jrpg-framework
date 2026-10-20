@@ -47,6 +47,19 @@ setup :: proc() {
 	})
 	// A plain tween started from game code, no script involved.
 	engine.tween_by(chest, .Pos_Y, {-6, 0, 0, 0}, 0.6, .Sine_In_Out, .Ping_Pong)
+
+	// The button's script finds the light by name.
+	engine.spawn_entity({
+		name    = "trap button",
+		pos     = {640, 460},
+		sprite  = engine.sprite_rect({22, 10}, rl.GRAY),
+		trigger = {script = trap_button, radius = 18},
+	})
+	engine.spawn_entity({
+		name   = "alarm_light",
+		pos    = {900, 50},
+		sprite = engine.sprite_rect({18, 18}, ALARM_OFF),
+	})
 }
 
 update :: proc() {
