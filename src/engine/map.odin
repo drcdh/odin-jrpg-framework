@@ -17,6 +17,10 @@ tileset_files := [Tileset_Id]string {
 	.Tileset_Terrain = "tileset_terrain",
 }
 
+// Bits of a tile's passability flags (the generated PASSABLE tables).
+PARTY_IMPASSABLE :: 1
+BOAT_IMPASSABLE  :: 2 // unused until there are boats
+
 Map_Mode :: enum {
 	DEFAULT, // outside the map is empty
 	CLAMP,   // the camera stays inside the map
@@ -31,15 +35,21 @@ Level_Map :: struct {
 	tilesets:  []Tileset_Id,     // Tiled order, parallel to firstgids
 	firstgids: []int,
 	routes:    [][]Tile,
+	passability: proc(t: Tile) -> u8, // flags for an in-map tile; nil means all passable
 	rt:        rl.RenderTexture, // the whole map, rendered once on entry
 }
 
-// Takes the generated map data; the current mode is kept.
+// Takes the generated map data; the current mode and passability are kept.
 set_map :: proc(m: Level_Map) {
-	mode := world.level_map.mode
+	mode, passability := world.level_map.mode, world.level_map.passability
 	unload_map()
 	world.level_map = m
 	world.level_map.mode = mode
+	if m.passability == nil do world.level_map.passability = passability
+}
+
+set_map_passability :: proc(p: proc(t: Tile) -> u8) {
+	world.level_map.passability = p
 }
 
 set_map_mode :: proc(mode: Map_Mode) {
@@ -55,7 +65,21 @@ map_contains :: proc(t: Tile) -> bool {
 	return t.x >= 0 && t.y >= 0 && t.x < s.x && t.y < s.y
 }
 
-// TODO: tile_free (passability, from the generated PASSABLE tables) once movement checks it.
+// Whether the party can step onto `t`. In WRAP mode tiles wrap around the
+// map; otherwise anything outside the map is free, as in the old project.
+// Entities don't block yet.
+tile_free :: proc(t: Tile) -> bool {
+	m := &world.level_map
+	t := t
+	if m.mode == .WRAP && m.size.x > 0 && m.size.y > 0 {
+		t.x %%= m.size.x
+		t.y %%= m.size.y
+	} else if !map_contains(t) {
+		return true
+	}
+	if m.passability == nil do return true
+	return m.passability(t) & PARTY_IMPASSABLE == 0
+}
 
 // --- Rendering, main thread only. Without a window these do nothing. ---
 

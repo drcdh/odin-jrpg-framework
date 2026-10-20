@@ -746,3 +746,33 @@ clear_level_removes_everything :: proc(t: ^testing.T) {
 	testing.expect_value(t, world.player, Entity_Id{})
 	testing.expect_value(t, world.camera_follow, Entity_Id{})
 }
+
+// A 4x3 map whose column x == 2 is impassable.
+@(private = "file")
+wall_column :: proc(t: Tile) -> u8 { return PARTY_IMPASSABLE if t.x == 2 else 0 }
+
+@(test)
+tile_free_checks_passability :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {4, 3}})
+	testing.expect(t, tile_free({2, 1}), "no passability: everything free")
+
+	set_map_passability(wall_column)
+	testing.expect(t, tile_free({1, 1}))
+	testing.expect(t, !tile_free({2, 0}))
+	testing.expect(t, !tile_free({2, 2}))
+	testing.expect(t, tile_free({2, 3}), "outside the map is free")
+	testing.expect(t, tile_free({-1, 0}))
+
+	set_map({size = {4, 3}}) // a new map keeps the passability already set
+	testing.expect(t, !tile_free({2, 1}))
+
+	set_map_mode(.WRAP)
+	testing.expect(t, !tile_free({6, 1}), "wraps to x == 2")
+	testing.expect(t, !tile_free({-2, 5}), "wraps to (2, 2)")
+	testing.expect(t, tile_free({7, 1}))
+
+	// Only the party bit blocks.
+	set_map_passability(proc(_: Tile) -> u8 { return BOAT_IMPASSABLE })
+	testing.expect(t, tile_free({0, 0}))
+}

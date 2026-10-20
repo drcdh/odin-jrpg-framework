@@ -30,6 +30,7 @@ start_level :: proc(l: Level) {
 	engine.clear_level()
 
 	tiled_init_level(l)
+	engine.set_map_passability(proc(t: Tile_Coord) -> u8 { return passable(current_level, t.x, t.y) })
 	init_level(l)
 	render_level(l)
 

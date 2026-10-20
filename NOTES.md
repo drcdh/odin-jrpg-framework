@@ -52,10 +52,10 @@ The game starts in the Grove level with only the player. The earlier demo entiti
 | `src/engine/effects.odin` | Screen flash overlay |
 | `src/engine/dialogue.odin` | Dialogue box: the `say` verb, word-wrapped drawing |
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
-| `src/engine/map.odin` | `Level_Map` (in `World`), map rendering to a render texture, `draw_map`, `Map_Mode`, `Tileset_Id` |
+| `src/engine/map.odin` | `Level_Map` (in `World`), `tile_free`, map rendering to a render texture, `draw_map`, `Map_Mode`, `Tileset_Id` |
 | `src/engine/level.odin` | `clear_level`: the level-independent part of leaving a level |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 42 headless tests |
+| `src/engine/engine_test.odin` | 43 headless tests |
 | `src/game/game.odin` | `setup` (enters Grove), player input |
 | `src/game/level.odin` | `start_level`, level history, type aliases for the generated code |
 | `src/game/level_grove.odin` | `init_grove_main`: spawns the player |
@@ -77,7 +77,7 @@ The game starts in the Grove level with only the player. The earlier demo entiti
 - Raw `.Pos` tweens are for visual effects only and don't change `tile`.
 - Entities have a `facing` direction. For the player, it's the direction they last tried to move.
 - The player moves in smooth tile steps (`STEP_TIME` 0.15 s). Input is read only between steps.
-- There are no movement collisions yet: entities can share a tile.
+- The player can't step onto impassable tiles (see Maps and levels), but entities can still share a tile, and scripted moves ignore passability.
 
 ### Talk triggers
 Pressing Z calls `engine.interact(player)`. The first entity on the tile the player faces that has a trigger turns to face the player and runs its script.
@@ -180,6 +180,11 @@ Levels are drawn in Tiled. Each `assets/tiled/<Level>/<room>.tmx` becomes one me
   - `DEFAULT`: the background shows past the map's edges.
   - `CLAMP`: `camera_update` keeps the view inside the map, and centers a map smaller than the view.
   - `WRAP`: the render texture repeats.
+- **Passability:** `passable.py` builds each level's `PASSABLE` table from per-tileset tables (`TILESET_TERRAIN_PASSABLE`, ...) and ORs the flags of every layer. `PARTY_IMPASSABLE` (1) blocks walking; `BOAT_IMPASSABLE` (2) is for later.
+  - `start_level` hands the engine a lookup (`set_map_passability`) that reads the generated `passable(level, i, j)`.
+  - `tile_free(t)` checks it. In WRAP mode it wraps `t` around the map; otherwise tiles outside the map count as free, as in the old project.
+  - The player's input calls `tile_free` before each step. A blocked step still turns the player.
+  - In Grove only the pond's water tiles (the tileset's bottom row) are impassable.
 - **Camera:** `camera_follow(id)` makes `camera_update` center the camera on that entity's tweened `pos` every frame, so it glides with each step.
 - **Tilesets:** `Tileset_Id` is hand-written in `map.odin` and must match the Tiled tileset names in title case. `tileset_files` names each one's PNG. A tileset's column count comes from its texture width. Textures load on first use, on the main thread.
 - **Stubs:** the generated code still calls old-project features. `src/game/stubs.odin` stands in for them with no-ops and defaults, so Grove's chests and warps don't appear yet:
@@ -206,7 +211,7 @@ Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step pla
 Known limitations / next steps:
 - TODO: cache palette-swapped sprites by name and palette. Today every `create_sprite_state` call with a palette swap loads a new texture.
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
-- No movement collisions; the generated passability tables aren't used yet (`tile_free` is a TODO in `map.odin`). The player can walk off the map.
+- Passability only stops the player: entities don't block each other, and scripted moves (`move_entity`, `walk_entity`, `walk_route`) ignore it. Tiles outside the map are free, so the player can walk off the map's edges.
 - Only DEFAULT map mode has been exercised; CLAMP and WRAP wait for more maps.
 - Chests, doors, saves and spawn-from-entrance are stubbed (`src/game/stubs.odin`); Grove spawns the player at its intro point.
 - Holding a direction can pause for one frame between steps.
