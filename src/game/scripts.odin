@@ -44,8 +44,8 @@ broken_trap_button :: proc(self: engine.Entity_Id) {
 	blink_alarm(self, "missing_alarm")
 }
 
-blink_alarm :: proc(button: engine.Entity_Id, light_name: string) {
-	light := engine.find(light_name)
+blink_alarm :: proc(button: engine.Entity_Id, light_name: string, loc := #caller_location) {
+	light := engine.find(light_name, loc)
 	if !engine.entity_alive(light) do return // find already logged a warning
 
 	engine.set_scale(button, {1, 0.4})
