@@ -8,9 +8,9 @@ python src/build_tools/process_sprites.py
 mkdir -p build
 
 case "${1:-run}" in
-	run)     odin run   src -debug -vet -out:build/arglebargle ;;
-	build)   odin build src -debug -vet -out:build/arglebargle ;;
-	release) odin build src -o:speed -vet -out:build/arglebargle ;;
+	run)     odin run   src -debug -vet -out:build/odin-jrpg ;;
+	build)   odin build src -debug -vet -out:build/odin-jrpg ;;
+	release) odin build src -o:speed -vet -out:build/odin-jrpg ;;
 	# The engine keeps its state in package globals, so tests must run one at a time.
 	test)    odin test  src/engine -debug -vet -define:ODIN_TEST_THREADS=1 -out:build/engine_test ;;
 	*)       echo "unknown target: $1" >&2; exit 1 ;;

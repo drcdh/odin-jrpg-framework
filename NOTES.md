@@ -1,4 +1,4 @@
-# arglebargle: development notes
+# odin-jrpg-framework: development notes
 
 A 2D game engine written in Odin with `vendor:raylib`. It uses only Odin `core:` and `vendor:` packages.
 
@@ -22,7 +22,7 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 
 ```sh
 ./build.sh          # run the demo (debug)
-./build.sh build    # debug build  -> build/arglebargle
+./build.sh build    # debug build  -> build/odin-jrpg
 ./build.sh release  # optimized build
 ./build.sh test     # headless engine tests (ODIN_TEST_THREADS=1, because engine state is global)
 ```

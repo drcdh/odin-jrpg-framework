@@ -25,7 +25,7 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(1280, 720, "arglebargle")
+	rl.InitWindow(1280, 720, "Odin JRPG")
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
