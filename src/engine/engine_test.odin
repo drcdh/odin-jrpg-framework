@@ -306,6 +306,37 @@ script_drives_entity_found_by_name :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(light).sprite.tint, rl.BLACK)
 }
 
+@(test)
+flash_screen_fades_out :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) {
+		flash_screen({255, 0, 0, 200}, 0.25)
+		resumed_at = world.clock.time
+	})
+	run_for(FRAME)
+	testing.expect_value(t, world.flash.color, rl.Color{255, 0, 0, 200})
+	expect_near(t, world.flash.alpha, 200)
+	run_for(0.1)
+	testing.expect(t, world.flash.alpha > 0 && world.flash.alpha < 200)
+	run_for(0.25)
+	expect_near(t, world.flash.alpha, 0)
+	testing.expectf(t, resumed_at >= 0.25, "resumed at %v", resumed_at)
+}
+
+@(test)
+new_flash_replaces_old :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	a := tween_flash(rl.RED, 1)
+	run_for(0.5)
+	b := tween_flash(rl.BLUE, 0.25)
+	testing.expect(t, tween_done(a))
+	testing.expect_value(t, world.flash.color, rl.BLUE)
+	expect_near(t, world.flash.alpha, 255)
+	run_for(0.3)
+	testing.expect(t, tween_done(b))
+	expect_near(t, world.flash.alpha, 0)
+}
+
 @(private = "file") trigger_count: int
 
 @(private = "file")

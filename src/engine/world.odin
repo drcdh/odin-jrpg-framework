@@ -14,6 +14,7 @@ World :: struct {
 	textures:        [dynamic]rl.Texture2D,
 	clock:           Clock,
 	camera:          rl.Camera2D,
+	flash:           Screen_Flash,
 	player:          Entity_Id,
 	debug_overlay:   bool,
 }

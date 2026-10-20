@@ -64,6 +64,12 @@ setup :: proc() {
 		trigger = {script = broken_trap_button},
 	})
 	engine.spawn_entity({
+		name    = "flasher",
+		tile    = {6, 8},
+		sprite  = engine.sprite_rect({12, 12}, rl.MAGENTA),
+		trigger = {script = flash_random},
+	})
+	engine.spawn_entity({
 		name   = "alarm_light",
 		tile   = {19, 0},
 		sprite = engine.sprite_rect({10, 10}, ALARM_OFF),

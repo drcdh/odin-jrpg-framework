@@ -95,6 +95,11 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, loc := #c
 	return true
 }
 
+// Flashes the whole screen and blocks until the flash has faded out.
+flash_screen :: proc(color: rl.Color, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	return wait_tween(tween_flash(color, duration, easing), loc)
+}
+
 tint_to :: proc(id: Entity_Id, tint: rl.Color, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
 	return wait_tween(tween_tint(id, tint, duration, easing), loc)
 }

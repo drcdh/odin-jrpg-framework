@@ -1,5 +1,6 @@
 package game
 
+import "core:math/rand"
 import rl "vendor:raylib"
 import "../engine"
 
@@ -57,6 +58,12 @@ blink_alarm :: proc(button: engine.Entity_Id, light_name: string, loc := #caller
 	}
 	engine.set_tint(light, ALARM_OFF)
 	engine.scale_to(button, {1, 1}, 0.2, .Back_Out)
+}
+
+// Flashes the screen a random bright color for a quarter second.
+flash_random :: proc(self: engine.Entity_Id) {
+	color := rl.ColorFromHSV(rand.float32_range(0, 360), 0.8, 1)
+	engine.flash_screen(color, 0.25)
 }
 
 vanish :: proc(self: engine.Entity_Id) {
