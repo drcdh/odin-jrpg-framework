@@ -2,6 +2,7 @@ package engine
 
 import hm "core:container/handle_map"
 import "core:math"
+import "core:slice"
 import "core:testing"
 import rl "vendor:raylib"
 
@@ -363,6 +364,26 @@ directional_sprite_picks_frame_by_facing :: proc(t: ^testing.T) {
 	testing.expect_value(t, sprite_src(s, .Right).x, 48)
 	s.directional = false
 	testing.expect_value(t, sprite_src(s, .Right).x, 0)
+}
+
+@(private = "file") test_route := [?]Tile{{0, 0}, {2, 0}, {2, 1}, {0, 1}}
+
+@(test)
+walk_route_loops_back_to_start :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({tile = test_route[0]})
+	s := spawn(proc(self: Entity_Id) { walk_route(self, test_route[:], 0.1, pause_between = 0.05) }, e)
+
+	visited := make([dynamic]Tile, context.temp_allocator)
+	append(&visited, entity_tile(e))
+	for frame := 0; script_alive(s) && frame < 500; frame += 1 {
+		run_for(FRAME)
+		if tile := entity_tile(e); tile != visited[len(visited) - 1] do append(&visited, tile)
+	}
+	want := []Tile{{0, 0}, {1, 0}, {2, 0}, {2, 1}, {1, 1}, {0, 1}, {0, 0}}
+	testing.expect(t, !script_alive(s), "walk_route should finish one lap")
+	testing.expectf(t, slice.equal(visited[:], want), "visited %v", visited[:])
+	testing.expect_value(t, entity_get(e).facing, Direction.Up) // last leg goes up
 }
 
 @(private = "file") trigger_count: int

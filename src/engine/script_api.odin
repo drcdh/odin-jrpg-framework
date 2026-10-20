@@ -104,6 +104,21 @@ flash_screen :: proc(color: rl.Color, duration: f32, easing := Ease.Linear, loc 
 	return wait_tween(tween_flash(color, duration, easing), loc)
 }
 
+// Walks the closed loop route[0] → route[1] → … → route[0] once, tile by tile.
+// Adjacent vertices must differ in only one dimension, so every leg is a
+// straight line. The entity should start on route[0]. `pause_between` waits
+// between tiles and at each corner, but not after the final tile.
+walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+	assert(len(route) >= 2, "a route needs at least two vertices", loc)
+	for i in 0..<len(route) {
+		from, to := route[i], route[(i + 1) % len(route)]
+		assert(from.x == to.x || from.y == to.y, "route legs must be straight: adjacent vertices may differ in x or y, not both", loc)
+		if i > 0 && pause_between > 0 && !pause(pause_between, loc) do return false
+		if !walk_entity(id, to - entity_tile(id), seconds_per_tile, pause_between, loc) do return false
+	}
+	return true
+}
+
 tint_to :: proc(id: Entity_Id, tint: rl.Color, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
 	return wait_tween(tween_tint(id, tint, duration, easing), loc)
 }

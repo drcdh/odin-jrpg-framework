@@ -27,6 +27,21 @@ patrol :: proc(self: engine.Entity_Id) {
 	}
 }
 
+// Corners of the route patroller's loop. Adjacent vertices (and the last and
+// first) differ in only one dimension.
+PATROL_ROUTE := [?]engine.Tile{{15, 1}, {18, 1}, {18, 4}, {17, 4}, {17, 7}, {15, 7}}
+
+// Loops the route forever with the same rhythm as `patrol`: a tile every
+// 0.4 s with a 0.25 s pause between moves, corners included.
+patrol_route :: proc(self: engine.Entity_Id) {
+	STEP  :: 0.4
+	PAUSE :: 0.25
+	for {
+		engine.walk_route(self, PATROL_ROUTE[:], STEP, PAUSE) or_break
+		engine.pause(PAUSE) or_break
+	}
+}
+
 // Runs alongside `patrol` on the same entity; it only touches rotation and scale.
 spin :: proc(self: engine.Entity_Id) {
 	turn := engine.tween_by(self, .Rotation, {360, 0, 0, 0}, 1, .Back_Out)

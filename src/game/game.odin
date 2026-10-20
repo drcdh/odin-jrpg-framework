@@ -41,6 +41,14 @@ setup :: proc() {
 	})
 	engine.spawn(patrol, patroller, "patrol")
 
+	route_patroller := engine.spawn_entity({
+		name    = "route patroller",
+		tile    = PATROL_ROUTE[0],
+		sprite  = engine.sprite_directional(make_patroller_sheet(rl.LIME)),
+		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
+	})
+	engine.spawn(patrol_route, route_patroller, "patrol route")
+
 	chest := engine.spawn_entity({
 		name    = "chest",
 		tile    = {16, 5},
@@ -79,14 +87,14 @@ setup :: proc() {
 // Placeholder art until there's a real sheet: four 16x16 frames in Direction
 // order (Down, Up, Left, Right). Eyes show which way it faces; from behind
 // there are none. A PNG in the same layout can replace this.
-make_patroller_sheet :: proc() -> engine.Texture_Id {
+make_patroller_sheet :: proc(body := rl.SKYBLUE) -> engine.Texture_Id {
 	F :: engine.TILE_SIZE
 	img := rl.GenImageColor(F * len(engine.Direction), F, rl.BLANK)
 	defer rl.UnloadImage(img)
 	EYE :: rl.Color{20, 30, 60, 255}
 	for dir in engine.Direction {
 		x := i32(dir) * F
-		rl.ImageDrawRectangle(&img, x + 1, 1, 14, 14, rl.SKYBLUE)
+		rl.ImageDrawRectangle(&img, x + 1, 1, 14, 14, body)
 		switch dir {
 		case .Down:
 			rl.ImageDrawRectangle(&img, x + 4, 8, 2, 3, EYE)

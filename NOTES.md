@@ -45,7 +45,7 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/effects.odin` | Screen flash overlay |
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 26 headless tests |
+| `src/engine/engine_test.odin` | 27 headless tests |
 | `src/game/` | Demo scene setup, player input, example scripts |
 
 ## Key design decisions
@@ -54,6 +54,7 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 - Tiles are 16 px square (`TILE_SIZE`). World units are native pixels, and a `rl.Camera2D` at `ZOOM = 4` scales them up. The 1280x720 window shows 20 x 11.25 tiles, with the camera fixed at the origin.
 - Each entity has `tile` (its logical cell) and `pos` (its visual position, in pixels). `spawn_entity` places `pos` at `tile_center(tile)`.
 - Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn. Its optional `pause_between` waits between tiles, but not after the last one.
+- `walk_route(id, route, seconds_per_tile, pause_between)` walks a closed loop of corner tiles once: `route[0]`, `route[1]`, and so on, back to `route[0]`. Adjacent corners, including last to first, must differ only in x or only in y (this is asserted), so each leg is a straight `walk_entity`. With `pause_between` it also pauses at each corner, but not after the final tile. The entity should start on `route[0]`; loop the call to patrol forever.
 - Raw `.Pos` tweens are for visual effects only and don't change `tile`.
 - Entities have a `facing` direction. For the player, it's the direction they last tried to move.
 - The player moves in smooth tile steps (`STEP_TIME` 0.15 s). Input is read only between steps.
@@ -91,7 +92,7 @@ Rules for script bodies: no raylib GPU or draw calls (the GL context belongs to 
 ### Directional sprites
 A sprite marked `directional` uses a sheet of four equal frames side by side, in `Direction` order: Down, Up, Left, Right. Drawing shows the frame that matches the entity's `facing`, chosen by `sprite_src(sprite, facing)`. To create one, call `sprite_directional(texture)`, which sets each frame's width to a quarter of the sheet.
 
-Demo: the patroller's sheet is placeholder art drawn in code by `make_patroller_sheet()` in `src/game/game.odin`. A PNG with the same layout can replace it. The patroller visibly turns at each end of its patrol, and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds.
+Demo: the patrollers' sheets are placeholder art drawn in code by `make_patroller_sheet(body_color)` in `src/game/game.odin`. A PNG with the same layout can replace it. The patroller visibly turns at each end of its patrol, and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds. A second, lime-green patroller loops `PATROL_ROUTE` (in `src/game/scripts.odin`) with `walk_route` at the same pace, pausing at corners and between laps.
 
 ### Screen flash
 `flash_screen(color, duration)` covers the screen with `color` and fades it out over `duration`.
@@ -117,6 +118,7 @@ Demo: talking to the magenta "flasher" flashes a random bright color for 0.25 s.
 Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), directional sprites, screen flash, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
+- `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - No movement collisions; the camera doesn't follow the player.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.
