@@ -1,52 +1,52 @@
 package engine
 
 import hm "core:container/handle_map"
-import "core:math/linalg"
 
 Trigger_Mode :: enum u8 {
-	On_Enter, // every time the player enters the radius
+	Repeat,   // every time it's talked to
 	Once,     // only the first time
-	Cooldown, // on enter, at most once per `cooldown` seconds
+	Cooldown, // at most once per `cooldown` seconds
 }
 
-// Runs `script` on the owning entity when the player walks into `radius`.
+// Runs `script` on the owning entity when another entity talks to it (see interact).
 // A trigger never runs its script twice at once.
 Trigger :: struct {
-	script:     Script_Proc, // nil = no trigger
-	radius:     f32,
-	mode:       Trigger_Mode,
-	cooldown:   f32,
+	script:   Script_Proc, // nil = no trigger
+	mode:     Trigger_Mode,
+	cooldown: f32,
 
-	was_inside: bool,
-	fired:      bool,
-	ready_at:   f64,
-	running:    Script_Id,
+	fired:    bool,
+	ready_at: f64,
+	running:  Script_Id,
 }
 
-triggers_update :: proc() {
-	player, ok := entity_get(world.player)
-	if !ok do return
-	ppos := player.pos
+// `actor` talks to whatever is on the tile it faces. The first entity there
+// with a trigger turns to face the actor and starts its script. Returns
+// whether a script started.
+interact :: proc(actor: Entity_Id) -> bool {
+	a, ok := entity_get(actor)
+	if !ok do return false
+	target := a.tile + dir_vec(a.facing)
+	facing := dir_opposite(a.facing)
 
 	it := hm.iterator_make(&world.entities)
 	for e, h in hm.iterate(&it) {
 		tr := &e.trigger
-		if tr.script == nil || h == world.player do continue
+		if h == actor || e.tile != target || tr.script == nil do continue
 
-		inside := linalg.distance(ppos, e.pos) <= tr.radius
-		entered := inside && !tr.was_inside
-		tr.was_inside = inside
-		if !entered || script_alive(tr.running) do continue
-
+		if script_alive(tr.running) do return false
 		switch tr.mode {
-		case .On_Enter:
+		case .Repeat:
 		case .Once:
-			if tr.fired do continue
+			if tr.fired do return false
 		case .Cooldown:
-			if world.clock.time < tr.ready_at do continue
+			if world.clock.time < tr.ready_at do return false
 		}
 		tr.fired = true
 		tr.ready_at = world.clock.time + f64(tr.cooldown)
+		e.facing = facing
 		tr.running = spawn(tr.script, h, e.name)
+		return true
 	}
+	return false
 }

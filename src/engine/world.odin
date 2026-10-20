@@ -13,6 +13,7 @@ World :: struct {
 	pending_destroy: [dynamic]Entity_Id,
 	textures:        [dynamic]rl.Texture2D,
 	clock:           Clock,
+	camera:          rl.Camera2D,
 	player:          Entity_Id,
 	debug_overlay:   bool,
 }
@@ -27,6 +28,7 @@ init :: proc(allocator := context.allocator) {
 	world.pending_destroy = make([dynamic]Entity_Id, allocator)
 	world.textures        = make([dynamic]rl.Texture2D, allocator)
 	world.clock.time_scale = 1
+	world.camera.zoom = ZOOM
 }
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
@@ -44,13 +46,13 @@ shutdown :: proc() {
 
 // One simulation step. Call after clock_advance and the game's own input/update code.
 update :: proc() {
-	triggers_update()
 	tweens_update(world.clock.dt)
 	scripts_update()
 	entities_flush_destroyed()
 }
 
 player     :: proc() -> Entity_Id { return world.player }
+camera     :: proc() -> rl.Camera2D { return world.camera }
 set_player :: proc(id: Entity_Id) { world.player = id }
 
 toggle_debug :: proc() { world.debug_overlay = !world.debug_overlay }

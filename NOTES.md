@@ -10,7 +10,7 @@ Entity scripts are plain Odin procedures written in a blocking style. They run a
 glide_away :: proc(self: engine.Entity_Id) {
 	player := engine.player()
 	engine.set_tint(player, rl.RED)                              // immediate
-	engine.move_entity(self, {120, 0}, 1.5, .Quadratic_In_Out)   // blocks until arrival
+	engine.move_entity(self, {4, 0}, 1.0, .Quadratic_In_Out)     // 4 tiles; blocks until arrival
 	engine.pause(2)                                              // blocks for 2 game seconds
 	engine.set_tint(player, rl.WHITE)
 }
@@ -27,7 +27,7 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 ./build.sh test     # headless engine tests (ODIN_TEST_THREADS=1, because engine state is global)
 ```
 
-Demo controls: WASD or the arrow keys move the player. F1 toggles the debug overlay, which shows trigger radii and each live script's wait state.
+Demo controls: WASD or the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state.
 
 ## Layout
 
@@ -41,12 +41,28 @@ Demo controls: WASD or the arrow keys move the player. F1 toggles the debug over
 | `src/engine/tween.odin` | Tweens over `[4]f32` lanes, easing from `core:math/ease` |
 | `src/engine/script.odin` | Script runtime (thread handoff) |
 | `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
-| `src/engine/trigger.odin` | Proximity triggers that spawn scripts |
+| `src/engine/grid.odin` | Tile size, zoom, `Tile`, `Direction`, tile/world conversions |
+| `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 17 headless tests |
+| `src/engine/engine_test.odin` | 22 headless tests |
 | `src/game/` | Demo scene setup, player input, example scripts |
 
 ## Key design decisions
+
+### Tile grid
+- Tiles are 16 px square (`TILE_SIZE`). World units are native pixels, and a `rl.Camera2D` at `ZOOM = 4` scales them up. The 1280x720 window shows 20 x 11.25 tiles, with the camera fixed at the origin.
+- Each entity has `tile` (its logical cell) and `pos` (its visual position, in pixels). `spawn_entity` places `pos` at `tile_center(tile)`.
+- Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn.
+- Raw `.Pos` tweens are for visual effects only and don't change `tile`.
+- Entities have a `facing` direction. For the player, it's the direction they last tried to move.
+- The player moves in smooth tile steps (`STEP_TIME` 0.15 s). Input is read only between steps.
+- There are no movement collisions yet: entities can share a tile.
+
+### Talk triggers
+Pressing Z calls `engine.interact(player)`. The first entity on the tile the player faces that has a trigger turns to face the player and runs its script.
+- A trigger never runs its script twice at once.
+- `Trigger_Mode` is `Repeat`, `Once` or `Cooldown`.
+- The engine itself doesn't read input; the game decides when to call `interact`.
 
 ### Handles, never pointers
 Entities, tweens and scripts each live in a `hm.Dynamic_Handle_Map` (`Entity_Id`, `Tween_Id` and `Script_Id` are `distinct hm.Handle32`). A zero handle means "none". Code keeps only handles. An `^Entity` from `entity_get` is valid only for the current scope and must never be held across a script yield.
@@ -73,18 +89,19 @@ Rules for script bodies: no raylib GPU or draw calls (the GL context belongs to 
 
 ### Frame order
 1. `clock_advance`
-2. game input / update
-3. triggers
-4. tweens
-5. scripts
-6. flush destroyed entities
-7. draw
+2. game input / update (player steps, Z → `interact`)
+3. tweens
+4. scripts
+5. flush destroyed entities
+6. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then the HUD in screen space.
 
 ## Status
 
-Done: entity handle map, sprites, player movement, tween system, script runtime, blocking verbs, triggers (`On_Enter`, `Once`, `Cooldown`), deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
+- No movement collisions; the camera doesn't follow the player.
+- Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.
 - `Handle32` has a 16-bit generation counter, so a slot's generation wraps after 65,536 reuses. Switch to `Handle64` if tween churn gets that high.
 - Overlapping properties (`.Pos` vs `.Pos_X`) aren't detected as conflicting. Two scripts tweening the same property cut each other off, and the cut-off script's wait returns `true`.

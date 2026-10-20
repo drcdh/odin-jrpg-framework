@@ -7,18 +7,18 @@ import "../engine"
 glide_away :: proc(self: engine.Entity_Id) {
 	player := engine.player()
 	engine.set_tint(player, rl.RED)
-	engine.move_entity(self, {120, 0}, 1.5, .Quadratic_In_Out)
+	engine.move_entity(self, {4, 0}, 1.0, .Quadratic_In_Out)
 	engine.pause(2)
 	engine.set_tint(player, rl.WHITE)
-	engine.move_entity(self, {-120, 0}, 0.5, .Cubic_Out)
+	engine.move_entity(self, {-4, 0}, 0.5, .Cubic_Out)
 }
 
 // Runs for the entity's whole life. The bool results let it stop when cancelled.
 patrol :: proc(self: engine.Entity_Id) {
 	for {
-		engine.move_entity(self, {200, 0}, 2, .Sine_In_Out) or_break
+		engine.walk_entity(self, {5, 0}, 0.4) or_break
 		engine.pause(0.5) or_break
-		engine.move_entity(self, {-200, 0}, 2, .Sine_In_Out) or_break
+		engine.walk_entity(self, {-5, 0}, 0.4) or_break
 		engine.pause(0.5) or_break
 	}
 }

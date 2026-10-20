@@ -9,7 +9,9 @@ Entity_Id :: distinct hm.Handle32
 Entity :: struct {
 	handle:  Entity_Id, // required by the handle map; set by spawn_entity
 	name:    string,
-	pos:     [2]f32,
+	tile:    Tile,      // logical cell; changes as soon as a move starts
+	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
+	facing:  Direction,
 	sprite:  Sprite,
 	trigger: Trigger,
 }
@@ -17,6 +19,8 @@ Entity :: struct {
 // Handles are the only references to keep around. An ^Entity from entity_get
 // must not be held across a script yield or a spawn/destroy.
 spawn_entity :: proc(e: Entity) -> Entity_Id {
+	e := e
+	e.pos = tile_center(e.tile)
 	h, err := hm.add(&world.entities, e)
 	assert(err == nil, "out of memory spawning entity")
 	return h
@@ -44,6 +48,11 @@ find :: proc(name: string, loc := #caller_location) -> Entity_Id {
 
 entity_pos :: proc(id: Entity_Id) -> [2]f32 {
 	if e, ok := entity_get(id); ok do return e.pos
+	return {}
+}
+
+entity_tile :: proc(id: Entity_Id) -> Tile {
+	if e, ok := entity_get(id); ok do return e.tile
 	return {}
 }
 

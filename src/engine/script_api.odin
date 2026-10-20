@@ -1,13 +1,20 @@
 package engine
 
-import "core:math/linalg"
 import rl "vendor:raylib"
 
 // --- Immediate verbs: usable anywhere. Each cancels any tween on the property it sets. ---
 
-set_pos :: proc(id: Entity_Id, pos: [2]f32) {
+// Teleports: sets the logical tile and snaps the sprite onto it.
+set_tile :: proc(id: Entity_Id, tile: Tile) {
 	tween_cancel_target(Entity_Prop{id, .Pos})
-	if e, ok := entity_get(id); ok do e.pos = pos
+	if e, ok := entity_get(id); ok {
+		e.tile = tile
+		e.pos = tile_center(tile)
+	}
+}
+
+set_facing :: proc(id: Entity_Id, dir: Direction) {
+	if e, ok := entity_get(id); ok do e.facing = dir
 }
 
 set_tint :: proc(id: Entity_Id, tint: rl.Color) {
@@ -60,17 +67,32 @@ wait_until :: proc(pred: proc(data: rawptr) -> bool, data: rawptr = nil, loc := 
 	return yield_until(Wait_Pred{pred, data}, loc)
 }
 
-move_entity :: proc(id: Entity_Id, delta: [2]f32, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
-	return wait_tween(tween_by(id, .Pos, {delta.x, delta.y, 0, 0}, duration, easing), loc)
+// One slide of `delta` tiles. The logical tile jumps to the destination at the
+// start, so for long moves prefer walk_entity.
+move_entity :: proc(id: Entity_Id, delta: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	return wait_tween(tween_to_tile(id, entity_tile(id) + delta, duration, easing), loc)
 }
 
-move_entity_to :: proc(id: Entity_Id, to: [2]f32, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
-	return wait_tween(tween_pos(id, to, duration, easing), loc)
+move_entity_to :: proc(id: Entity_Id, to: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	return wait_tween(tween_to_tile(id, to, duration, easing), loc)
 }
 
-move_entity_at_speed :: proc(id: Entity_Id, delta: [2]f32, speed: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
-	duration := linalg.length(delta) / speed if speed > 0 else 0
-	return move_entity(id, delta, duration, easing, loc)
+// Walks one tile at a time, x first and then y, facing each step's direction.
+// The entity's tile always matches the cell it's drawn in.
+walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, loc := #caller_location) -> bool {
+	for axis in 0..<2 {
+		n := delta[axis]
+		if n == 0 do continue
+		step: Tile
+		step[axis] = 1 if n > 0 else -1
+		dir := Direction.Right if n > 0 else .Left
+		if axis == 1 do dir = .Down if n > 0 else .Up
+		for _ in 0..<abs(n) {
+			set_facing(id, dir)
+			if !wait_tween(tween_to_tile(id, entity_tile(id) + step, seconds_per_tile), loc) do return false
+		}
+	}
+	return true
 }
 
 tint_to :: proc(id: Entity_Id, tint: rl.Color, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {

@@ -92,6 +92,14 @@ tween_pos :: proc(id: Entity_Id, to: [2]f32, duration: f32, easing := Ease.Linea
 	return tween_to(id, .Pos, {to.x, to.y, 0, 0}, duration, easing, mode, delay)
 }
 
+// Grid move: the logical tile changes immediately and the sprite slides after it.
+tween_to_tile :: proc(id: Entity_Id, tile: Tile, duration: f32, easing := Ease.Linear) -> Tween_Id {
+	e, ok := entity_get(id)
+	if !ok do return {}
+	e.tile = tile
+	return tween_pos(id, tile_center(tile), duration, easing)
+}
+
 tween_scale :: proc(id: Entity_Id, to: [2]f32, duration: f32, easing := Ease.Linear, mode := Tween_Mode.Once, delay: f32 = 0) -> Tween_Id {
 	return tween_to(id, .Scale, {to.x, to.y, 0, 0}, duration, easing, mode, delay)
 }

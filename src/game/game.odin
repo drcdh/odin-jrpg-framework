@@ -1,84 +1,117 @@
 package game
 
-import "core:math/linalg"
 import rl "vendor:raylib"
 import "../engine"
 
-PLAYER_SPEED :: 180
+STEP_TIME :: 0.15 // seconds per tile
+
+// The player's current step; while it runs, input is ignored.
+player_step: engine.Tween_Id
 
 setup :: proc() {
-	img := rl.GenImageChecked(24, 24, 6, 6, rl.ORANGE, rl.BROWN)
+	img := rl.GenImageChecked(16, 16, 4, 4, rl.ORANGE, rl.BROWN)
 	crate := engine.texture_add(rl.LoadTextureFromImage(img))
 	rl.UnloadImage(img)
 
 	player := engine.spawn_entity({
 		name   = "player",
-		pos    = {480, 400},
-		sprite = engine.sprite_rect({24, 24}, rl.WHITE, layer = 1),
+		tile   = {10, 8},
+		sprite = engine.sprite_rect({14, 14}, rl.WHITE, layer = 1),
 	})
 	engine.set_player(player)
 
 	engine.spawn_entity({
 		name    = "glider",
-		pos     = {200, 200},
+		tile    = {3, 3},
 		sprite  = engine.sprite_from_texture(crate),
-		trigger = {script = glide_away, radius = 60},
+		trigger = {script = glide_away},
 	})
 	engine.spawn_entity({
 		name    = "glider 2",
-		pos     = {200, 330},
+		tile    = {3, 5},
 		sprite  = engine.sprite_from_texture(crate),
-		trigger = {script = glide_away, radius = 60},
+		trigger = {script = glide_away},
 	})
 
 	patroller := engine.spawn_entity({
 		name    = "patroller",
-		pos     = {560, 150},
-		sprite  = engine.sprite_rect({28, 28}, rl.SKYBLUE),
-		trigger = {script = spin, radius = 50, mode = .Cooldown, cooldown = 1},
+		tile    = {8, 2},
+		sprite  = engine.sprite_rect({14, 14}, rl.SKYBLUE),
+		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
 	})
 	engine.spawn(patrol, patroller, "patrol")
 
 	chest := engine.spawn_entity({
 		name    = "chest",
-		pos     = {760, 330},
-		sprite  = engine.sprite_rect({20, 16}, rl.GOLD),
-		trigger = {script = vanish, radius = 40, mode = .Once},
+		tile    = {16, 5},
+		sprite  = engine.sprite_rect({12, 10}, rl.GOLD),
+		trigger = {script = vanish, mode = .Once},
 	})
 	// A plain tween started from game code, no script involved.
-	engine.tween_by(chest, .Pos_Y, {-6, 0, 0, 0}, 0.6, .Sine_In_Out, .Ping_Pong)
+	engine.tween_by(chest, .Pos_Y, {-2, 0, 0, 0}, 0.6, .Sine_In_Out, .Ping_Pong)
 
 	// The button's script finds the light by name.
 	engine.spawn_entity({
 		name    = "trap button",
-		pos     = {640, 460},
-		sprite  = engine.sprite_rect({22, 10}, rl.GRAY),
-		trigger = {script = trap_button, radius = 18},
+		tile    = {12, 9},
+		sprite  = engine.sprite_rect({12, 6}, rl.GRAY),
+		trigger = {script = trap_button},
 	})
 	engine.spawn_entity({
 		name    = "broken trap button",
-		pos     = {760, 460},
-		sprite  = engine.sprite_rect({22, 10}, rl.GRAY),
-		trigger = {script = broken_trap_button, radius = 18},
+		tile    = {14, 9},
+		sprite  = engine.sprite_rect({12, 6}, rl.GRAY),
+		trigger = {script = broken_trap_button},
 	})
 	engine.spawn_entity({
 		name   = "alarm_light",
-		pos    = {900, 50},
-		sprite = engine.sprite_rect({18, 18}, ALARM_OFF),
+		tile   = {19, 0},
+		sprite = engine.sprite_rect({10, 10}, ALARM_OFF),
 	})
 }
 
 update :: proc() {
 	if rl.IsKeyPressed(.F1) do engine.toggle_debug()
 
-	dir: [2]f32
-	if rl.IsKeyDown(.LEFT)  || rl.IsKeyDown(.A) do dir.x -= 1
-	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) do dir.x += 1
-	if rl.IsKeyDown(.UP)    || rl.IsKeyDown(.W) do dir.y -= 1
-	if rl.IsKeyDown(.DOWN)  || rl.IsKeyDown(.S) do dir.y += 1
-	if dir != 0 do dir = linalg.normalize(dir)
+	player := engine.player()
+	if !engine.tween_done(player_step) do return
 
-	if p, ok := engine.entity_get(engine.player()); ok {
-		p.pos += dir * PLAYER_SPEED * engine.dt()
+	if dir, held := held_direction(); held {
+		// Facing is the direction the player last tried to move.
+		engine.set_facing(player, dir)
+		player_step = engine.tween_to_tile(player, engine.entity_tile(player) + engine.dir_vec(dir), STEP_TIME)
+	} else if rl.IsKeyPressed(.Z) {
+		engine.interact(player)
 	}
+}
+
+// First held direction in a fixed order.
+held_direction :: proc() -> (engine.Direction, bool) {
+	if rl.IsKeyDown(.UP)    || rl.IsKeyDown(.W) do return .Up, true
+	if rl.IsKeyDown(.DOWN)  || rl.IsKeyDown(.S) do return .Down, true
+	if rl.IsKeyDown(.LEFT)  || rl.IsKeyDown(.A) do return .Left, true
+	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) do return .Right, true
+	return {}, false
+}
+
+// World space, under the entities: a checkerboard floor covering the view.
+draw_floor :: proc() {
+	cam := engine.camera()
+	cols := i32(f32(rl.GetScreenWidth()) / cam.zoom / engine.TILE_SIZE) + 1
+	rows := i32(f32(rl.GetScreenHeight()) / cam.zoom / engine.TILE_SIZE) + 1
+	for y in 0..<rows {
+		for x in 0..<cols {
+			color := rl.Color{38, 38, 50, 255} if (x + y) % 2 == 0 else rl.Color{44, 44, 58, 255}
+			rl.DrawRectangle(x * engine.TILE_SIZE, y * engine.TILE_SIZE, engine.TILE_SIZE, engine.TILE_SIZE, color)
+		}
+	}
+}
+
+// World space, over the entities: a marker on the player's facing edge (no directional art yet).
+draw_overlay_world :: proc() {
+	p, ok := engine.entity_get(engine.player())
+	if !ok do return
+	d := engine.dir_vec(p.facing)
+	center := p.pos + [2]f32{f32(d.x), f32(d.y)} * 5
+	rl.DrawRectangleV(center - 2, {4, 4}, rl.DARKGRAY)
 }

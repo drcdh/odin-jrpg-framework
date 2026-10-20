@@ -25,7 +25,7 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(960, 540, "arglebargle")
+	rl.InitWindow(1280, 720, "arglebargle")
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
@@ -40,9 +40,14 @@ main :: proc() {
 
 		rl.BeginDrawing()
 		rl.ClearBackground({30, 30, 40, 255})
+		rl.BeginMode2D(engine.camera())
+		game.draw_floor()
 		engine.draw_world()
-		engine.draw_debug()
-		rl.DrawText("WASD / arrows: move    F1: debug overlay", 10, 515, 16, rl.GRAY)
+		game.draw_overlay_world()
+		engine.draw_debug_world()
+		rl.EndMode2D()
+		engine.draw_debug_hud()
+		rl.DrawText("WASD / arrows: move    Z: talk    F1: debug overlay", 10, 695, 16, rl.GRAY)
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)
