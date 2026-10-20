@@ -42,9 +42,10 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/script.odin` | Script runtime (thread handoff) |
 | `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
 | `src/engine/grid.odin` | Tile size, zoom, `Tile`, `Direction`, tile/world conversions |
+| `src/engine/effects.odin` | Screen flash overlay |
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 22 headless tests |
+| `src/engine/engine_test.odin` | 24 headless tests |
 | `src/game/` | Demo scene setup, player input, example scripts |
 
 ## Key design decisions
@@ -87,17 +88,28 @@ Rules for script bodies: no raylib GPU or draw calls (the GL context belongs to 
 - A new tween on the same target replaces the existing one. A tween whose entity is gone ends itself.
 - `tween_done` is true once a tween has finished, been cancelled or replaced, or lost its target.
 
+### Screen flash
+`flash_screen(color, duration)` covers the screen with `color` and fades it out over `duration`.
+- The script waits until the flash has faded.
+- `tween_flash` does the same but returns immediately, for game code or a script that shouldn't wait.
+- The flash starts at the color's own alpha, so pass a lower alpha to keep the scene visible underneath.
+- It runs on game time, so pausing the game pauses a flash.
+- A new flash replaces one already in progress.
+- It's drawn in screen space, after the world and before the debug HUD.
+
+Demo: talking to the magenta "flasher" flashes a random bright color for 0.25 s.
+
 ### Frame order
 1. `clock_advance`
 2. game input / update (player steps, Z → `interact`)
 3. tweens
 4. scripts
 5. flush destroyed entities
-6. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then the HUD in screen space.
+6. draw. Inside `BeginMode2D(camera)`: floor, entities, facing marker, debug world overlay. Then, in screen space, the screen flash and the HUD.
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), screen flash, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - No movement collisions; the camera doesn't follow the player.
