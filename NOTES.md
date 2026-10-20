@@ -37,7 +37,7 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/world.odin` | `World` global state, `init` / `shutdown` / `update` |
 | `src/engine/clock.odin` | Game time: dt clamp (1/20 s), pause, time scale |
 | `src/engine/entity.odin` | `Entity`, stored in `core:container/handle_map`; deferred destroy |
-| `src/engine/sprite.odin` | `Sprite`, texture table, y- and layer-sorted drawing |
+| `src/engine/sprite.odin` | `Sprite` (including directional frames), texture table, y- and layer-sorted drawing |
 | `src/engine/tween.odin` | Tweens over `[4]f32` lanes, easing from `core:math/ease` |
 | `src/engine/script.odin` | Script runtime (thread handoff) |
 | `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
@@ -45,7 +45,7 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 | `src/engine/effects.odin` | Screen flash overlay |
 | `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 24 headless tests |
+| `src/engine/engine_test.odin` | 26 headless tests |
 | `src/game/` | Demo scene setup, player input, example scripts |
 
 ## Key design decisions
@@ -53,7 +53,7 @@ Demo controls: WASD or the arrow keys move the player one tile at a time, and Z 
 ### Tile grid
 - Tiles are 16 px square (`TILE_SIZE`). World units are native pixels, and a `rl.Camera2D` at `ZOOM = 4` scales them up. The 1280x720 window shows 20 x 11.25 tiles, with the camera fixed at the origin.
 - Each entity has `tile` (its logical cell) and `pos` (its visual position, in pixels). `spawn_entity` places `pos` at `tile_center(tile)`.
-- Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn.
+- Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn. Its optional `pause_between` waits between tiles, but not after the last one.
 - Raw `.Pos` tweens are for visual effects only and don't change `tile`.
 - Entities have a `facing` direction. For the player, it's the direction they last tried to move.
 - The player moves in smooth tile steps (`STEP_TIME` 0.15 s). Input is read only between steps.
@@ -88,6 +88,11 @@ Rules for script bodies: no raylib GPU or draw calls (the GL context belongs to 
 - A new tween on the same target replaces the existing one. A tween whose entity is gone ends itself.
 - `tween_done` is true once a tween has finished, been cancelled or replaced, or lost its target.
 
+### Directional sprites
+A sprite marked `directional` uses a sheet of four equal frames side by side, in `Direction` order: Down, Up, Left, Right. Drawing shows the frame that matches the entity's `facing`, chosen by `sprite_src(sprite, facing)`. To create one, call `sprite_directional(texture)`, which sets each frame's width to a quarter of the sheet.
+
+Demo: the patroller's sheet is placeholder art drawn in code by `make_patroller_sheet()` in `src/game/game.odin`. A PNG with the same layout can replace it. The patroller visibly turns at each end of its patrol, and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds.
+
 ### Screen flash
 `flash_screen(color, duration)` covers the screen with `color` and fades it out over `duration`.
 - The script waits until the flash has faded.
@@ -109,7 +114,7 @@ Demo: talking to the magenta "flasher" flashes a random bright color for 0.25 s.
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), screen flash, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), directional sprites, screen flash, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - No movement collisions; the camera doesn't follow the player.

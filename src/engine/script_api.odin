@@ -78,8 +78,10 @@ move_entity_to :: proc(id: Entity_Id, to: Tile, duration: f32, easing := Ease.Li
 }
 
 // Walks one tile at a time, x first and then y, facing each step's direction.
-// The entity's tile always matches the cell it's drawn in.
-walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, loc := #caller_location) -> bool {
+// The entity's tile always matches the cell it's drawn in. `pause_between`
+// waits that long between tiles (not after the last one).
+walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+	first := true
 	for axis in 0..<2 {
 		n := delta[axis]
 		if n == 0 do continue
@@ -88,6 +90,8 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, loc := #c
 		dir := Direction.Right if n > 0 else .Left
 		if axis == 1 do dir = .Down if n > 0 else .Up
 		for _ in 0..<abs(n) {
+			if !first && pause_between > 0 && !pause(pause_between, loc) do return false
+			first = false
 			set_facing(id, dir)
 			if !wait_tween(tween_to_tile(id, entity_tile(id) + step, seconds_per_tile), loc) do return false
 		}

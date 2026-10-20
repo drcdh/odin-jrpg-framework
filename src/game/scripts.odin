@@ -14,13 +14,16 @@ glide_away :: proc(self: engine.Entity_Id) {
 	engine.move_entity(self, {-4, 0}, 0.5, .Cubic_Out)
 }
 
-// Runs for the entity's whole life. The bool results let it stop when cancelled.
+// Runs for the entity's whole life. Steps a tile, waits 0.25 s, steps again,
+// including at the turnarounds. The bool results let it stop when cancelled.
 patrol :: proc(self: engine.Entity_Id) {
+	STEP  :: 0.4
+	PAUSE :: 0.25
 	for {
-		engine.walk_entity(self, {5, 0}, 0.4) or_break
-		engine.pause(0.5) or_break
-		engine.walk_entity(self, {-5, 0}, 0.4) or_break
-		engine.pause(0.5) or_break
+		engine.walk_entity(self, {5, 0}, STEP, PAUSE) or_break
+		engine.pause(PAUSE) or_break
+		engine.walk_entity(self, {-5, 0}, STEP, PAUSE) or_break
+		engine.pause(PAUSE) or_break
 	}
 }
 

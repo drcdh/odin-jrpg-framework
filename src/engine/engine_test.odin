@@ -337,6 +337,34 @@ new_flash_replaces_old :: proc(t: ^testing.T) {
 	expect_near(t, world.flash.alpha, 0)
 }
 
+@(test)
+walk_entity_pauses_between_tiles :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({tile = {0, 0}})
+	s := spawn(proc(self: Entity_Id) { walk_entity(self, {2, 0}, 0.2, pause_between = 0.25) }, e)
+
+	// Step 1 runs ~0.02-0.22, then it rests until ~0.47; step 2 runs ~0.47-0.67.
+	run_for(0.35)
+	testing.expect_value(t, entity_tile(e), Tile{1, 0})
+	testing.expect_value(t, entity_pos(e), tile_center({1, 0}))
+	run_for(0.2)
+	testing.expect_value(t, entity_tile(e), Tile{2, 0})
+	run_for(0.2)
+	testing.expect(t, !script_alive(s), "no pause after the last tile")
+	testing.expect_value(t, entity_pos(e), tile_center({2, 0}))
+}
+
+@(test)
+directional_sprite_picks_frame_by_facing :: proc(t: ^testing.T) {
+	s := Sprite{src = {0, 0, 16, 16}, directional = true}
+	testing.expect_value(t, sprite_src(s, .Down).x, 0)
+	testing.expect_value(t, sprite_src(s, .Up).x, 16)
+	testing.expect_value(t, sprite_src(s, .Left).x, 32)
+	testing.expect_value(t, sprite_src(s, .Right).x, 48)
+	s.directional = false
+	testing.expect_value(t, sprite_src(s, .Right).x, 0)
+}
+
 @(private = "file") trigger_count: int
 
 @(private = "file")
