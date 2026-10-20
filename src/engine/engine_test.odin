@@ -635,3 +635,114 @@ interact_once_and_cooldown :: proc(t: ^testing.T) {
 	run_for(FRAME)
 	testing.expect_value(t, trigger_count, 21)
 }
+
+// --- Maps, camera, levels ---
+
+@(test)
+map_gid_lookup :: proc(t: ^testing.T) {
+	// Two tilesets in Tiled order; the second starts at gid 17.
+	ids := []Tileset_Id{.Tileset_Terrain, .Tileset_Terrain}
+	m := Level_Map{tilesets = ids, firstgids = []int{1, 17}}
+	_, empty := map_gid_tile(m, 0)
+	testing.expect_value(t, empty, -1)
+	_, first := map_gid_tile(m, 1)
+	testing.expect_value(t, first, 0)
+	_, last_of_first := map_gid_tile(m, 16)
+	testing.expect_value(t, last_of_first, 15)
+	_, first_of_second := map_gid_tile(m, 17)
+	testing.expect_value(t, first_of_second, 0)
+	_, later := map_gid_tile(m, 20)
+	testing.expect_value(t, later, 3)
+	_, no_tilesets := map_gid_tile({}, 5)
+	testing.expect_value(t, no_tilesets, -1)
+}
+
+@(test)
+map_contains_edges :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {20, 10}})
+	testing.expect(t, map_contains({0, 0}))
+	testing.expect(t, map_contains({19, 9}))
+	testing.expect(t, !map_contains({20, 9}))
+	testing.expect(t, !map_contains({19, 10}))
+	testing.expect(t, !map_contains({-1, 0}))
+}
+
+@(test)
+map_render_headless_is_noop :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {2, 2}, tilesets = []Tileset_Id{.Tileset_Terrain}, firstgids = []int{1}})
+	begin_map_render()
+	draw_map_tile(1, 0, 0)
+	end_map_render()
+	testing.expect_value(t, world.level_map.rt.id, 0)
+}
+
+@(test)
+camera_follows_tweened_pos :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	SCREEN :: [2]f32{320, 192} // 80x48 world pixels at ZOOM 4
+	p := spawn_entity({tile = {5, 5}})
+	camera_follow(p)
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, tile_center({5, 5}))
+	testing.expect_value(t, world.camera.offset, SCREEN / 2)
+
+	tween_to_tile(p, {6, 5}, 1)
+	run_for(0.5)
+	camera_update(SCREEN)
+	testing.expect(t, world.camera.target.x > tile_center({5, 5}).x && world.camera.target.x < tile_center({6, 5}).x,
+		"camera between tiles mid-step")
+
+	// DEFAULT mode: no clamping past the map edge.
+	set_map({size = {20, 20}})
+	set_tile(p, {0, 0})
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, tile_center({0, 0}))
+}
+
+@(test)
+camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	SCREEN :: [2]f32{320, 192} // half view: 40x24 world pixels
+	p := spawn_entity({tile = {0, 0}})
+	camera_follow(p)
+	set_map({size = {20, 20}}) // 320x320 world pixels
+	set_map_mode(.CLAMP)
+
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, [2]f32{40, 24})
+	set_tile(p, {19, 19})
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, [2]f32{280, 296})
+	set_tile(p, {10, 10})
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, tile_center({10, 10}))
+
+	// A map narrower than the view is centered on that axis.
+	set_map({size = {4, 20}})
+	camera_update(SCREEN)
+	testing.expect_value(t, world.camera.target, [2]f32{32, tile_center({10, 10}).y})
+	testing.expect_value(t, world.level_map.mode, Map_Mode.CLAMP)
+}
+
+@(test)
+clear_level_removes_everything :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	p := spawn_entity({tile = {1, 1}})
+	set_player(p)
+	camera_follow(p)
+	tw := tween_to_tile(p, {2, 1}, 1)
+	s := spawn(proc(_: Entity_Id) { pause(10) }, p, "long")
+	set_map({size = {8, 8}})
+	run_for(FRAME)
+
+	clear_level()
+	testing.expect_value(t, hm.len(world.entities), 0)
+	testing.expect(t, tween_done(tw))
+	run_for(FRAME) // cancelled scripts finish on their next resume
+	testing.expect(t, !script_alive(s))
+	testing.expect_value(t, world.level_map.size, Tile{})
+	testing.expect_value(t, world.player, Entity_Id{})
+	testing.expect_value(t, world.camera_follow, Entity_Id{})
+}

@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 python src/build_tools/process_sprites.py
+python src/build_tools/process_tiled.py
 
 mkdir -p build
 

@@ -41,7 +41,7 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground({30, 30, 40, 255})
 		rl.BeginMode2D(engine.camera())
-		game.draw_floor()
+		engine.draw_map()
 		engine.draw_world()
 		engine.draw_debug_world()
 		rl.EndMode2D()

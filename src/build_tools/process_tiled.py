@@ -1,0 +1,321 @@
+import fnmatch
+import os
+import pathlib
+import subprocess
+import pytiled_parser
+
+from collections import defaultdict
+
+import passable
+
+ROOT = "./assets/tiled"
+TILESETS = "./assets/tilesets"
+DEST = "./src/game"
+
+def orderedpair_to_tile(c):
+	return int(c.x//16), int(c.y//16)
+
+# def tiled_rect_to_rl_rect(obj):
+# 	return "{{ {x}, {y}, {w}, {h} }}".format(x=obj.coordinates.x//16, y=obj.coordinates.y//16, w=obj.size.width//16, h=obj.size.height//16)
+
+def _blarg(x0, y0, c):
+	x, y = orderedpair_to_tile(c)
+	return x0+x, y0+y
+
+def tiled_poly_to_odin_poly(obj):
+	x0, y0 = orderedpair_to_tile(obj.coordinates)
+	l = len(obj.points)
+	return f"[{l}][2]f32{{" + ",".join(["{{ {}, {} }}".format(*_blarg(x0, y0, c)) for c in obj.points]) + "}", l
+
+def is_collectable(obj):
+	return obj.name.startswith("CHEST")
+
+def is_path(obj):
+	return obj.name != "encounter_region" and (isinstance(obj, pytiled_parser.tiled_object.Polygon) or isinstance(obj, pytiled_parser.tiled_object.Polyline))
+
+chest_data = []
+encounter_regions = defaultdict(list)
+encounter_sets = []
+level_enums = []
+referenced_levels = set() # door destinations and sources, which may not have maps yet
+
+def process_tmx(level_name, room_name):
+	tmx_file = pathlib.Path(f"{ROOT}/{level_name}/{room_name}.tmx")
+	# level_name = f"{level_name.lower()}_{room_name}" if room_name != "main" else level_name.lower()
+	# del room_name
+	lr_title = f"{level_name}_{room_name}".title()
+	lr_lower = lr_title.lower()
+	lr_upper = lr_title.upper()
+	level_enums.append(lr_title)
+	prefix = lr_upper + "_"
+
+	level_filename = f"{DEST}/level_{lr_lower}_data.odin"
+	out_f = open(level_filename, "w")
+
+	out_f.write("package game\n")
+	# out_f.write("import \"core:fmt\"\n")
+	out_f.write("import \"../engine\"\n")
+
+	item_entities = []
+	map_layers = []
+	paths = []
+	paths_enum = []
+	egresses = [] # to other levels/rooms
+	entrances = [] # from other levels/rooms
+
+	tmap = pytiled_parser.parse_map(tmx_file)
+
+	tileset_firstgids = tuple((ts.name, ts.firstgid) for ts in tmap.tilesets.values())
+
+	for layer in tmap.layers:
+		if isinstance(layer, pytiled_parser.TileLayer):
+			map_layers.append((layer.name, layer.data))
+		elif isinstance(layer, pytiled_parser.ObjectLayer):
+			for obj in layer.tiled_objects:
+				if is_path(obj):
+					tile_coords = []
+					path = obj.points
+					origin = obj.coordinates
+					for c in path:
+						t = int((c.x + origin.x)//16), int((c.y + origin.y)//16)
+						tile_coords.append(t)
+					paths.append(tile_coords)
+					paths_enum.append(obj.name.title())
+				elif isinstance(obj, pytiled_parser.tiled_object.Point):
+					if is_collectable(obj):
+						item_entities.append(obj)
+					elif obj.name.startswith("DOOR"):
+						_l = obj.properties.get("level")
+						_room = obj.properties.get("room")
+						if not _l and not _room:
+							_l, _room = "overworld", "main"
+						elif not _room:
+							_room = "main"
+						elif not _l:
+							_l = level_name
+						door_lr_enum = ".{}_{}".format(_l, _room)
+						referenced_levels.add(door_lr_enum[1:].title())
+						door_idx = obj.properties["door_idx"]
+						pos = orderedpair_to_tile(obj.coordinates)
+						if "-IN" not in obj.name:
+							egresses.append((door_lr_enum, pos, door_idx, obj.properties["warp"]))
+						if "-OUT" not in obj.name:
+							entrances.append((door_lr_enum, pos, obj.properties.get("eFace"), obj.properties.get("iFace"), obj.properties["iOffset"], door_idx))
+					elif not obj.name.startswith("!"):
+						name = obj.name.upper()
+						pos = orderedpair_to_tile(obj.coordinates)
+						out_f.write(f"{prefix}{name} :: Tile_Coord{{ {pos[0]}, {pos[1]} }}\n")
+				elif isinstance(obj, pytiled_parser.tiled_object.Polygon):
+					if obj.name.startswith("encounter"):
+						encounter_regions[lr_title].append((tiled_poly_to_odin_poly(obj), obj.properties["region"]))
+						encounter_sets.append(obj.properties["region"])
+					else:
+						print(f"ignoring Polygon {obj}")
+				else:
+					print(f"unknown object type {type(obj)}: {obj}")
+		else:
+			print(f"unknown layer type {type(layer)}: {layer}")
+
+	num_layers = len(map_layers)
+	h_tiles = len(map_layers[0][1])
+	w_tiles = len(map_layers[0][1][0])
+
+	out_f.write(f"{prefix}WIDTH :: {w_tiles}\n")
+	out_f.write(f"{prefix}HEIGHT :: {h_tiles}\n")
+
+	out_f.write("@(rodata)\n")
+	out_f.write(f"{prefix}TILESETS := [{len(tileset_firstgids)}]Tileset_Id{{\n")
+	for ts, _ in tileset_firstgids:
+		out_f.write(f"\t.{ts.title()},\n")
+	out_f.write(f"}}\n")
+
+	out_f.write("@(rodata)\n")
+	out_f.write(f"{prefix}FIRSTGIDS := [{len(tileset_firstgids)}]int{{\n")
+	for _, g in tileset_firstgids:
+		out_f.write(f"\t{g},\n")
+	out_f.write(f"}}\n")
+
+	out_f.write("@(rodata)\n")
+	out_f.write(f"{lr_lower}_map := [{num_layers}][{h_tiles}][{w_tiles}]int{{\n")
+	for i, (_, layer_data) in enumerate(map_layers):
+		out_f.write(f"{{")
+		for row in layer_data:
+			out_f.write(f"{{ {str([max(0, r) for r in row])[1:-1]} }},\n")
+		out_f.write("},\n")
+	out_f.write("}\n")
+
+	out_f.write("@(rodata)\n")
+	out_f.write(f"{prefix}PASSABLE := [{h_tiles}][{w_tiles}]u8 ")
+	out_f.write(str(passable.process(map_layers, tileset_firstgids)).replace("[","{").replace("]", "}"))
+	out_f.write("\n")
+
+	out_f.write("@(rodata)\n")
+	out_f.write(f"{prefix}ROUTES := [][]Tile_Coord{{\n")
+	for p in paths:
+		out_f.write("{\n")
+		for t in p:
+			out_f.write(f"{{ {t[0]}, {t[1]} }},\n")
+		out_f.write("},\n")
+	out_f.write("}\n")
+
+	for i, p in enumerate(paths_enum):
+		out_f.write(f"{prefix}{p.upper()} :: {i}\n")
+	out_f.write(f"""
+render_{lr_lower} :: proc() {{
+	engine.begin_map_render()
+	for l in 0..<{num_layers} {{
+		for j in 0..<{h_tiles} {{
+			for i in 0..<{w_tiles} {{
+				engine.draw_map_tile({lr_lower}_map[l][j][i], i, j)
+			}}
+		}}
+	}}
+	engine.end_map_render()
+}}
+""")
+
+	out_f.write(f"""tiled_init_{lr_lower} :: proc() {{
+	// fmt.println(\"Running tiled_init_{lr_lower}\")
+	engine.set_map({{
+		size = {{ {prefix}WIDTH, {prefix}HEIGHT }},
+		tilesets = {prefix}TILESETS[:],
+		firstgids = {prefix}FIRSTGIDS[:],
+		routes = {prefix}ROUTES[:],
+	}})
+	""")
+	for n, item_entity in enumerate(item_entities):
+		datum = f"{lr_title}_{n}"
+		chest_data.append(datum)
+		x, y = orderedpair_to_tile(item_entity.coordinates)
+		encounter = item_entity.properties["encounter"]
+		hidden = item_entity.properties["hidden"]
+		items = item_entity.properties["items"]
+		items = ", " + ", ".join(["."+_s for _s in items.split(",")]) if items else ""
+		script = f"items_in_a_box(id, Chest_Datum.{datum}{items})"
+		v = "" if hidden else f"v = create_sprite_state(.Box, get_game_data(Chest_Datum.{datum}) ? .Opened : .Closed),"
+		ghost = "true" if hidden else "false"
+		if encounter:
+			script = f"monster_in_a_box(id, .{datum}, .{encounter}{items})"
+		out_f.write(f"""\n\tadd_world_entity( Entity{{
+		id = new_id(),
+		ghost = {ghost},
+		tile = {{ {x}, {y} }},
+		n = "chest:{datum}",
+		talk = get_game_data(Chest_Datum.{datum}) ? nil : proc(id: Id) {{ {script} }},
+		{v}
+	}} )""")
+
+	# EGRESSES
+	for n, (destination, pos, i, warp) in enumerate(egresses):
+		x, y = pos
+		proc = f"warp_to_level({destination.title()}, {i})" if warp else f"egress({destination.title()}, {i})"
+		v = "v = create_sprite_state(.Warp)," if warp else ""
+		out_f.write(f"""\n\tadd_world_entity( Entity{{
+		id = new_id(),
+		ghost = true,
+		tile = {{ {x}, {y} }},
+		n = "egress:{n}:{destination}",
+		trap = proc(_, c_id: Id) {{ if c_id == PLAYER_ID {{ {proc} }} }},
+		{v}
+		}} )""")
+
+	out_f.write("}\n")
+
+	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile_Coord, Sprite_Tag) {{\n")
+	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face }\n")
+	# ENTRANCES
+	for n, (lfrom, pos, eFace, iFace, iOffset, i) in enumerate(entrances):
+		x, y = pos
+		stmt = f"if prev_level == {lfrom.title()}"
+		if i >= 0:
+			stmt += f" && prev_level_egress_idx == {i}"
+		if eFace:
+			stmt += f" && prev_level_face == .{eFace.title()}"
+		iFace = iFace or (eFace or "Down")
+		if iOffset:
+			if iFace == "Down":
+				y += 1
+			elif iFace == "Up":
+				y -= 1
+			elif iFace == "Left":
+				x -= 1
+			elif iFace == "Right":
+				x += 1
+		out_f.write(f"{stmt} {{ return {{ {x}, {y} }}, .{iFace.title()} }}\n")
+	out_f.write("panic(\"Don't know where to spawn.\")\n")
+	out_f.write("}")
+
+	out_f.close()
+
+def write_case_proc(f, proc_name):
+		f.write(
+			f"""
+	{proc_name}_level :: proc(l: Level) {{
+	#partial switch l {{
+	""")
+		for lenum in level_enums:
+			lname = lenum.lower()
+			f.write(f"case .{lenum}:\n\t{proc_name}_{lname}()\n")
+		f.write("}\n}\n\n")
+
+def export_tilesets():
+	for file in pathlib.Path(TILESETS).glob("*.ase"):
+		print(f"exporting {file}")
+		subprocess.check_call(["aseprite", "-b", str(file), "--save-as", str(file.with_suffix(".png"))])
+
+def main():
+	export_tilesets()
+	for file in pathlib.Path(ROOT).rglob("*.tmx"):
+		level_name = str(file.parent).split("/")[-1]
+		room_name = str(file.name)[:-4]
+		print(f"processing {level_name}/{room_name}.tmx")
+		process_tmx(level_name, room_name)
+
+	with open(f"{DEST}/level_data.odin", "w") as levels_data_f:
+		levels_data_f.write("package game\n\nLevel :: enum {\n")
+		for lenum in level_enums + sorted(referenced_levels - set(level_enums)):
+			levels_data_f.write(f"\t{lenum},\n")
+		levels_data_f.write("}\n")
+
+		write_case_proc(levels_data_f, "tiled_init")
+		write_case_proc(levels_data_f, "init")
+		write_case_proc(levels_data_f, "render")
+
+		levels_data_f.write("passable :: proc(l: Level, i, j: Tile_T) -> (p: u8) {\n")
+		levels_data_f.write("\t#partial switch l {\n")
+		for l in level_enums:
+			levels_data_f.write(f"\t\tcase .{l}:\n")
+			levels_data_f.write(f"\t\t\tp = {l.upper()}_PASSABLE[j][i]\n")
+		levels_data_f.write("}\nreturn\n}\n\n")
+
+	with open(f"{DEST}/encounter_region_data.odin", "w") as regions_f:
+		regions_f.write("package game\n\nimport rl \"vendor:raylib\"\n_ :: rl // unused when no level has encounter regions\n\nEncounter_Region :: enum {\nNone,\n")
+		for r in set(_s for _s in encounter_sets):
+			regions_f.write(f"\t{r.title()},\n")
+		regions_f.write("}\n\n")
+
+		for _level, regions in encounter_regions.items():
+			for (_poly, _), _r in regions:
+				regions_f.write(f"@(rodata)\n{_level.upper()}_{_r.upper()} := {_poly}\n")
+
+		regions_f.write("get_encounter_region :: proc(level: Level, tile: Tile_Coord) -> (r: Encounter_Region) {\n")
+		regions_f.write("#partial switch level {\n")
+		for _level, _regions in encounter_regions.items():
+			regions_f.write("case .{}:\n".format(_level))
+			regions_f.write("if false {\n")
+			for (_poly, _len), _r in _regions:
+				regions_f.write(f"}} else if rl.CheckCollisionPointPoly({{f32(tile.x), f32(tile.y)}}, &{_level.upper()}_{_r.upper()}[0], {_len}) {{\n")
+				regions_f.write(f"r = .{_r}\n")
+			regions_f.write("}\n")
+		regions_f.write("}\nreturn\n")
+		regions_f.write("}\n\n")
+
+	with open(f"{DEST}/chest_data.odin", "w") as f:
+		f.write("package game\n\n")
+		f.write("Chest_Datum :: enum {\n")
+		for d in chest_data:
+			f.write(f"\t{d},\n")
+		f.write("}")
+
+if __name__ == "__main__":
+	main()

@@ -2,17 +2,20 @@ package engine
 
 import hm "core:container/handle_map"
 import "core:fmt"
+import "core:math"
 import rl "vendor:raylib"
 
 // World space (inside BeginMode2D): grid lines, trigger outlines, and the tile the player faces.
 draw_debug_world :: proc() {
 	if !world.debug_overlay do return
 
-	view_w := f32(rl.GetScreenWidth()) / world.camera.zoom
-	view_h := f32(rl.GetScreenHeight()) / world.camera.zoom
+	view := visible_world_rect()
+	x0 := math.floor(view.x / TILE_SIZE) * TILE_SIZE
+	y0 := math.floor(view.y / TILE_SIZE) * TILE_SIZE
+	x1, y1 := view.x + view.width, view.y + view.height
 	grid := rl.Color{255, 255, 255, 30}
-	for x: f32 = 0; x <= view_w; x += TILE_SIZE do rl.DrawLineV({x, 0}, {x, view_h}, grid)
-	for y: f32 = 0; y <= view_h; y += TILE_SIZE do rl.DrawLineV({0, y}, {view_w, y}, grid)
+	for x := x0; x <= x1; x += TILE_SIZE do rl.DrawLineV({x, y0}, {x, y1}, grid)
+	for y := y0; y <= y1; y += TILE_SIZE do rl.DrawLineV({x0, y}, {x1, y}, grid)
 
 	it := hm.iterator_make(&world.entities)
 	for e, _ in hm.iterate(&it) {

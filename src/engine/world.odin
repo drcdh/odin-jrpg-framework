@@ -16,6 +16,9 @@ World :: struct {
 	sprite_handles:  [Sprite_Name]Sprite_Handle, // unswapped sprites; zero = not loaded
 	clock:           Clock,
 	camera:          rl.Camera2D,
+	camera_follow:   Entity_Id, // the camera centers on this entity, if alive
+	level_map:       Level_Map,
+	tilesets:        [Tileset_Id]rl.Texture, // loaded on first use
 	flash:           Screen_Flash,
 	dialogue:        Dialogue,
 	player:          Entity_Id,
@@ -41,6 +44,8 @@ shutdown :: proc() {
 	scripts_shutdown()
 	it := hm.iterator_make(&world.images)
 	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
+	for tex in world.tilesets do if tex.id != 0 do rl.UnloadTexture(tex)
+	unload_map()
 	hm.dynamic_destroy(&world.sprites)
 	hm.dynamic_destroy(&world.images)
 	delete(world.pending_destroy)
@@ -56,11 +61,32 @@ update :: proc() {
 	tweens_update(world.clock.dt)
 	scripts_update()
 	sprites_update(world.clock.dt)
+	camera_update({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
 	entities_flush_destroyed()
 }
 
 player     :: proc() -> Entity_Id { return world.player }
 camera     :: proc() -> rl.Camera2D { return world.camera }
 set_player :: proc(id: Entity_Id) { world.player = id }
+
+camera_follow :: proc(id: Entity_Id) { world.camera_follow = id }
+
+// Centers the followed entity on a screen of `screen` pixels. In CLAMP mode
+// the view stays inside the map, and a map smaller than the view is centered.
+camera_update :: proc(screen: [2]f32) {
+	world.camera.offset = screen / 2
+	if e, ok := entity_get(world.camera_follow); ok do world.camera.target = e.pos
+	if world.level_map.mode != .CLAMP do return
+
+	half := screen / world.camera.zoom / 2
+	size := map_pixel_size()
+	for i in 0..<2 {
+		if size[i] <= 2 * half[i] {
+			world.camera.target[i] = size[i] / 2
+		} else {
+			world.camera.target[i] = clamp(world.camera.target[i], half[i], size[i] - half[i])
+		}
+	}
+}
 
 toggle_debug :: proc() { world.debug_overlay = !world.debug_overlay }

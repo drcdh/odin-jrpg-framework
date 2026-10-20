@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template>
+ <object name="DOOR">
+  <properties>
+   <property name="door_idx" type="int" value="0"/>
+   <property name="eFace" value=""/>
+   <property name="iFace" value="Down"/>
+   <property name="iOffset" type="bool" value="false"/>
+   <property name="level" value=""/>
+   <property name="room" value=""/>
+   <property name="warp" type="bool" value="false"/>
+  </properties>
+  <point/>
+ </object>
+</template>

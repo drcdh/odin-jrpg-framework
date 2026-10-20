@@ -9,81 +9,7 @@ STEP_TIME :: 0.15 // seconds per tile
 player_step: engine.Tween_Id
 
 setup :: proc() {
-	player := engine.spawn_entity({
-		name   = "player",
-		tile   = {10, 8},
-		sprite = character_sprite(PLAYER_BODY, layer = 1),
-	})
-	engine.set_player(player)
-
-	engine.spawn_entity({
-		name    = "glider",
-		tile    = {3, 3},
-		sprite  = engine.create_sprite_state(.Crate),
-		trigger = {script = glide_away},
-	})
-	engine.spawn_entity({
-		name    = "glider 2",
-		tile    = {3, 5},
-		sprite  = engine.create_sprite_state(.Crate),
-		trigger = {script = glide_away},
-	})
-
-	patroller := engine.spawn_entity({
-		name    = "patroller",
-		tile    = {8, 2},
-		sprite  = character_sprite(),
-		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
-	})
-	engine.spawn(patrol, patroller, "patrol")
-
-	route_patroller := engine.spawn_entity({
-		name    = "route patroller",
-		tile    = PATROL_ROUTE[0],
-		sprite  = character_sprite(rl.LIME),
-		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
-	})
-	engine.spawn(patrol_route, route_patroller, "patrol route")
-
-	chest := engine.spawn_entity({
-		name    = "chest",
-		tile    = {16, 5},
-		sprite  = engine.create_sprite_state(.Chest, tint = rl.GOLD),
-		trigger = {script = vanish, mode = .Once},
-	})
-	// A plain tween started from game code, no script involved.
-	engine.tween_by(chest, .Pos_Y, {-2, 0, 0, 0}, 0.6, .Sine_In_Out, .Ping_Pong)
-
-	// The button's script finds the light by name.
-	engine.spawn_entity({
-		name    = "trap button",
-		tile    = {12, 9},
-		sprite  = engine.create_sprite_state(.Button),
-		trigger = {script = trap_button},
-	})
-	engine.spawn_entity({
-		name    = "broken trap button",
-		tile    = {14, 9},
-		sprite  = engine.create_sprite_state(.Button),
-		trigger = {script = broken_trap_button},
-	})
-	engine.spawn_entity({
-		name    = "villager",
-		tile    = {10, 5},
-		sprite  = character_sprite(rl.PINK),
-		trigger = {script = villager_talk},
-	})
-	engine.spawn_entity({
-		name    = "flasher",
-		tile    = {6, 8},
-		sprite  = engine.create_sprite_state(.Flasher, tint = rl.MAGENTA, play = true),
-		trigger = {script = flash_random},
-	})
-	engine.spawn_entity({
-		name   = "alarm_light",
-		tile   = {19, 0},
-		sprite = engine.create_sprite_state(.Light, tint = ALARM_OFF),
-	})
+	start_level(.Grove_Main)
 }
 
 update :: proc() {
@@ -114,17 +40,4 @@ held_direction :: proc() -> (engine.Direction, bool) {
 	if rl.IsKeyDown(.LEFT)  || rl.IsKeyDown(.A) do return .Left, true
 	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) do return .Right, true
 	return {}, false
-}
-
-// World space, under the entities: a checkerboard floor covering the view.
-draw_floor :: proc() {
-	cam := engine.camera()
-	cols := i32(f32(rl.GetScreenWidth()) / cam.zoom / engine.TILE_SIZE) + 1
-	rows := i32(f32(rl.GetScreenHeight()) / cam.zoom / engine.TILE_SIZE) + 1
-	for y in 0..<rows {
-		for x in 0..<cols {
-			color := rl.Color{38, 38, 50, 255} if (x + y) % 2 == 0 else rl.Color{44, 44, 58, 255}
-			rl.DrawRectangle(x * engine.TILE_SIZE, y * engine.TILE_SIZE, engine.TILE_SIZE, engine.TILE_SIZE, color)
-		}
-	}
 }

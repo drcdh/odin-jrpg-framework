@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template>
+ <object name="encounter_region" width="112" height="96">
+  <properties>
+   <property name="background" value=""/>
+   <property name="region" value="BLAH"/>
+  </properties>
+ </object>
+</template>

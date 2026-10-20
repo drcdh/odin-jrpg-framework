@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="61">
+ <tileset firstgid="1" source="../tilesets/tileset_terrain.tsx"/>
+ <layer id="1" name="tileset_terrain" width="20" height="20">
+  <data encoding="csv">
+11,12,1,1,1,5,5,5,5,5,1,1,1,1,3,2,1,1,1,2,
+11,12,1,1,1,5,5,5,5,5,1,2,2,2,1,4,3,1,2,2,
+11,12,1,1,1,5,5,5,5,5,1,2,1,1,1,1,4,1,1,1,
+11,9,3,2,1,5,5,5,5,5,1,3,13,13,13,13,13,13,13,13,
+11,9,1,2,1,5,5,5,5,5,1,1,13,13,13,13,13,14,13,13,
+11,9,2,4,1,5,5,5,5,5,1,2,13,13,14,13,14,13,13,13,
+11,9,2,1,1,5,5,5,5,5,1,2,13,13,16,13,13,13,15,13,
+9,1,1,1,1,8,5,5,5,8,1,1,13,13,13,13,13,13,13,14,
+11,1,1,1,1,5,5,5,5,5,1,1,13,13,14,13,13,14,13,13,
+9,1,1,1,1,5,5,5,5,5,1,1,13,13,13,13,13,13,14,14,
+11,1,3,1,1,5,5,5,5,5,1,2,13,13,13,13,14,13,14,13,
+11,1,1,1,1,5,5,5,5,5,1,1,13,16,13,13,13,16,13,13,
+11,1,1,1,1,5,5,5,5,5,1,1,13,13,13,13,13,13,13,13,
+1,1,1,1,1,5,5,5,5,5,1,1,13,13,13,13,13,14,13,14,
+5,5,5,5,5,5,5,5,5,8,1,3,13,13,15,15,16,13,13,13,
+5,5,5,5,5,5,5,5,5,5,1,4,13,13,13,13,13,13,13,16,
+5,5,5,5,5,5,5,5,5,5,1,2,13,13,13,14,13,13,13,13,
+1,1,2,1,1,5,5,5,5,5,1,1,13,13,13,13,15,13,15,13,
+11,1,1,2,1,5,5,5,5,5,1,1,13,14,13,14,13,13,13,13,
+9,9,2,1,1,8,5,5,5,5,1,1,13,13,13,13,13,13,13,14
+</data>
+ </layer>
+ <objectgroup id="3" name="Stuff">
+  <object id="28" name="dude_spawn_not_met" x="168" y="71">
+   <point/>
+  </object>
+  <object id="29" name="dude_spawn_met" x="71" y="153">
+   <point/>
+  </object>
+  <object id="33" name="dude_route_0" x="168" y="39">
+   <polyline points="0,0 0,64"/>
+  </object>
+  <object id="34" name="dude_route_1" x="71" y="122">
+   <polygon points="0,0 1,78 -31,78 -31,62 -48,62 -47,-1"/>
+  </object>
+  <object id="37" name="sign" x="72" y="24">
+   <point/>
+  </object>
+  <object id="38" name="jukebox" x="232" y="24">
+   <point/>
+  </object>
+  <object id="39" name="save" x="280" y="24">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="2" name="Doors">
+  <object id="7" name="player_spawn_intro" x="120" y="88">
+   <point/>
+  </object>
+  <object id="49" template="../DOOR.tx" name="DOOR-OUT" x="184" y="216">
+   <properties>
+    <property name="door_idx" type="int" value="2"/>
+    <property name="iFace" value=""/>
+    <property name="level" value="cave"/>
+    <property name="warp" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="50" template="../DOOR.tx" name="DOOR-OUT" x="44" y="20">
+   <properties>
+    <property name="door_idx" type="int" value="1"/>
+    <property name="iFace" value=""/>
+    <property name="level" value="house"/>
+    <property name="warp" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="51" template="../DOOR.tx" name="DOOR-IN" x="36" y="28">
+   <properties>
+    <property name="door_idx" type="int" value="1"/>
+    <property name="level" value="Quarry"/>
+   </properties>
+  </object>
+  <object id="52" template="../DOOR.tx" name="DOOR-IN" x="120" y="8">
+   <properties>
+    <property name="eFace" value="Down"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="53" template="../DOOR.tx" name="DOOR-IN" x="312" y="24">
+   <properties>
+    <property name="eFace" value="Left"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="54" template="../DOOR.tx" name="DOOR-IN" x="8" y="248">
+   <properties>
+    <property name="eFace" value="Right"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="55" template="../DOOR.tx" name="DOOR-IN" x="120" y="316">
+   <properties>
+    <property name="eFace" value="Up"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="4" name="Chests">
+  <object id="56" template="../CHEST.tx" x="40" y="72">
+   <properties>
+    <property name="encounter" value="Rat"/>
+    <property name="items" value="Potion"/>
+   </properties>
+  </object>
+  <object id="57" template="../CHEST.tx" x="40" y="88">
+   <properties>
+    <property name="encounter" value="Rat"/>
+   </properties>
+  </object>
+  <object id="58" template="../CHEST.tx" x="184" y="136">
+   <properties>
+    <property name="items" value="Potion"/>
+   </properties>
+  </object>
+  <object id="60" template="../CHEST.tx" x="184" y="156"/>
+ </objectgroup>
+</map>
