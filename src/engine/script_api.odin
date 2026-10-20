@@ -36,6 +36,24 @@ set_visible :: proc(id: Entity_Id, visible: bool) {
 	if e, ok := entity_get(id); ok do e.sprite.hidden = !visible
 }
 
+// Sprite playback on an entity. Only switches rows and frames of an already
+// loaded sheet, so these are safe from scripts.
+set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true) {
+	if e, ok := entity_get(id); ok do set_sprite_tag(&e.sprite, tag, reset)
+}
+
+play_anim :: proc(id: Entity_Id) {
+	if e, ok := entity_get(id); ok do play_sprite(&e.sprite)
+}
+
+stop_anim :: proc(id: Entity_Id) {
+	if e, ok := entity_get(id); ok do stop_sprite(&e.sprite)
+}
+
+freeze_anim :: proc(id: Entity_Id, frame: u16) {
+	if e, ok := entity_get(id); ok do freeze_sprite(&e.sprite, frame)
+}
+
 // --- Blocking verbs: scripts only. They return false if the script was cancelled. ---
 
 // Waits in game time, so it respects set_paused and set_time_scale.

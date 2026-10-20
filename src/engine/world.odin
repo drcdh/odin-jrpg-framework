@@ -11,7 +11,10 @@ World :: struct {
 	scripts:         hm.Dynamic_Handle_Map(Script, Script_Id),
 	script_order:    [dynamic]Script_Id, // spawn order; scripts resume in this order
 	pending_destroy: [dynamic]Entity_Id,
-	textures:        [dynamic]rl.Texture2D,
+	images:          hm.Dynamic_Handle_Map(Image, Image_Handle),
+	sprites:         hm.Dynamic_Handle_Map(Sprite, Sprite_Handle),
+	sprite_handles:  map[Sprite_Name]Sprite_Handle, // unswapped sprites, by name
+	sprite_metadata: map[Sprite_Name]Sprite_Metadata,
 	clock:           Clock,
 	camera:          rl.Camera2D,
 	flash:           Screen_Flash,
@@ -28,7 +31,10 @@ init :: proc(allocator := context.allocator) {
 	hm.dynamic_init(&world.scripts, allocator)
 	world.script_order    = make([dynamic]Script_Id, allocator)
 	world.pending_destroy = make([dynamic]Entity_Id, allocator)
-	world.textures        = make([dynamic]rl.Texture2D, allocator)
+	hm.dynamic_init(&world.images, allocator)
+	hm.dynamic_init(&world.sprites, allocator)
+	world.sprite_handles  = make(map[Sprite_Name]Sprite_Handle, allocator)
+	world.sprite_metadata = make(map[Sprite_Name]Sprite_Metadata, allocator)
 	world.clock.time_scale = 1
 	world.camera.zoom = ZOOM
 }
@@ -36,8 +42,12 @@ init :: proc(allocator := context.allocator) {
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
 shutdown :: proc() {
 	scripts_shutdown()
-	for tex in world.textures do rl.UnloadTexture(tex)
-	delete(world.textures)
+	it := hm.iterator_make(&world.images)
+	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
+	delete(world.sprite_metadata)
+	delete(world.sprite_handles)
+	hm.dynamic_destroy(&world.sprites)
+	hm.dynamic_destroy(&world.images)
 	delete(world.pending_destroy)
 	delete(world.script_order)
 	hm.dynamic_destroy(&world.scripts)
@@ -50,6 +60,7 @@ shutdown :: proc() {
 update :: proc() {
 	tweens_update(world.clock.dt)
 	scripts_update()
+	sprites_update(world.clock.dt)
 	entities_flush_destroyed()
 }
 

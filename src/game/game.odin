@@ -9,34 +9,32 @@ STEP_TIME :: 0.15 // seconds per tile
 player_step: engine.Tween_Id
 
 setup :: proc() {
-	img := rl.GenImageChecked(16, 16, 4, 4, rl.ORANGE, rl.BROWN)
-	crate := engine.texture_add(rl.LoadTextureFromImage(img))
-	rl.UnloadImage(img)
+	register_sprites()
 
 	player := engine.spawn_entity({
 		name   = "player",
 		tile   = {10, 8},
-		sprite = engine.sprite_rect({14, 14}, rl.WHITE, layer = 1),
+		sprite = tinted_sprite("player", rl.WHITE, layer = 1),
 	})
 	engine.set_player(player)
 
 	engine.spawn_entity({
 		name    = "glider",
 		tile    = {3, 3},
-		sprite  = engine.sprite_from_texture(crate),
+		sprite  = engine.create_sprite_state("crate"),
 		trigger = {script = glide_away},
 	})
 	engine.spawn_entity({
 		name    = "glider 2",
 		tile    = {3, 5},
-		sprite  = engine.sprite_from_texture(crate),
+		sprite  = engine.create_sprite_state("crate"),
 		trigger = {script = glide_away},
 	})
 
 	patroller := engine.spawn_entity({
 		name    = "patroller",
 		tile    = {8, 2},
-		sprite  = engine.sprite_directional(make_patroller_sheet()),
+		sprite  = character_sprite(),
 		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
 	})
 	engine.spawn(patrol, patroller, "patrol")
@@ -44,7 +42,7 @@ setup :: proc() {
 	route_patroller := engine.spawn_entity({
 		name    = "route patroller",
 		tile    = PATROL_ROUTE[0],
-		sprite  = engine.sprite_directional(make_patroller_sheet(rl.LIME)),
+		sprite  = character_sprite(rl.LIME),
 		trigger = {script = spin, mode = .Cooldown, cooldown = 1},
 	})
 	engine.spawn(patrol_route, route_patroller, "patrol route")
@@ -52,7 +50,7 @@ setup :: proc() {
 	chest := engine.spawn_entity({
 		name    = "chest",
 		tile    = {16, 5},
-		sprite  = engine.sprite_rect({12, 10}, rl.GOLD),
+		sprite  = tinted_sprite("chest", rl.GOLD),
 		trigger = {script = vanish, mode = .Once},
 	})
 	// A plain tween started from game code, no script involved.
@@ -62,58 +60,32 @@ setup :: proc() {
 	engine.spawn_entity({
 		name    = "trap button",
 		tile    = {12, 9},
-		sprite  = engine.sprite_rect({12, 6}, rl.GRAY),
+		sprite  = tinted_sprite("button", rl.GRAY),
 		trigger = {script = trap_button},
 	})
 	engine.spawn_entity({
 		name    = "broken trap button",
 		tile    = {14, 9},
-		sprite  = engine.sprite_rect({12, 6}, rl.GRAY),
+		sprite  = tinted_sprite("button", rl.GRAY),
 		trigger = {script = broken_trap_button},
 	})
 	engine.spawn_entity({
 		name    = "villager",
 		tile    = {10, 5},
-		sprite  = engine.sprite_directional(make_patroller_sheet(rl.PINK)),
+		sprite  = character_sprite(rl.PINK),
 		trigger = {script = villager_talk},
 	})
 	engine.spawn_entity({
 		name    = "flasher",
 		tile    = {6, 8},
-		sprite  = engine.sprite_rect({12, 12}, rl.MAGENTA),
+		sprite  = tinted_sprite("flasher", rl.MAGENTA, play = true),
 		trigger = {script = flash_random},
 	})
 	engine.spawn_entity({
 		name   = "alarm_light",
 		tile   = {19, 0},
-		sprite = engine.sprite_rect({10, 10}, ALARM_OFF),
+		sprite = tinted_sprite("light", ALARM_OFF),
 	})
-}
-
-// Placeholder art until there's a real sheet: four 16x16 frames in Direction
-// order (Down, Up, Left, Right). Eyes show which way it faces; from behind
-// there are none. A PNG in the same layout can replace this.
-make_patroller_sheet :: proc(body := rl.SKYBLUE) -> engine.Texture_Id {
-	F :: engine.TILE_SIZE
-	img := rl.GenImageColor(F * len(engine.Direction), F, rl.BLANK)
-	defer rl.UnloadImage(img)
-	EYE :: rl.Color{20, 30, 60, 255}
-	for dir in engine.Direction {
-		x := i32(dir) * F
-		rl.ImageDrawRectangle(&img, x + 1, 1, 14, 14, body)
-		switch dir {
-		case .Down:
-			rl.ImageDrawRectangle(&img, x + 4, 8, 2, 3, EYE)
-			rl.ImageDrawRectangle(&img, x + 10, 8, 2, 3, EYE)
-		case .Up:
-			rl.ImageDrawRectangle(&img, x + 3, 2, 10, 2, rl.BLUE)
-		case .Left:
-			rl.ImageDrawRectangle(&img, x + 3, 6, 2, 3, EYE)
-		case .Right:
-			rl.ImageDrawRectangle(&img, x + 11, 6, 2, 3, EYE)
-		}
-	}
-	return engine.texture_add(rl.LoadTextureFromImage(img))
 }
 
 update :: proc() {

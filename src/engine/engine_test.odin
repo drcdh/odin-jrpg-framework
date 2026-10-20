@@ -89,7 +89,7 @@ tween_ping_pong_comes_back :: proc(t: ^testing.T) {
 @(test)
 tween_tint_lanes_round_trip :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	e := spawn_entity({sprite = sprite_rect({1, 1}, rl.WHITE)})
+	e := spawn_entity({sprite = {tint = rl.WHITE}})
 	tween_tint(e, rl.RED, 0.5)
 	run_for(0.6)
 	testing.expect_value(t, entity_get(e).sprite.tint, rl.RED)
@@ -177,7 +177,7 @@ scripts_run_in_spawn_order_each_frame :: proc(t: ^testing.T) {
 @(test)
 wait_all_waits_for_slowest :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	wait_all_entity = spawn_entity({sprite = sprite_rect({1, 1})})
+	wait_all_entity = spawn_entity({})
 	s := spawn(proc(self: Entity_Id) {
 		a := tween_by(self, .Pos_X, {10, 0, 0, 0}, 0.2)
 		b := tween_by(self, .Rotation, {90, 0, 0, 0}, 0.6)
@@ -294,7 +294,7 @@ script_spawned_by_script_and_waited_on :: proc(t: ^testing.T) {
 @(test)
 script_drives_entity_found_by_name :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	light := spawn_entity({name = "light", sprite = sprite_rect({1, 1}, rl.BLACK)})
+	light := spawn_entity({name = "light", sprite = {tint = rl.BLACK}})
 	spawn(proc(_: Entity_Id) {
 		l := find("light")
 		set_tint(l, rl.RED)
@@ -355,15 +355,155 @@ walk_entity_pauses_between_tiles :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_pos(e), tile_center({2, 0}))
 }
 
+// --- Sprites ---
+// These register metadata and add a Sprite record with no image, so all the
+// frame/row/playback logic runs without a window.
+
+@(private = "file") hero_tags   := [?]Sprite_Tag{.Left, .Down, .Right, .Up, .Cheer}
+@(private = "file") hero_frames := [?]u16{2, 2, 2, 2, 3}
+@(private = "file") blink_frames := [?]u16{4}
+
+@(private = "file")
+hero_meta :: proc() -> Sprite_Metadata {
+	return {frame_size = {16, 24}, type = .Tagged, tags = hero_tags[:], num_frames = hero_frames[:], frame_t = 150}
+}
+
+@(private = "file")
+blink_meta :: proc() -> Sprite_Metadata {
+	return {frame_size = {8, 8}, type = .Anim, num_frames = blink_frames[:], frame_t = 100}
+}
+
+@(private = "file")
+fake_sprite :: proc(name: Sprite_Name, m: Sprite_Metadata) -> Sprite_State {
+	register_sprite_metadata(name, m)
+	h, _ := hm.add(&world.sprites, Sprite{name = name})
+	s := Sprite_State{sprite = h, tint = rl.WHITE, origin = {0.5, 0.5}, scale = {1, 1}, speed = 1}
+	if m.type == .Tagged do s.tag = m.tags[0]
+	return s
+}
+
 @(test)
-directional_sprite_picks_frame_by_facing :: proc(t: ^testing.T) {
-	s := Sprite{src = {0, 0, 16, 16}, directional = true}
-	testing.expect_value(t, sprite_src(s, .Down).x, 0)
-	testing.expect_value(t, sprite_src(s, .Up).x, 16)
-	testing.expect_value(t, sprite_src(s, .Left).x, 32)
-	testing.expect_value(t, sprite_src(s, .Right).x, 48)
-	s.directional = false
-	testing.expect_value(t, sprite_src(s, .Right).x, 0)
+sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite("hero", hero_meta())
+	testing.expect_value(t, s.tag, Sprite_Tag.Left) // first tag by default
+	testing.expect_value(t, sprite_src(s), rl.Rectangle{0, 0, 16, 24})
+	s.tag = .Right
+	s.frame = 1
+	testing.expect_value(t, sprite_src(s), rl.Rectangle{16, 48, 16, 24})
+	s.tag = .Cheer
+	testing.expect_value(t, sprite_src(s).y, 96)
+
+	b := fake_sprite("blink", blink_meta())
+	b.frame = 3
+	testing.expect_value(t, sprite_src(b), rl.Rectangle{24, 0, 8, 8})
+}
+
+@(test)
+update_sprite_advances_and_loops :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite("blink", blink_meta())
+	testing.expect(t, !update_sprite(0.5, &s), "not playing yet")
+	testing.expect_value(t, s.frame, 0)
+
+	play_sprite(&s)
+	update_sprite(0.05, &s)
+	testing.expect_value(t, s.frame, 0)
+	update_sprite(0.06, &s)
+	testing.expect_value(t, s.frame, 1)
+
+	s.speed = 2 // 50 ms per frame
+	update_sprite(0.05, &s)
+	testing.expect_value(t, s.frame, 2)
+	update_sprite(0.05, &s)
+	testing.expect_value(t, s.frame, 3)
+	testing.expect(t, update_sprite(0.05, &s), "wrapping to frame 0 reports a loop")
+	testing.expect_value(t, s.frame, 0)
+}
+
+@(test)
+static_sprite_never_animates :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite("rock", {frame_size = {16, 16}, type = .Static})
+	play_sprite(&s)
+	testing.expect(t, !update_sprite(10, &s))
+	testing.expect_value(t, s.frame, 0)
+	testing.expect_value(t, animation_length(s), 0)
+}
+
+@(test)
+sprite_playback_controls :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite("hero", hero_meta())
+	play_sprite(&s)
+	update_sprite(0.16, &s)
+	testing.expect_value(t, s.frame, 1)
+
+	freeze_sprite(&s, 0)
+	update_sprite(1, &s)
+	testing.expect_value(t, s.frame, 0)
+	unfreeze_sprite(&s)
+	update_sprite(0.16, &s)
+	testing.expect_value(t, s.frame, 1)
+
+	set_sprite_tag(&s, .Cheer, reset = false)
+	testing.expect(t, s.anim && s.frame == 1, "no reset keeps playback")
+	set_sprite_tag(&s, .Up)
+	testing.expect(t, !s.anim && s.frame == 0 && s.time == 0, "reset stops at frame 0")
+	testing.expect_value(t, get_sprite_tag(s), Sprite_Tag.Up)
+
+	play_sprite(&s)
+	update_sprite(0.16, &s)
+	stop_sprite(&s)
+	testing.expect(t, !s.anim && s.frame == 0)
+}
+
+@(test)
+animation_length_per_row :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	b := fake_sprite("blink", blink_meta())
+	expect_near(t, animation_length(b), 0.4)
+	h := fake_sprite("hero", hero_meta())
+	expect_near(t, animation_length(h), 0.3) // 2 frames x 150 ms
+	h.tag = .Cheer
+	expect_near(t, animation_length(h), 0.45)
+}
+
+@(test)
+follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite("hero", hero_meta())
+	s.follow_facing = true
+	s.anim = true
+	s.frame = 1
+	e := spawn_entity({facing = .Up, sprite = s})
+	b := fake_sprite("blink", blink_meta())
+	b.follow_facing = true // no direction rows: ignored
+	other := spawn_entity({facing = .Right, sprite = b})
+
+	sprites_update(0)
+	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Up)
+	testing.expect(t, entity_get(e).sprite.anim && entity_get(e).sprite.frame == 1, "row switch keeps playback")
+	testing.expect_value(t, entity_get(other).sprite.tag, Sprite_Tag.Left) // zero value, untouched
+
+	// Moving to a row with fewer frames wraps the frame.
+	entity_get(e).sprite.tag = .Cheer
+	entity_get(e).sprite.frame = 2
+	set_facing(e, .Down)
+	sprites_update(0)
+	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Down)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0)
+}
+
+@(test)
+create_sprite_state_without_window :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := create_sprite_state("hero", play = true, speed = 2, follow_facing = true, layer = 3)
+	testing.expect_value(t, s.sprite, Sprite_Handle{})
+	testing.expect_value(t, s.tint, rl.WHITE)
+	testing.expect_value(t, s.scale, [2]f32{1, 1})
+	testing.expect_value(t, s.origin, [2]f32{0.5, 0.5})
+	testing.expect(t, s.anim && s.speed == 2 && s.follow_facing && s.layer == 3)
 }
 
 @(private = "file") test_route := [?]Tile{{0, 0}, {2, 0}, {2, 1}, {0, 1}}
