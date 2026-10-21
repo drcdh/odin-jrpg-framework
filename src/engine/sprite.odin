@@ -2,6 +2,7 @@ package engine
 
 import hm "core:container/handle_map"
 import "core:fmt"
+import "core:hash"
 import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
@@ -106,16 +107,27 @@ Sprite_State :: struct {
 
 // --- Registry and loading ---
 
-// Loads the sheet unless it's cached. Unswapped sprites are cached by name;
-// palette-swapped ones are loaded fresh every call. Main thread only: it may
+// Cache key for a palette-swapped sprite: its name and a hash of the swaps.
+Swap_Key :: struct {
+	name:    Sprite_Name,
+	palette: u64,
+}
+
+// Loads the sheet unless it's cached. Unswapped sprites are cached by name,
+// palette-swapped ones by name and palette, so respawning the same character
+// (say, on every level change) reuses its texture. Main thread only: it may
 // upload a texture.
-// TODO: cache palette-swapped sprites by name and palette.
 get_sprite_h :: proc(name: Sprite_Name, palette: Palette_Swap = {}) -> Sprite_Handle {
 	if len(palette) == 0 {
 		if h := world.sprite_handles[name]; hm.is_valid(&world.sprites, h) do return h
+		h := load_sprite(name, palette)
+		world.sprite_handles[name] = h
+		return h
 	}
+	key := Swap_Key{name, hash.fnv64a(slice.to_bytes(palette))}
+	if h, ok := world.swapped_sprites[key]; ok && hm.is_valid(&world.sprites, h) do return h
 	h := load_sprite(name, palette)
-	if len(palette) == 0 do world.sprite_handles[name] = h
+	world.swapped_sprites[key] = h
 	return h
 }
 
@@ -129,6 +141,13 @@ load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 	assert(!in_script(), "sprites must be loaded on the main thread (preload_sprite)")
 	m := sprite_metadata[name]
 	sprite := Sprite{name = name, meta = m}
+
+	// Headless (tests, tools): a sprite record with no image, which draws nothing.
+	if !rl.IsWindowReady() {
+		h, err := hm.add(&world.sprites, sprite)
+		assert(err == nil, "out of memory loading sprite")
+		return h
+	}
 
 	img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, m.filename))
 	defer rl.UnloadImage(img)
@@ -236,6 +255,16 @@ animation_length :: proc(state: Sprite_State) -> f32 {
 direction_tag :: proc(d: Direction) -> Sprite_Tag {
 	switch d {
 	case .Down:  return .Down
+	case .Up:    return .Up
+	case .Left:  return .Left
+	case .Right: return .Right
+	}
+	return .Down
+}
+
+// The inverse of direction_tag; tags that aren't directions give Down.
+tag_direction :: proc(t: Sprite_Tag) -> Direction {
+	#partial switch t {
 	case .Up:    return .Up
 	case .Left:  return .Left
 	case .Right: return .Right

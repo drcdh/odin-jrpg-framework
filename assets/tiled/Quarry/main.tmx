@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="35">
+ <properties>
+  <property name="edge_level" value="Overworld"/>
+  <property name="map_mode" value="CLAMP"/>
+ </properties>
+ <tileset firstgid="1" source="../tilesets/tileset_terrain.tsx"/>
+ <tileset firstgid="17" source="../tilesets/tileset_town.tsx"/>
+ <layer id="1" name="tileset_terrain" width="20" height="20">
+  <data encoding="csv">
+10,9,9,10,9,9,9,10,9,9,9,11,10,9,9,9,11,9,10,9,
+9,11,9,11,9,10,9,11,9,9,9,10,9,9,9,10,9,11,12,9,
+9,12,9,9,9,9,9,9,9,12,9,12,9,9,11,9,12,9,9,9,
+9,9,12,9,9,10,9,9,9,9,9,9,11,11,9,9,9,9,10,9,
+9,12,9,9,5,8,5,5,6,5,5,5,5,5,5,5,9,9,9,9,
+9,10,9,10,5,5,5,5,5,5,5,5,5,5,5,5,10,10,9,9,
+9,10,9,9,5,6,5,5,5,5,5,5,5,5,6,5,10,9,9,10,
+9,9,9,9,5,7,1,1,1,1,2,1,1,2,5,5,11,9,11,9,
+10,9,9,9,5,8,1,1,3,4,3,4,1,1,5,5,9,9,9,9,
+9,9,9,12,5,5,2,2,4,4,4,4,2,1,5,6,9,9,11,9,
+10,9,9,9,5,5,2,1,4,4,4,4,2,1,5,5,9,9,9,9,
+9,10,9,10,5,5,1,2,3,4,4,3,1,1,5,5,10,9,9,11,
+9,10,9,12,5,5,1,1,1,1,1,2,1,2,5,5,11,12,10,12,
+11,11,9,9,6,5,1,1,1,1,1,1,1,1,5,8,9,10,11,11,
+9,9,9,9,5,5,5,7,5,5,5,5,5,5,5,5,9,9,9,9,
+9,9,9,9,8,5,5,5,5,5,5,5,8,5,5,5,10,9,9,9,
+9,9,9,9,10,9,10,11,9,9,9,10,9,12,9,9,9,9,9,9,
+9,10,11,9,9,9,9,9,12,10,9,9,9,9,9,11,11,9,9,12,
+11,12,9,9,9,9,9,9,9,9,9,9,9,9,9,10,9,9,9,9,
+9,9,9,10,12,12,10,9,9,10,9,10,9,11,9,9,9,10,10,9
+</data>
+ </layer>
+ <layer id="3" name="tileset_town" width="20" height="20">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,17,18,18,18,18,18,18,19,44,0,0,0,0,0,
+0,0,0,0,0,0,26,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,27,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,26,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,26,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,26,0,0,0,0,0,0,24,44,0,0,0,0,0,
+0,0,0,0,0,0,17,18,18,18,18,18,18,19,45,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="6" name="Doors">
+  <object id="29" template="../DOOR.tx" name="DOOR-OUT" x="172" y="68">
+   <properties>
+    <property name="door_idx" type="int" value="1"/>
+    <property name="iFace" value=""/>
+    <property name="level" value="grove"/>
+    <property name="warp" type="bool" value="true"/>
+   </properties>
+  </object>
+  <object id="30" template="../DOOR.tx" name="DOOR-IN" x="164" y="76">
+   <properties>
+    <property name="door_idx" type="int" value="1"/>
+    <property name="level" value="House"/>
+   </properties>
+  </object>
+  <object id="31" template="../DOOR.tx" name="DOOR-IN" x="152" y="12">
+   <properties>
+    <property name="eFace" value="Down"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="32" template="../DOOR.tx" name="DOOR-IN" x="312" y="152">
+   <properties>
+    <property name="eFace" value="Left"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="33" template="../DOOR.tx" name="DOOR-IN" x="8" y="156">
+   <properties>
+    <property name="eFace" value="Right"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+  <object id="34" template="../DOOR.tx" name="DOOR-IN" x="168" y="312">
+   <properties>
+    <property name="eFace" value="Up"/>
+    <property name="iFace" value=""/>
+   </properties>
+  </object>
+ </objectgroup>
+ <objectgroup id="5" name="Stuff" locked="1">
+  <object id="24" name="warp_spawn" x="167" y="73">
+   <point/>
+  </object>
+  <object id="25" name="conga_line" x="25.3551" y="25">
+   <polygon points="0,0 270.645,0.992248 269.527,255.008 -3.3551,256"/>
+  </object>
+  <object id="26" name="baddy_spawn" x="199" y="120">
+   <point/>
+  </object>
+  <object id="27" name="trap_spawn" x="104" y="153">
+   <point/>
+  </object>
+  <object id="28" name="save" x="199" y="184">
+   <point/>
+  </object>
+ </objectgroup>
+</map>

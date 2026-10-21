@@ -3,9 +3,9 @@ package game
 import "../engine"
 
 // Stand-ins for old-project code that the generated level files
-// (process_tiled.py) call: chests, doors, items, encounters and saves. They
-// do nothing or return defaults, so the map objects that use them (Grove's
-// chests and warps) don't appear yet. Replace each as the real feature lands.
+// (process_tiled.py) call: chests, items, encounters and saves. They do
+// nothing or return defaults, so the chests in the maps don't appear yet.
+// Replace each as the real feature lands.
 
 Id :: distinct int
 
@@ -46,8 +46,5 @@ Monster :: enum {
 
 items_in_a_box   :: proc(id: Id, d: Chest_Datum, items: ..Item) {}
 monster_in_a_box :: proc(id: Id, d: Chest_Datum, m: Monster, items: ..Item) {}
-
-warp_to_level :: proc(l: Level, door_idx: int) {}
-egress        :: proc(l: Level, door_idx: int) {}
 
 try_spawn_from_save :: proc() -> (tile: Tile_Coord, face: Sprite_Tag, ok: bool) { return }

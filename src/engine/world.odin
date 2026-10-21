@@ -14,12 +14,14 @@ World :: struct {
 	images:          hm.Dynamic_Handle_Map(Image, Image_Handle),
 	sprites:         hm.Dynamic_Handle_Map(Sprite, Sprite_Handle),
 	sprite_handles:  [Sprite_Name]Sprite_Handle, // unswapped sprites; zero = not loaded
+	swapped_sprites: map[Swap_Key]Sprite_Handle, // palette-swapped sprites
 	clock:           Clock,
 	camera:          rl.Camera2D,
 	camera_follow:   Entity_Id, // the camera centers on this entity, if alive
 	level_map:       Level_Map,
 	tilesets:        [Tileset_Id]rl.Texture, // loaded on first use
 	flash:           Screen_Flash,
+	curtain:         f32, // 0 clear .. 1 black; see curtain_to
 	dialogue:        Dialogue,
 	player:          Entity_Id,
 	debug_overlay:   bool,
@@ -35,6 +37,7 @@ init :: proc(allocator := context.allocator) {
 	world.pending_destroy = make([dynamic]Entity_Id, allocator)
 	hm.dynamic_init(&world.images, allocator)
 	hm.dynamic_init(&world.sprites, allocator)
+	world.swapped_sprites = make(map[Swap_Key]Sprite_Handle, allocator)
 	world.clock.time_scale = 1
 	world.camera.zoom = ZOOM
 }
@@ -46,6 +49,7 @@ shutdown :: proc() {
 	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
 	for tex in world.tilesets do if tex.id != 0 do rl.UnloadTexture(tex)
 	unload_map()
+	delete(world.swapped_sprites)
 	hm.dynamic_destroy(&world.sprites)
 	hm.dynamic_destroy(&world.images)
 	delete(world.pending_destroy)

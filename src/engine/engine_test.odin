@@ -720,10 +720,9 @@ camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	testing.expect_value(t, world.camera.target, tile_center({10, 10}))
 
 	// A map narrower than the view is centered on that axis.
-	set_map({size = {4, 20}})
+	set_map({size = {4, 20}, mode = .CLAMP})
 	camera_update(SCREEN)
 	testing.expect_value(t, world.camera.target, [2]f32{32, tile_center({10, 10}).y})
-	testing.expect_value(t, world.level_map.mode, Map_Mode.CLAMP)
 }
 
 @(test)
@@ -761,11 +760,13 @@ tile_free_checks_passability :: proc(t: ^testing.T) {
 	testing.expect(t, tile_free({1, 1}))
 	testing.expect(t, !tile_free({2, 0}))
 	testing.expect(t, !tile_free({2, 2}))
-	testing.expect(t, tile_free({2, 3}), "outside the map is free")
-	testing.expect(t, tile_free({-1, 0}))
+	testing.expect(t, !tile_free({2, 3}), "outside a closed map is blocked")
+	testing.expect(t, !tile_free({-1, 0}))
 
-	set_map({size = {4, 3}}) // a new map keeps the passability already set
+	set_map({size = {4, 3}, open_edges = true}) // a new map keeps the passability already set
 	testing.expect(t, !tile_free({2, 1}))
+	testing.expect(t, tile_free({2, 3}), "outside a map with open edges is free")
+	testing.expect(t, tile_free({-1, 0}))
 
 	set_map_mode(.WRAP)
 	testing.expect(t, !tile_free({6, 1}), "wraps to x == 2")
@@ -823,4 +824,92 @@ ghost_walks_through :: proc(t: ^testing.T) {
 	run_for(0.5)
 	testing.expect_value(t, entity_tile(ghost), Tile{2, 0})
 	testing.expect(t, !script_alive(s))
+}
+
+@(private = "file")
+step_count: int
+@(private = "file")
+step_by: Entity_Id
+
+@(test)
+step_trigger_fires_on_arrival :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	step_count = 0
+	pad := spawn_entity({tile = {2, 0}, ghost = true, on_step = proc(_, by: Entity_Id) {
+		step_count += 1
+		step_by = by
+	}})
+	walker := spawn_entity({tile = {0, 0}})
+	// The arriving entity's own on_step isn't called.
+	spawn_entity({tile = {9, 9}, on_step = proc(_, _: Entity_Id) { step_count += 100 }})
+
+	tween_to_tile(walker, {1, 0}, 0.1)
+	run_for(0.2)
+	testing.expect_value(t, step_count, 0)
+
+	tw := tween_to_tile(walker, {2, 0}, 0.1)
+	testing.expect_value(t, step_count, 0) // not when the move starts
+	run_for(0.2)
+	testing.expect(t, tween_done(tw))
+	testing.expect_value(t, step_count, 1)
+	testing.expect_value(t, step_by, walker)
+
+	// A cancelled move doesn't arrive.
+	set_tile(walker, {1, 0})
+	tw = tween_to_tile(walker, {2, 0}, 0.5)
+	run_for(0.1)
+	tween_cancel(tw)
+	run_for(0.5)
+	testing.expect_value(t, step_count, 1)
+
+	// walk_entity arrives on each tile it steps through.
+	set_tile(walker, {0, 0})
+	spawn(proc(self: Entity_Id) { walk_entity(self, {3, 0}, 0.1) }, walker)
+	run_for(1)
+	testing.expect_value(t, entity_tile(walker), Tile{3, 0})
+	testing.expect_value(t, step_count, 2)
+	_ = pad
+}
+
+@(test)
+clear_level_ends_global_scripts_and_tweens :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	value: f32
+	tw := tween_f32(&value, 1, 10)
+	s := spawn(proc(_: Entity_Id) { pause(10) }, {}, "global")
+	run_for(FRAME)
+	clear_level()
+	testing.expect(t, tween_done(tw))
+	run_for(FRAME)
+	testing.expect(t, !script_alive(s))
+}
+
+@(test)
+curtain_tweens :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	tw := curtain_to(1, 0.2)
+	run_for(0.1)
+	testing.expect(t, world.curtain > 0.3 && world.curtain < 0.7, "halfway")
+	run_for(0.2)
+	testing.expect(t, tween_done(tw))
+	testing.expect_value(t, world.curtain, 1)
+}
+
+@(test)
+palette_swaps_are_cached :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	lime := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
+	lime_again := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
+	pink := Palette_Swap{{rl.SKYBLUE, rl.PINK}}
+	a := get_sprite_h(.Patroller, lime)
+	testing.expect_value(t, get_sprite_h(.Patroller, lime_again), a)
+	testing.expect(t, get_sprite_h(.Patroller, pink) != a)
+	testing.expect(t, get_sprite_h(.Patroller) != a, "unswapped is cached separately")
+	testing.expect_value(t, hm.len(world.sprites), 3)
+}
+
+@(test)
+tag_direction_inverts_direction_tag :: proc(t: ^testing.T) {
+	for d in Direction do testing.expect_value(t, tag_direction(direction_tag(d)), d)
+	testing.expect_value(t, tag_direction(.Walk), Direction.Down)
 }

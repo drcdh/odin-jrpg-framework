@@ -7,16 +7,8 @@ import rl "vendor:raylib"
 
 TILESET_DIR :: "assets/tilesets"
 
-// Tiled tileset names, title-cased, as process_tiled.py writes them.
-Tileset_Id :: enum {
-	Tileset_Terrain,
-}
-
-// PNGs in TILESET_DIR, exported from the .ase files by process_tiled.py.
-@(rodata)
-tileset_files := [Tileset_Id]string {
-	.Tileset_Terrain = "tileset_terrain",
-}
+// `Tileset_Id` and `tileset_files` (the PNG for each, exported from the .ase
+// files) are generated into tileset_data.odin by process_tiled.py.
 
 // Bits of a tile's passability flags (the generated PASSABLE tables).
 PARTY_IMPASSABLE :: 1
@@ -37,15 +29,16 @@ Level_Map :: struct {
 	firstgids: []int,
 	routes:    [][]Tile,
 	passability: proc(t: Tile) -> u8, // flags for an in-map tile; nil means all passable
+	open_edges:  bool,                // outside the map is passable (the level has an edge exit)
 	rt:        rl.RenderTexture, // the whole map, rendered once on entry
 }
 
-// Takes the generated map data; the current mode and passability are kept.
+// Takes the generated map data. The passability already set is kept unless
+// `m` has its own.
 set_map :: proc(m: Level_Map) {
-	mode, passability := world.level_map.mode, world.level_map.passability
+	passability := world.level_map.passability
 	unload_map()
 	world.level_map = m
-	world.level_map.mode = mode
 	if m.passability == nil do world.level_map.passability = passability
 }
 
@@ -68,15 +61,16 @@ map_contains :: proc(t: Tile) -> bool {
 
 // Whether `mover` can step onto `t`: the map lets the party through and no
 // other entity is in the way. In WRAP mode tiles wrap around the map;
-// otherwise the map counts as passable outside its edges, as in the old project.
+// otherwise outside the map is passable only with `open_edges`.
 tile_free :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
 	return tile_passable(t) && !tile_occupied(t, mover)
 }
 
 tile_passable :: proc(t: Tile) -> bool {
 	m := &world.level_map
+	if m.size == {} do return true // no map loaded
 	w := wrap_tile(t)
-	if !map_contains(w) do return true
+	if !map_contains(w) do return m.open_edges
 	if m.passability == nil do return true
 	return m.passability(w) & PARTY_IMPASSABLE == 0
 }

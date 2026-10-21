@@ -51,6 +51,7 @@ Tween :: struct {
 	mode:     Tween_Mode,
 	relative: bool, // `to` is an offset from the value at start
 	started:  bool,
+	arrive:   bool, // a tile move: finishing it fires the step triggers on the tile
 }
 
 // Starts a tween and returns immediately. `from` is captured when the tween
@@ -97,7 +98,9 @@ tween_to_tile :: proc(id: Entity_Id, tile: Tile, duration: f32, easing := Ease.L
 	e, ok := entity_get(id)
 	if !ok do return {}
 	e.tile = tile
-	return tween_pos(id, tile_center(tile), duration, easing)
+	h := tween_pos(id, tile_center(tile), duration, easing)
+	if t, has := hm.get(&world.tweens, h); has do t.arrive = true
+	return h
 }
 
 tween_scale :: proc(id: Entity_Id, to: [2]f32, duration: f32, easing := Ease.Linear, mode := Tween_Mode.Once, delay: f32 = 0) -> Tween_Id {
@@ -143,11 +146,19 @@ tweens_cancel_for_entity :: proc(id: Entity_Id) {
 	}
 }
 
+// Tile moves that finish fire their step triggers after the loop, so the
+// triggers may start tweens of their own.
 tweens_update :: proc(dt: f32) {
+	arrived := make([dynamic]Entity_Id, context.temp_allocator)
 	it := hm.iterator_make(&world.tweens)
 	for t, h in hm.iterate(&it) {
-		if !tween_step(t, dt) do hm.remove(&world.tweens, h)
+		if tween_step(t, dt) do continue
+		if _, alive := target_get(t.target); alive && t.arrive {
+			append(&arrived, t.target.(Entity_Prop).entity)
+		}
+		hm.remove(&world.tweens, h)
 	}
+	for id in arrived do entity_arrived(id)
 }
 
 // Advances one tween. Returns false once it is finished or its target is gone.

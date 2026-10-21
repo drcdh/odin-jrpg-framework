@@ -13,6 +13,7 @@ Entity :: struct {
 	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
 	facing:  Direction,
 	ghost:   bool,      // neither blocks nor is blocked by other entities
+	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,
 	trigger: Trigger,
 }
@@ -55,6 +56,25 @@ entity_pos :: proc(id: Entity_Id) -> [2]f32 {
 entity_tile :: proc(id: Entity_Id) -> Tile {
 	if e, ok := entity_get(id); ok do return e.tile
 	return {}
+}
+
+// Fires the step triggers of the other entities on `id`'s tile. Called when a
+// tile move (tween_to_tile, so also walk_entity) finishes; not on spawn or set_tile.
+entity_arrived :: proc(id: Entity_Id) {
+	// In WRAP mode, an entity that walked off the edge comes back in on the
+	// other side; the map repeats, so nothing visibly jumps.
+	if world.level_map.mode == .WRAP && !map_contains(entity_tile(id)) {
+		set_tile(id, wrap_tile(entity_tile(id)))
+	}
+	tile := entity_tile(id)
+	triggers := make([dynamic]Entity_Id, context.temp_allocator)
+	it := hm.iterator_make(&world.entities)
+	for e, h in hm.iterate(&it) {
+		if h != id && e.on_step != nil && e.tile == tile do append(&triggers, h)
+	}
+	for h in triggers {
+		if e, ok := entity_get(h); ok do e.on_step(h, id)
+	}
 }
 
 // Destruction is deferred to the end of update, so the entity stays valid for

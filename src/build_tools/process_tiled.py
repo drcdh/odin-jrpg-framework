@@ -2,6 +2,7 @@ import fnmatch
 import os
 import pathlib
 import subprocess
+import xml.etree.ElementTree as ET
 import pytiled_parser
 
 from collections import defaultdict
@@ -11,6 +12,8 @@ import passable
 ROOT = "./assets/tiled"
 TILESETS = "./assets/tilesets"
 DEST = "./src/game"
+ENGINE_DEST = "./src/engine"
+MAP_MODES = ("DEFAULT", "CLAMP", "WRAP")
 
 def orderedpair_to_tile(c):
 	return int(c.x//16), int(c.y//16)
@@ -39,6 +42,11 @@ encounter_sets = []
 level_enums = []
 referenced_levels = set() # door destinations and sources, which may not have maps yet
 
+# "Level" or "Level/room" (room defaults to main) -> "Level_Room"
+def level_ref_to_enum(ref):
+	l, _, room = ref.partition("/")
+	return f"{l}_{room or 'main'}".title()
+
 def process_tmx(level_name, room_name):
 	tmx_file = pathlib.Path(f"{ROOT}/{level_name}/{room_name}.tmx")
 	# level_name = f"{level_name.lower()}_{room_name}" if room_name != "main" else level_name.lower()
@@ -66,6 +74,15 @@ def process_tmx(level_name, room_name):
 	tmap = pytiled_parser.parse_map(tmx_file)
 
 	tileset_firstgids = tuple((ts.name, ts.firstgid) for ts in tmap.tilesets.values())
+
+	# Custom map properties: where leaving the map edge goes (none if empty),
+	# and the engine's Map_Mode.
+	edge_level = tmap.properties.get("edge_level", "") if tmap.properties else ""
+	map_mode = (tmap.properties.get("map_mode", "") if tmap.properties else "") or "DEFAULT"
+	assert map_mode in MAP_MODES, f"{tmx_file}: map_mode must be one of {MAP_MODES}"
+	if edge_level:
+		edge_level = level_ref_to_enum(edge_level)
+		referenced_levels.add(edge_level)
 
 	for layer in tmap.layers:
 		if isinstance(layer, pytiled_parser.TileLayer):
@@ -181,7 +198,10 @@ render_{lr_lower} :: proc() {{
 		tilesets = {prefix}TILESETS[:],
 		firstgids = {prefix}FIRSTGIDS[:],
 		routes = {prefix}ROUTES[:],
+		mode = .{map_mode},
+		open_edges = {"true" if edge_level else "false"},
 	}})
+	edge_level = {"." + edge_level if edge_level else "nil"}
 	""")
 	for n, item_entity in enumerate(item_entities):
 		datum = f"{lr_title}_{n}"
@@ -206,23 +226,22 @@ render_{lr_lower} :: proc() {{
 	}} )""")
 
 	# EGRESSES
+	# Ghost entities on the door tiles; stepping on one leaves the level.
+	# Warp pads have no sprite yet.
 	for n, (destination, pos, i, warp) in enumerate(egresses):
 		x, y = pos
 		proc = f"warp_to_level({destination.title()}, {i})" if warp else f"egress({destination.title()}, {i})"
-		v = "v = create_sprite_state(.Warp)," if warp else ""
-		out_f.write(f"""\n\tadd_world_entity( Entity{{
-		id = new_id(),
-		ghost = true,
+		out_f.write(f"""\n\tengine.spawn_entity({{
+		name = "egress:{n}:{destination[1:].title()}",
 		tile = {{ {x}, {y} }},
-		n = "egress:{n}:{destination}",
-		trap = proc(_, c_id: Id) {{ if c_id == PLAYER_ID {{ {proc} }} }},
-		{v}
-		}} )""")
+		ghost = true,
+		on_step = proc(_, by: engine.Entity_Id) {{ if by == engine.player() {{ {proc} }} }},
+	}})""")
 
 	out_f.write("}\n")
 
-	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile_Coord, Sprite_Tag) {{\n")
-	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face }\n")
+	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile_Coord, Sprite_Tag, bool) {{\n")
+	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face, true }\n")
 	# ENTRANCES
 	for n, (lfrom, pos, eFace, iFace, iOffset, i) in enumerate(entrances):
 		x, y = pos
@@ -241,8 +260,8 @@ render_{lr_lower} :: proc() {{
 				x -= 1
 			elif iFace == "Right":
 				x += 1
-		out_f.write(f"{stmt} {{ return {{ {x}, {y} }}, .{iFace.title()} }}\n")
-	out_f.write("panic(\"Don't know where to spawn.\")\n")
+		out_f.write(f"{stmt} {{ return {{ {x}, {y} }}, .{iFace.title()}, true }}\n")
+	out_f.write("return {}, .Down, false\n")
 	out_f.write("}")
 
 	out_f.close()
@@ -258,6 +277,22 @@ def write_case_proc(f, proc_name):
 			f.write(f"case .{lenum}:\n\t{proc_name}_{lname}()\n")
 		f.write("}\n}\n\n")
 
+# Tileset_Id and tileset_files for the engine, from the Tiled tilesets: the
+# enum member is the tileset's name, title-cased; the file is its image's stem.
+def write_tileset_data():
+	tilesets = []
+	for tsx in sorted(pathlib.Path(f"{ROOT}/tilesets").glob("*.tsx")):
+		root = ET.parse(tsx).getroot()
+		tilesets.append((root.get("name").title(), pathlib.Path(root.find("image").get("source")).stem))
+	with open(f"{ENGINE_DEST}/tileset_data.odin", "w") as f:
+		f.write("package engine\n\nTileset_Id :: enum {\n")
+		for name, _ in tilesets:
+			f.write(f"\t{name},\n")
+		f.write("}\n\n@(rodata)\ntileset_files := [Tileset_Id]string {\n")
+		for name, stem in tilesets:
+			f.write(f"\t.{name} = \"{stem}\",\n")
+		f.write("}\n")
+
 def export_tilesets():
 	for file in pathlib.Path(TILESETS).glob("*.ase"):
 		print(f"exporting {file}")
@@ -265,6 +300,7 @@ def export_tilesets():
 
 def main():
 	export_tilesets()
+	write_tileset_data()
 	for file in pathlib.Path(ROOT).rglob("*.tmx"):
 		level_name = str(file.parent).split("/")[-1]
 		room_name = str(file.name)[:-4]
@@ -280,6 +316,12 @@ def main():
 		write_case_proc(levels_data_f, "tiled_init")
 		write_case_proc(levels_data_f, "init")
 		write_case_proc(levels_data_f, "render")
+
+		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (Tile_Coord, Sprite_Tag, bool) {\n")
+		levels_data_f.write("\t#partial switch l {\n")
+		for lenum in level_enums:
+			levels_data_f.write(f"\tcase .{lenum}: return {lenum.lower()}_player_spawn()\n")
+		levels_data_f.write("\t}\n\treturn {}, .Down, false\n}\n\n")
 
 		levels_data_f.write("passable :: proc(l: Level, i, j: Tile_T) -> (p: u8) {\n")
 		levels_data_f.write("\t#partial switch l {\n")
