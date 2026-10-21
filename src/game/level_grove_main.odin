@@ -9,6 +9,13 @@ init_grove_main :: proc() {
 		sprite = character_sprite(),
 	})
 	engine.spawn(pace_dude_route_0, dude, "dude pace")
+
+  if !get_game_data(Bool_Datum.Introduction) {
+    engine.spawn(proc(self: engine.Entity_Id) {
+      engine.say("You're new in town|\nPress Z to start!")
+      set_game_data(Bool_Datum.Introduction, true)
+    })
+  }
 }
 
 // Walks to the start of dude_route_0, then paces it forever. The route is a

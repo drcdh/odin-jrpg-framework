@@ -34,8 +34,6 @@ Legacy_Sprite :: enum {
 
 create_sprite_state :: proc(name: Legacy_Sprite, tag: Sprite_Tag = {}) -> engine.Sprite_State { return {} }
 
-get_game_data :: proc(d: Chest_Datum) -> bool { return false }
-
 Item :: enum {
 	Potion,
 }
