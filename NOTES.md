@@ -59,7 +59,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/engine/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
 | `src/engine/level.odin` | `clear_level`: removes everything a level added to the world |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 64 headless tests |
+| `src/engine/engine_test.odin` | 65 headless tests |
 | `src/game/game.odin` | `setup` (enters Grove), player input |
 | `src/game/level.odin` | `start_level`, `egress` / `warp_to_level`, transitions, edge exits, level history, type aliases for the generated code |
 | `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
@@ -103,6 +103,7 @@ Pressing Z calls `engine.interact(player)`. The first entity on the tile the pla
   - `set_facing` (and so `set_facing_player`) does nothing.
   - Nothing else is affected: other verbs, raw tweens and `set_busy` itself still work.
 - The holding script may move and turn the entity as usual. The main thread is never held off.
+- `is_busy(id)` tells whether anything holds the entity. The game checks it for the player: while a script holds the player (`set_busy_player()` / `set_busy_player(false)`), `game.update` ignores movement and interact input, for example during a scripted pause with no dialogue box up. A step already under way finishes.
 - Busy lapses when the holding script ends, so a cancelled talk script can't leave the entity stuck. Set from the main thread, busy holds off all scripts until cleared.
 
 Demo: Grove's dude has a `new_trigger`, so talking to him makes him face the player and stop pacing until the conversation ends.

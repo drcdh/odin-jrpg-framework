@@ -56,6 +56,14 @@ entity_busy :: proc(id: Entity_Id) -> bool {
 	return current_script != nil && entity_held(id, current_script.handle)
 }
 
+// Whether `id` is busy (set_busy) with anything, as the game sees it: the
+// flag is set and its script, if any, is still running. The game checks this
+// for the player (set_busy_player) to ignore movement and interact input.
+is_busy :: proc(id: Entity_Id) -> bool {
+	e, ok := entity_get(id)
+	return ok && e.busy && (e.busy_by == {} || script_alive(e.busy_by))
+}
+
 // Whether script `by` is held off `id`. Busy lapses when its script ends.
 @(private)
 entity_held :: proc(id: Entity_Id, by: Script_Id) -> bool {

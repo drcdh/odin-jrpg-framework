@@ -29,6 +29,9 @@ update :: proc() {
 		if update_transition() do return
 	}
 
+	// A script holds the player (set_busy_player): no walking or talking.
+	if engine.is_busy(player) do return
+
 	if dir, held := held_direction(); held {
 		// Facing is the direction the player last tried to move, even into a wall.
 		engine.set_facing(player, dir)

@@ -862,6 +862,26 @@ busy_lapses_when_its_script_ends :: proc(t: ^testing.T) {
 }
 
 @(test)
+is_busy_follows_its_script :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({})
+	spawn(proc(self: Entity_Id) {
+		set_busy(self)
+		pause(0.5) // ends without set_busy(false)
+	}, e)
+	run_for(FRAME)
+	testing.expect(t, is_busy(e))
+	run_for(0.6)
+	testing.expect(t, !is_busy(e), "busy lapses with its script")
+
+	set_busy(e) // from the main thread: held until cleared
+	run_for(0.5)
+	testing.expect(t, is_busy(e))
+	set_busy(e, false)
+	testing.expect(t, !is_busy(e))
+}
+
+@(test)
 trigger_autoface_and_autobusy :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	p := spawn_entity({tile = {0, 0}, facing = .Right})

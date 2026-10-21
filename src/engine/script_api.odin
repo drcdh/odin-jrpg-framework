@@ -25,6 +25,12 @@ set_busy :: proc(id: Entity_Id, busy := true) {
 	}
 }
 
+// set_busy on the player. While the player is busy, the game ignores movement
+// and interact input (see is_busy), e.g. during a scripted pause.
+set_busy_player :: proc(busy := true) {
+	set_busy(player(), busy)
+}
+
 // Does nothing from a script while the entity is busy with another (set_busy).
 set_facing :: proc(id: Entity_Id, dir: Direction) {
 	if entity_busy(id) do return
