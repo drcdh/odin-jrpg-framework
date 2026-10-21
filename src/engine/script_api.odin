@@ -13,8 +13,16 @@ set_tile :: proc(id: Entity_Id, tile: Tile) {
 	}
 }
 
+set_busy :: proc(id: Entity_Id, busy := false) {
+  if e, ok := entity_get(id); ok do e.busy = busy
+}
+
 set_facing :: proc(id: Entity_Id, dir: Direction) {
 	if e, ok := entity_get(id); ok do e.facing = dir
+}
+
+set_facing_player :: proc(id: Entity_Id) {
+  set_facing(id, dir_opposite(entity_get(player()).facing))
 }
 
 set_tint :: proc(id: Entity_Id, tint: rl.Color) {

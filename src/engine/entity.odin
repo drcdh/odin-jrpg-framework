@@ -12,6 +12,7 @@ Entity :: struct {
 	tile:    Tile,      // logical cell; changes as soon as a move starts
 	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
 	facing:  Direction,
+  busy:    bool,      // will react to moves as if blocked
 	ghost:   bool,      // neither blocks nor is blocked by other entities
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,

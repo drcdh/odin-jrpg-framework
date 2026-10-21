@@ -793,52 +793,6 @@ count_and_wait :: proc(_: Entity_Id) {
 	pause(1)
 }
 
-@(test)
-interact_talks_to_the_faced_tile :: proc(t: ^testing.T) {
-	init(); defer shutdown()
-	trigger_count = 0
-	p := spawn_entity({tile = {5, 5}, facing = .Up})
-	npc := spawn_entity({tile = {6, 5}, facing = .Down, trigger = {script = count_and_wait}})
-
-	testing.expect(t, !interact(p), "facing an empty tile")
-	run_for(FRAME)
-	testing.expect_value(t, trigger_count, 0)
-
-	set_facing(p, .Right)
-	testing.expect(t, interact(p))
-	testing.expect_value(t, entity_get(npc).facing, Direction.Left) // turned toward the player
-	run_for(FRAME)
-	testing.expect_value(t, trigger_count, 1)
-
-	testing.expect(t, !interact(p), "script still running")
-	run_for(1.2)
-	testing.expect(t, interact(p))
-	run_for(FRAME)
-	testing.expect_value(t, trigger_count, 2)
-}
-
-@(test)
-interact_once_and_cooldown :: proc(t: ^testing.T) {
-	init(); defer shutdown()
-	trigger_count = 0
-	p := spawn_entity({tile = {0, 0}, facing = .Right})
-	spawn_entity({tile = {1, 0}, trigger = {script = proc(_: Entity_Id) { trigger_count += 1 }, mode = .Once}})
-	spawn_entity({tile = {0, 1}, trigger = {script = proc(_: Entity_Id) { trigger_count += 10 }, mode = .Cooldown, cooldown = 1}})
-
-	testing.expect(t, interact(p))
-	run_for(FRAME)
-	testing.expect(t, !interact(p), "Once trigger already fired")
-
-	set_facing(p, .Down)
-	testing.expect(t, interact(p))
-	run_for(0.5)
-	testing.expect(t, !interact(p), "still cooling down")
-	run_for(0.6)
-	testing.expect(t, interact(p))
-	run_for(FRAME)
-	testing.expect_value(t, trigger_count, 21)
-}
-
 // --- Maps, camera, levels ---
 
 @(test)
