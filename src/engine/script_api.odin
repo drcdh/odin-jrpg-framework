@@ -13,16 +13,26 @@ set_tile :: proc(id: Entity_Id, tile: Tile) {
 	}
 }
 
-set_busy :: proc(id: Entity_Id, busy := false) {
-  if e, ok := entity_get(id); ok do e.busy = busy
+// Makes `id` busy, so it stops wandering or following a path while something
+// interacts with it: for every script but the running one, move_entity,
+// move_entity_to (and so walk_entity and walk_route) wait as if blocked, and
+// set_facing does nothing. Ends with set_busy(id, false) or when the script
+// that set it ends. From the main thread, it holds off all scripts.
+set_busy :: proc(id: Entity_Id, busy := true) {
+	if e, ok := entity_get(id); ok {
+		e.busy = busy
+		e.busy_by = current_script.handle if busy && current_script != nil else {}
+	}
 }
 
+// Does nothing from a script while the entity is busy with another (set_busy).
 set_facing :: proc(id: Entity_Id, dir: Direction) {
+	if entity_busy(id) do return
 	if e, ok := entity_get(id); ok do e.facing = dir
 }
 
 set_facing_player :: proc(id: Entity_Id) {
-  set_facing(id, dir_opposite(entity_get(player()).facing))
+	set_facing(id, dir_opposite(entity_get(player()).facing))
 }
 
 set_tint :: proc(id: Entity_Id, tint: rl.Color) {
@@ -94,12 +104,15 @@ wait_until :: proc(pred: proc(data: rawptr) -> bool, data: rawptr = nil, loc := 
 }
 
 // One slide of `delta` tiles. The logical tile jumps to the destination at the
-// start, so for long moves prefer walk_entity.
+// start, so for long moves prefer walk_entity. Waits first while the entity is
+// busy with another script (set_busy).
 move_entity :: proc(id: Entity_Id, delta: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	if !wait_not_busy(id, loc) do return false
 	return wait_tween(tween_to_tile(id, entity_tile(id) + delta, duration, easing), loc)
 }
 
 move_entity_to :: proc(id: Entity_Id, to: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	if !wait_not_busy(id, loc) do return false
 	return wait_tween(tween_to_tile(id, to, duration, easing), loc)
 }
 
@@ -113,10 +126,22 @@ wait_tile_clear :: proc(id: Entity_Id, tile: Tile, loc := #caller_location) -> b
 	}, &b, loc)
 }
 
+// Blocks while `id` is busy with another script (see set_busy).
+wait_not_busy :: proc(id: Entity_Id, loc := #caller_location) -> bool {
+	assert(current_script != nil, "wait_not_busy called outside of a script", loc)
+	Held :: struct { id: Entity_Id, by: Script_Id }
+	h := Held{id, current_script.handle} // on this script's stack, which outlives the wait
+	return wait_until(proc(data: rawptr) -> bool {
+		held := (^Held)(data)
+		return !entity_held(held.id, held.by)
+	}, &h, loc)
+}
+
 // Walks one tile at a time, x first and then y, facing each step's direction.
 // The entity's tile always matches the cell it's drawn in. `pause_between`
 // waits that long between tiles (not after the last one).
-// Before each step it waits for the next tile to be clear of solid entities.
+// Before each step it waits for the next tile to be clear of solid entities,
+// and while the entity is busy with another script (set_busy).
 walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
 	first := true
 	for axis in 0..<2 {
@@ -129,10 +154,14 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_bet
 		for _ in 0..<abs(n) {
 			if !first && pause_between > 0 && !pause(pause_between, loc) do return false
 			first = false
-			set_facing(id, dir)
-			next := entity_tile(id) + step
-			if !wait_tile_clear(id, next, loc) do return false
-			if !wait_tween(tween_to_tile(id, next, seconds_per_tile), loc) do return false
+			for {
+				if !wait_not_busy(id, loc) do return false
+				set_facing(id, dir)
+				if !wait_tile_clear(id, entity_tile(id) + step, loc) do return false
+				// It may have been made busy, or moved, while it waited.
+				if !entity_busy(id) && !tile_occupied(entity_tile(id) + step, id) do break
+			}
+			if !move_entity_to(id, entity_tile(id) + step, seconds_per_tile, loc = loc) do return false
 		}
 	}
 	return true

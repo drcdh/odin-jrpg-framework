@@ -123,6 +123,11 @@ scripts_update :: proc() {
 		s, ok := hm.get(&world.scripts, h)
 		if !ok do continue
 		if s.done {
+			// A finished trigger script frees its entity, whoever made it busy.
+			if e, has := entity_get(s.self); has && e.trigger.running == h {
+				e.busy = false
+				e.busy_by = {}
+			}
 			thread.destroy(s.thread) // joins
 			hm.remove(&world.scripts, h)
 		} else {

@@ -7,18 +7,15 @@ init_grove_main :: proc() {
 		name   = "dude",
 		tile   = GROVE_MAIN_DUDE_SPAWN_NOT_MET,
 		sprite = character_sprite(),
-    trigger = {script=proc(self: engine.Entity_Id) {
-      engine.set_facing_player(self)
-      engine.set_busy(self) // entity will not move or change face
-      if !get_game_data(Bool_Datum.Met_Dude) {
-        engine.say("Oh, hey, what's up?")
-        set_game_data(Bool_Datum.Met_Dude, true)
-      } else {
-        engine.say("Hi again.")
-      }
-      engine.set_busy(self, false) // entity will resume movement from other scripts
-    },
-  },
+		// Faces the player and stops pacing while they talk.
+		trigger = engine.new_trigger(proc(self: engine.Entity_Id) {
+			if !get_game_data(Bool_Datum.Met_Dude) {
+				engine.say("Oh, hey, what's up?")
+				set_game_data(Bool_Datum.Met_Dude, true)
+			} else {
+				engine.say("Hi again.")
+			}
+		}),
 	})
 	engine.spawn(pace_dude_route_0, dude, "dude pace")
 

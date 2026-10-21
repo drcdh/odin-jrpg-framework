@@ -59,7 +59,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/engine/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
 | `src/engine/level.odin` | `clear_level`: removes everything a level added to the world |
 | `src/engine/debug.odin` | F1 overlay |
-| `src/engine/engine_test.odin` | 61 headless tests |
+| `src/engine/engine_test.odin` | 64 headless tests |
 | `src/game/game.odin` | `setup` (enters Grove), player input |
 | `src/game/level.odin` | `start_level`, `egress` / `warp_to_level`, transitions, edge exits, level history, type aliases for the generated code |
 | `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
@@ -89,10 +89,23 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
   - `move_entity`, `move_entity_to` and `tween_to_tile` don't check occupancy. They're for scripted effects such as the glider's slide.
 
 ### Talk triggers
-Pressing Z calls `engine.interact(player)`. The first entity on the tile the player faces that has a trigger turns to face the player and runs its script.
+Pressing Z calls `engine.interact(player)`. The first entity on the tile the player faces that has a trigger runs its script.
 - A trigger never runs its script twice at once.
-- `Trigger_Mode` is `Repeat`, `Once` or `Cooldown`.
+- `Trigger` has `autoface` (turn to face the talker) and `autobusy` (busy for the trigger script, so the entity's other scripts can't move or turn it). Both happen in `interact`, before the script first runs.
+- `new_trigger(script, autoface = true, autobusy = true)` is the usual way to make one. A bare `Trigger{script = ...}` does neither.
+- When a trigger script finishes, its entity's busy flag is cleared, whoever set it.
 - The engine doesn't decide when to interact; the game calls `interact` when `get_input(.ENTER)` is pressed.
+
+### Busy entities
+`set_busy(id)` (and `set_busy(id, false)`) stops an entity wandering or following a path while something interacts with it, such as the player talking to it.
+- While busy, every script but the one that set it is held off:
+  - `move_entity` and `move_entity_to`, and so `walk_entity` and `walk_route`, wait as if blocked, and carry on when the entity is free. A step already under way finishes first. `wait_not_busy(id)` waits the same way.
+  - `set_facing` (and so `set_facing_player`) does nothing.
+  - Nothing else is affected: other verbs, raw tweens and `set_busy` itself still work.
+- The holding script may move and turn the entity as usual. The main thread is never held off.
+- Busy lapses when the holding script ends, so a cancelled talk script can't leave the entity stuck. Set from the main thread, busy holds off all scripts until cleared.
+
+Demo: Grove's dude has a `new_trigger`, so talking to him makes him face the player and stop pacing until the conversation ends.
 
 ### Handles, never pointers
 Entities, tweens and scripts each live in a `hm.Dynamic_Handle_Map` (`Entity_Id`, `Tween_Id` and `Script_Id` are `distinct hm.Handle32`). A zero handle means "none". Code keeps only handles. An `^Entity` from `entity_get` is valid only for the current scope and must never be held across a script yield.
@@ -268,7 +281,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers (`Repeat`, `Once`, `Cooldown`), sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.

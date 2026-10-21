@@ -12,7 +12,8 @@ Entity :: struct {
 	tile:    Tile,      // logical cell; changes as soon as a move starts
 	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
 	facing:  Direction,
-  busy:    bool,      // will react to moves as if blocked
+	busy:    bool,      // other scripts than busy_by can't move or turn it; see set_busy
+	busy_by: Script_Id, // the script that set busy; {} = the main thread
 	ghost:   bool,      // neither blocks nor is blocked by other entities
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,
@@ -47,6 +48,20 @@ find :: proc(name: string, loc := #caller_location) -> Entity_Id {
 	}
 	log.warnf("find: no entity named %q", name, location = loc)
 	return {}
+}
+
+// True while `id` is busy (set_busy) with something other than the running
+// script, which may then not move or turn it. Always false on the main thread.
+entity_busy :: proc(id: Entity_Id) -> bool {
+	return current_script != nil && entity_held(id, current_script.handle)
+}
+
+// Whether script `by` is held off `id`. Busy lapses when its script ends.
+@(private)
+entity_held :: proc(id: Entity_Id, by: Script_Id) -> bool {
+	e, ok := entity_get(id)
+	if !ok || !e.busy || by == e.busy_by do return false
+	return e.busy_by == {} || script_alive(e.busy_by)
 }
 
 entity_pos :: proc(id: Entity_Id) -> [2]f32 {

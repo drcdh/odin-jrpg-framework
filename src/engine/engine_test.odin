@@ -793,6 +793,114 @@ count_and_wait :: proc(_: Entity_Id) {
 	pause(1)
 }
 
+// --- Busy ---
+
+// Makes its entity busy, faces it up, holds for 0.5 s, then frees it.
+@(private = "file")
+hold_busy :: proc(self: Entity_Id) {
+	set_facing(self, .Up)
+	set_busy(self)
+	pause(0.5)
+	set_facing(self, .Down) // the holder may still change it
+	set_busy(self, false)
+}
+
+@(test)
+busy_holds_off_other_scripts_moves_and_facing :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({tile = {0, 0}, facing = .Right, sprite = {tint = rl.WHITE}})
+	spawn(hold_busy, e)
+	run_for(FRAME)
+	testing.expect(t, entity_get(e).busy)
+
+	mover := spawn(proc(self: Entity_Id) {
+		set_facing(self, .Left)  // ignored
+		set_tint(self, rl.RED)   // not affected by busy
+		move_entity(self, {1, 0}, 0.1) // waits
+	}, e)
+	run_for(FRAME)
+	testing.expect_value(t, entity_get(e).facing, Direction.Up)
+	testing.expect_value(t, entity_get(e).sprite.tint, rl.RED)
+	testing.expect_value(t, entity_tile(e), Tile{0, 0})
+
+	set_facing(e, .Left) // the main thread isn't held off
+	testing.expect_value(t, entity_get(e).facing, Direction.Left)
+
+	run_for(0.5)
+	testing.expect(t, !entity_get(e).busy)
+	testing.expect_value(t, entity_get(e).facing, Direction.Down) // set by the holder
+	run_for(0.2)
+	testing.expect_value(t, entity_tile(e), Tile{1, 0})
+	testing.expect(t, !script_alive(mover))
+}
+
+@(test)
+busy_holds_off_walks :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({tile = {0, 0}})
+	walker := spawn(proc(self: Entity_Id) { walk_entity(self, {3, 0}, 0.1) }, e)
+	run_for(0.12) // second step under way
+	spawn(hold_busy, e)
+	run_for(0.3)
+	testing.expect_value(t, entity_tile(e), Tile{2, 0}) // finished its step, then stopped
+	testing.expect_value(t, entity_get(e).facing, Direction.Up)
+	run_for(0.5)
+	testing.expect_value(t, entity_tile(e), Tile{3, 0})
+	testing.expect_value(t, entity_get(e).facing, Direction.Right)
+	testing.expect(t, !script_alive(walker))
+}
+
+@(test)
+busy_lapses_when_its_script_ends :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	e := spawn_entity({facing = .Right})
+	spawn(proc(self: Entity_Id) { set_busy(self) }, e)
+	run_for(FRAME)
+	spawn(proc(self: Entity_Id) { set_facing(self, .Left) }, e)
+	run_for(FRAME)
+	testing.expect_value(t, entity_get(e).facing, Direction.Left)
+}
+
+@(test)
+trigger_autoface_and_autobusy :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	p := spawn_entity({tile = {0, 0}, facing = .Right})
+	npc := spawn_entity({tile = {1, 0}, facing = .Up, trigger = new_trigger(proc(self: Entity_Id) {
+		set_facing(self, .Down) // the trigger script itself may change it
+		pause(0.5)
+	})})
+	pacer := spawn(proc(self: Entity_Id) { walk_entity(self, {0, 3}, 0.1) }, npc)
+
+	testing.expect(t, interact(p))
+	testing.expect_value(t, entity_get(npc).facing, Direction.Left)
+	testing.expect(t, entity_get(npc).busy)
+	run_for(0.3)
+	testing.expect_value(t, entity_tile(npc), Tile{1, 0}) // the pacer is held off
+	testing.expect_value(t, entity_get(npc).facing, Direction.Down)
+
+	run_for(0.3)
+	testing.expect(t, !entity_get(npc).busy, "busy ends with the trigger script")
+	run_for(0.5)
+	testing.expect_value(t, entity_tile(npc), Tile{1, 3})
+	testing.expect(t, !script_alive(pacer))
+}
+
+@(test)
+plain_trigger_neither_faces_nor_busies :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	p := spawn_entity({tile = {0, 0}, facing = .Right})
+	npc := spawn_entity({tile = {1, 0}, facing = .Up, trigger = new_trigger(proc(self: Entity_Id) {
+		set_busy(self) // busy set by the script itself is cleared at the end too
+	}, autoface = false, autobusy = false)})
+
+	testing.expect(t, interact(p))
+	testing.expect_value(t, entity_get(npc).facing, Direction.Up)
+	testing.expect(t, !entity_get(npc).busy)
+	run_for(FRAME)
+	testing.expect(t, !entity_get(npc).busy)
+	testing.expect(t, !script_alive(entity_get(npc).trigger.running))
+}
+
 // --- Maps, camera, levels ---
 
 @(test)
