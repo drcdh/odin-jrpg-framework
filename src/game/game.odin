@@ -17,11 +17,8 @@ update :: proc() {
 	if rl.IsKeyPressed(.F1) do engine.toggle_debug()
 	if update_transition() do return
 
-	// While a dialogue box is up, Z closes it and the player can't move or talk.
-	if engine.dialogue_active() {
-		if rl.IsKeyPressed(.Z) do engine.dialogue_dismiss()
-		return
-	}
+	// The dialogue box reads its own input; the player waits.
+	if engine.dialogue_active() do return
 
 	player := engine.player()
 	if !engine.tween_done(player_step) do return
@@ -40,16 +37,16 @@ update :: proc() {
 			player_step = engine.tween_to_tile(player, to, STEP_TIME)
 			stepping = true
 		}
-	} else if rl.IsKeyPressed(.Z) {
+	} else if engine.get_input(.ENTER) {
 		engine.interact(player)
 	}
 }
 
 // First held direction in a fixed order.
 held_direction :: proc() -> (engine.Direction, bool) {
-	if rl.IsKeyDown(.UP)    || rl.IsKeyDown(.W) do return .Up, true
-	if rl.IsKeyDown(.DOWN)  || rl.IsKeyDown(.S) do return .Down, true
-	if rl.IsKeyDown(.LEFT)  || rl.IsKeyDown(.A) do return .Left, true
-	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) do return .Right, true
+	if engine.get_input(.UP, down = true, silent = true)    do return .Up, true
+	if engine.get_input(.DOWN, down = true, silent = true)  do return .Down, true
+	if engine.get_input(.LEFT, down = true, silent = true)  do return .Left, true
+	if engine.get_input(.RIGHT, down = true, silent = true) do return .Right, true
 	return {}, false
 }

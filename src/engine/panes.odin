@@ -1,14 +1,19 @@
-#+private file
 package engine
 
 import rl "vendor:raylib"
 
+// Bordered UI boxes, drawn from the 3x3 grid of 8 px pieces in pane.png, in
+// UI tiles (see text.odin). Screen space.
+
 PANE_BACKGROUND_COLOR :: rl.Color{1, 87, 155, 255}
 
+@(private = "file")
 PANE_IMAGE_DATA :: #load("../../assets/textures/pane.png")
 
+@(private = "file")
 PANE_PIECE_SIZE :: 8
 
+@(private = "file")
 Pane_Piece :: enum {
 	Top_Left,
 	Top,
@@ -20,15 +25,20 @@ Pane_Piece :: enum {
 	Bottom_Right,
 }
 
-pane_texture: rl.Texture
-
 @(private)
-init_panes :: proc() {
+panes_init :: proc() {
 	pane_image := rl.LoadImageFromMemory(".png", raw_data(PANE_IMAGE_DATA), i32(len(PANE_IMAGE_DATA)))
-	pane_texture = rl.LoadTextureFromImage(pane_image)
+	world.ui.pane = rl.LoadTextureFromImage(pane_image)
 	rl.UnloadImage(pane_image)
 }
 
+@(private)
+panes_destroy :: proc() {
+	if world.ui.pane.id != 0 do rl.UnloadTexture(world.ui.pane)
+	world.ui.pane = {}
+}
+
+@(private = "file")
 draw_pane_piece :: proc(piece: Pane_Piece, l, t: f32) {
 	src := rl.Rectangle{0, 0, PANE_PIECE_SIZE, PANE_PIECE_SIZE}
 	switch piece {
@@ -51,12 +61,13 @@ draw_pane_piece :: proc(piece: Pane_Piece, l, t: f32) {
 		src.x = 2 * PANE_PIECE_SIZE
 		src.y = 2 * PANE_PIECE_SIZE
 	}
-	draw_texture(pane_texture, src, tile_to_pixel(l, t))
+	draw_ui_texture(world.ui.pane, src, ui_to_screen(l, t))
 }
 
+// A pane at (l, t), w x h UI tiles, in half-tile steps.
 draw_pane_f32 :: proc(l, t, w, h: f32) {
-	inside_pos := tile_to_pixel(l + .5, t + .5)
-	inside_dim := tile_to_pixel(w - 1, h - 1)
+	inside_pos := ui_to_screen(l + .5, t + .5)
+	inside_dim := [2]f32{w - 1, h - 1} * UI_TILE
 	if inside_dim.x > 0 && inside_dim.y > 0 {
 		rl.DrawRectangleV(inside_pos, inside_dim, PANE_BACKGROUND_COLOR)
 	}
@@ -92,7 +103,6 @@ draw_pane_00_f32_V :: proc(wh: [2]f32) {
 	draw_pane_00_f32(wh.x, wh.y)
 }
 
-@(private)
 draw_pane :: proc {
 	draw_pane_f32,
 	draw_pane_Tile,

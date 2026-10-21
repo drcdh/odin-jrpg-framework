@@ -1,1 +1,3 @@
-*.png
+# Exported by the build tools from the .ase sources; textures/ holds hand-made PNGs.
+sprites/*.png
+tilesets/*.png

@@ -35,6 +35,7 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		engine.clock_advance(rl.GetFrameTime())
+		engine.input_update(rl.GetFrameTime())
 		game.update()
 		engine.update()
 
@@ -48,7 +49,7 @@ main :: proc() {
 		engine.draw_screen_effects()
 		engine.draw_dialogue()
 		engine.draw_debug_hud()
-		rl.DrawText("WASD / arrows: move    Z: talk    F1: debug overlay", 10, 695, 16, rl.GRAY)
+		rl.DrawText("Arrows: move    Z: talk / confirm    F1: debug overlay", 10, 695, 16, rl.GRAY)
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)

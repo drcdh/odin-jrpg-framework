@@ -3,6 +3,7 @@ package engine
 import hm "core:container/handle_map"
 import "core:math"
 import "core:slice"
+import "core:strings"
 import "core:testing"
 import rl "vendor:raylib"
 
@@ -526,8 +527,102 @@ walk_route_loops_back_to_start :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(e).facing, Direction.Up) // last leg goes up
 }
 
+// --- Input and dialogue ---
+
+// Presses `k` for one frame, then releases it.
+@(private = "file")
+tap :: proc(k: Game_Input) {
+	world.input.state[k] = Input_Pressed{}
+	run_for(FRAME)
+	world.input.state[k] = Input_Up{}
+}
+
+// The dialogue page as typed out so far, lines joined with "\n".
+@(private = "file")
+dialogue_text :: proc() -> string {
+	d := &world.dialogue
+	b := strings.builder_make(context.temp_allocator)
+	text := strings.to_string(d.buffer)
+	remaining := d.shown
+	for l, i in d.page[:d.page_len] {
+		if i > 0 do strings.write_byte(&b, '\n')
+		n := min(l.end - l.start, remaining)
+		remaining -= n
+		strings.write_string(&b, text[l.start:][:n])
+	}
+	return strings.to_string(b)
+}
+
+@(private = "file")
+dialogue_is :: proc($T: typeid) -> bool {
+	_, ok := world.dialogue.state.(T)
+	return ok
+}
+
 @(test)
-say_blocks_until_dismissed :: proc(t: ^testing.T) {
+input_states_press_hold_release :: proc(t: ^testing.T) {
+	s: Single_Input_State = Input_Up{}
+	s = next_input_state(s, true, 0.1)
+	testing.expect_value(t, s, Single_Input_State(Input_Pressed{}))
+	s = next_input_state(s, true, 0.1)
+	testing.expect_value(t, s, Single_Input_State(Input_Held{t = 0.1}))
+	s = next_input_state(s, true, 0.2)
+	expect_near(t, s.(Input_Held).t, 0.3)
+	s = next_input_state(s, false, 0.1)
+	testing.expect_value(t, s, Single_Input_State(Input_Up{}))
+}
+
+@(test)
+get_input_repeats_after_hold_time :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	world.input.state[.ENTER] = Input_Pressed{}
+	testing.expect(t, get_input(.ENTER))
+	world.input.state[.ENTER] = Input_Held{t = 0.5}
+	testing.expect(t, !get_input(.ENTER))
+	testing.expect(t, get_input(.ENTER, down = true))
+	world.input.state[.ENTER] = Input_Held{t = HOLD_TIME}
+	testing.expect(t, get_input(.ENTER))
+	consume_input(.ENTER)
+	testing.expect(t, !get_input(.ENTER))
+	consume_input(.UP) // up stays up
+	testing.expect_value(t, world.input.state[.UP], Single_Input_State(Input_Up{}))
+
+	world.input.state[.UP] = Input_Pressed{}
+	world.input.state[.RIGHT] = Input_Held{t = 2}
+	testing.expect_value(t, get_menu_input(), [2]int{1, -1})
+	testing.expect_value(t, get_y_input(), Maybe(int)(-1))
+}
+
+@(test)
+wrap_page_breaks_at_spaces_and_newlines :: proc(t: ^testing.T) {
+	out: [MAX_DIALOGUE_LINES]Dialogue_Line
+	lines :: proc(text: string, out: []Dialogue_Line) -> []string {
+		r := make([dynamic]string, context.temp_allocator)
+		for l in out do append(&r, text[l.start:l.end])
+		return r[:]
+	}
+
+	text := "the quick brown fox jumps"
+	n, next := wrap_page(text, 0, 4, 10, out[:])
+	testing.expect(t, slice.equal(lines(text, out[:n]), []string{"the quick", "brown fox", "jumps"}))
+	testing.expect_value(t, next, len(text))
+
+	text = "abcdefghij klm\nx"
+	n, next = wrap_page(text, 0, 4, 10, out[:])
+	testing.expect(t, slice.equal(lines(text, out[:n]), []string{"abcdefghij", "klm", "x"}))
+
+	text = "abcdefghijklm"
+	n, next = wrap_page(text, 0, 4, 10, out[:])
+	testing.expect(t, slice.equal(lines(text, out[:n]), []string{"abcdefghij", "klm"}))
+
+	text = "1\n2\n3"
+	n, next = wrap_page(text, 0, 2, 10, out[:])
+	testing.expect_value(t, n, 2)
+	testing.expect_value(t, text[next:], "3")
+}
+
+@(test)
+say_types_then_waits_for_enter :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	trigger_count = 0
 	s := spawn(proc(_: Entity_Id) {
@@ -536,22 +631,130 @@ say_blocks_until_dismissed :: proc(t: ^testing.T) {
 		say("second")
 		trigger_count = 2
 	})
+	run_for(FRAME * 3)
+	testing.expect(t, dialogue_is(Dialogue_Marquee))
+	testing.expect(t, len(dialogue_text()) < len("first"), "still typing")
+
 	run_for(0.5)
-	testing.expect(t, dialogue_active())
-	testing.expect_value(t, world.dialogue.text, "first")
-	testing.expect_value(t, world.dialogue.speaker, "Tester")
+	testing.expect(t, dialogue_is(Dialogue_Wait))
+	testing.expect_value(t, dialogue_text(), "first")
+	testing.expect_value(t, strings.to_string(world.dialogue.speaker), "Tester")
 	testing.expect_value(t, trigger_count, 0)
 
-	dialogue_dismiss()
+	tap(.ENTER)
 	run_for(FRAME)
 	testing.expect_value(t, trigger_count, 1)
-	testing.expect_value(t, world.dialogue.text, "second")
+	testing.expect(t, dialogue_active(), "the conversation carries on")
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "second")
+	testing.expect_value(t, strings.builder_len(world.dialogue.speaker), 0)
 
-	dialogue_dismiss()
+	tap(.ENTER)
 	run_for(FRAME)
 	testing.expect_value(t, trigger_count, 2)
 	testing.expect(t, !dialogue_active())
 	testing.expect(t, !script_alive(s))
+}
+
+@(test)
+enter_skips_typing :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) { say("a fairly long line of text") })
+	run_for(FRAME)
+	tap(.ENTER)
+	testing.expect_value(t, dialogue_text(), "a fairly long line of text")
+	testing.expect(t, dialogue_is(Dialogue_Wait))
+	tap(.ENTER)
+	run_for(FRAME)
+	testing.expect(t, !dialogue_active())
+}
+
+@(test)
+opening_press_does_not_skip :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	world.input.state[.ENTER] = Input_Pressed{} // the press that talked to someone
+	spawn(proc(_: Entity_Id) { say("hello there") })
+	run_for(FRAME)
+	testing.expect(t, dialogue_is(Dialogue_Marquee))
+	testing.expect(t, len(dialogue_text()) < len("hello there"))
+}
+
+@(test)
+say_pages_long_text :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) { say("1\n2\n3\n4\n5\n6") })
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "1\n2\n3\n4")
+	testing.expect(t, dialogue_is(Dialogue_Wait))
+	tap(.ENTER)
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "5\n6")
+	tap(.ENTER)
+	run_for(FRAME)
+	testing.expect(t, !dialogue_active())
+}
+
+@(test)
+speaker_takes_a_line :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) { say("1\n2\n3\n4\n5\n6", "Sage") })
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "1\n2\n3")
+	tap(.ENTER)
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "4\n5\n6")
+}
+
+@(test)
+say_appends_without_clear :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) {
+		say("a", hurry = true)
+		say(" b", clear = false)
+	})
+	run_for(0.5)
+	testing.expect_value(t, dialogue_text(), "a b")
+}
+
+@(test)
+hurry_and_pause_need_no_enter :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	trigger_count = 0
+	spawn(proc(_: Entity_Id) {
+		say("hi", hurry = true, pause = 0.5)
+		trigger_count = 1
+	})
+	run_for(0.3)
+	testing.expect(t, dialogue_is(Dialogue_Pause))
+	testing.expect_value(t, trigger_count, 0)
+	run_for(0.4)
+	testing.expect_value(t, trigger_count, 1)
+	testing.expect(t, !dialogue_active())
+}
+
+@(private = "file") chosen: int
+
+@(test)
+choose_wraps_and_returns_the_pick :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	chosen = -1
+	spawn(proc(_: Entity_Id) {
+		c, ok := choose("Pick one", {"a", "b", "c"})
+		if ok do chosen = c
+	})
+	run_for(0.5)
+	testing.expect(t, dialogue_is(Dialogue_Choose))
+	testing.expect_value(t, len(world.dialogue.choices), 3)
+	tap(.UP)
+	testing.expect_value(t, world.dialogue.choice, 2)
+	tap(.DOWN)
+	tap(.DOWN)
+	testing.expect_value(t, world.dialogue.choice, 1)
+	tap(.ENTER)
+	run_for(FRAME)
+	testing.expect_value(t, chosen, 1)
+	testing.expect(t, !dialogue_active())
+	testing.expect_value(t, len(world.dialogue.choices), 0)
 }
 
 @(test)
@@ -560,11 +763,11 @@ say_waits_for_other_speaker :: proc(t: ^testing.T) {
 	spawn(proc(_: Entity_Id) { say("a") })
 	spawn(proc(_: Entity_Id) { say("b") })
 	run_for(0.2)
-	testing.expect_value(t, world.dialogue.text, "a")
-	dialogue_dismiss()
-	run_for(FRAME)
-	testing.expect_value(t, world.dialogue.text, "b")
-	dialogue_dismiss()
+	testing.expect_value(t, dialogue_text(), "a")
+	tap(.ENTER)
+	run_for(0.2)
+	testing.expect_value(t, dialogue_text(), "b")
+	tap(.ENTER)
 	run_for(FRAME)
 	testing.expect(t, !dialogue_active())
 }

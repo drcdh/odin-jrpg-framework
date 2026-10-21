@@ -23,6 +23,8 @@ World :: struct {
 	flash:           Screen_Flash,
 	curtain:         f32, // 0 clear .. 1 black; see curtain_to
 	dialogue:        Dialogue,
+	input:           Input,
+	ui:              UI, // font, pane texture, icons; loaded only with a window
 	player:          Entity_Id,
 	debug_overlay:   bool,
 }
@@ -40,11 +42,16 @@ init :: proc(allocator := context.allocator) {
 	world.swapped_sprites = make(map[Swap_Key]Sprite_Handle, allocator)
 	world.clock.time_scale = 1
 	world.camera.zoom = ZOOM
+	input_init()
+	ui_init() // after the sprite maps: it creates the icon sprites
+	dialogue_init(allocator)
 }
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
 shutdown :: proc() {
 	scripts_shutdown()
+	dialogue_destroy()
+	ui_destroy()
 	it := hm.iterator_make(&world.images)
 	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
 	for tex in world.tilesets do if tex.id != 0 do rl.UnloadTexture(tex)
@@ -60,11 +67,13 @@ shutdown :: proc() {
 	world = {}
 }
 
-// One simulation step. Call after clock_advance and the game's own input/update code.
+// One simulation step. Call after clock_advance, input_update and the game's own update.
 update :: proc() {
 	tweens_update(world.clock.dt)
 	scripts_update()
+	dialogue_update(world.clock.dt)
 	sprites_update(world.clock.dt)
+	ui_update(world.clock.dt)
 	camera_update({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
 	entities_flush_destroyed()
 }

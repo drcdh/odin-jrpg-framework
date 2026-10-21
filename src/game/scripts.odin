@@ -80,7 +80,7 @@ blink_alarm :: proc(button: engine.Entity_Id, light_name: string, loc := #caller
 
 // Each line stays up until the player presses Z.
 villager_talk :: proc(self: engine.Entity_Id) {
-	if !engine.say("Hello there! You can walk around with WASD or the arrow keys.", "Villager") do return
+	if !engine.say("Hello there! You can walk around with the arrow keys.", "Villager") do return
 	engine.say("Press Z while facing something to talk to it. I hear the buttons down south do something...", "Villager")
 }
 
