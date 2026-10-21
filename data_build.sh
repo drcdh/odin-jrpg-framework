@@ -2,5 +2,6 @@
 # Usage: ./build_data.sh
 cd "$(dirname "$0")"
 
+python src/build_tools/generate_font.py
 python src/build_tools/process_sprites.py
 python src/build_tools/process_tiled.py
