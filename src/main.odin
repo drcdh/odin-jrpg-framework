@@ -3,8 +3,7 @@ package main
 import "core:log"
 import "core:mem"
 import rl "vendor:raylib"
-import "engine"
-import "content"
+import "game"
 
 _ :: mem // only used in debug builds
 
@@ -25,30 +24,30 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(engine.WINDOW_WIDTH, engine.WINDOW_HEIGHT, content.GAME_TITLE)
+	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
-	engine.init()
-	defer engine.shutdown() // before CloseWindow: it unloads textures
-	content.setup()
+	game.init()
+	defer game.shutdown() // before CloseWindow: it unloads textures
+	game.start_game()
 
 	for !rl.WindowShouldClose() {
-		engine.clock_advance(rl.GetFrameTime())
-		engine.input_update(rl.GetFrameTime())
-		engine.update()
+		game.clock_advance(rl.GetFrameTime())
+		game.input_update(rl.GetFrameTime())
+		game.update()
 
 		rl.BeginDrawing()
 		rl.ClearBackground({30, 30, 40, 255})
-		rl.BeginMode2D(engine.camera())
-		engine.draw_map()
-		engine.draw_world()
-		engine.draw_debug_world()
+		rl.BeginMode2D(game.camera())
+		game.draw_map()
+		game.draw_world()
+		game.draw_debug_world()
 		rl.EndMode2D()
-		engine.draw_screen_effects()
-		engine.draw_dialogue()
-		engine.draw_world_menu()
-		engine.draw_debug_hud()
+		game.draw_screen_effects()
+		game.draw_dialogue()
+		game.draw_world_menu()
+		game.draw_debug_hud()
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)

@@ -1,18 +1,18 @@
 # odin-jrpg-framework: development notes
 
-A 2D game engine written in Odin with `vendor:raylib`. It uses only Odin `core:` and `vendor:` packages.
+A 2D JRPG written in Odin with `vendor:raylib`. Downstream repos merge this one and override or add content. It uses only Odin `core:` and `vendor:` packages.
 
 ## Goal
 
 Entity scripts are plain Odin procedures written in a blocking style. They run alongside the update/draw loop, the player's movement, and each other:
 
 ```odin
-glide_away :: proc(self: engine.Entity_Id) {
-	player := engine.player()
-	engine.set_tint(player, rl.RED)                              // immediate
-	engine.move_entity(self, {4, 0}, 1.0, .Quadratic_In_Out)     // 4 tiles; blocks until arrival
-	engine.pause(2)                                              // blocks for 2 game seconds
-	engine.set_tint(player, rl.WHITE)
+glide_away :: proc(self: Entity_Id) {
+	player := player()
+	set_tint(player, rl.RED)                              // immediate
+	move_entity(self, {4, 0}, 1.0, .Quadratic_In_Out)     // 4 tiles; blocks until arrival
+	pause(2)                                              // blocks for 2 game seconds
+	set_tint(player, rl.WHITE)
 }
 ```
 
@@ -24,79 +24,76 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 ./build.sh          # run the demo (debug)
 ./build.sh build    # debug build  -> build/odin-jrpg
 ./build.sh release  # optimized build
-./build.sh test     # checks src/game is headless, then the engine tests (ODIN_TEST_THREADS=1, because engine state is global)
+./build.sh test     # checks src/rules is headless, then the game tests (ODIN_TEST_THREADS=1, because game state is global)
 ```
 
 Every target first runs two generators. They need Python 3, the `aseprite` CLI on `PATH`, and `pytiled_parser`. All of their outputs are gitignored.
-- `src/build_tools/process_sprites.py` exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/engine/sprite_data.odin`.
-- `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/content/level_<level>_<room>_data.odin`. It also writes `src/content/level_data.odin` and `encounter_region_data.odin`, `src/game/levels_data.odin` (the `Level` enum) and `chest_data.odin`, and `src/engine/tileset_data.odin`.
+- `src/build_tools/process_sprites.py` exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/game/sprite_data.odin`.
+- `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/game/level_<level>_<room>_data.odin`. It also writes `src/game/level_data.odin`, `encounter_region_data.odin` and `tileset_data.odin`, and `src/rules/levels_data.odin` (the `Level` enum) and `chest_data.odin`.
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state. F4 saves to `saves/test.json` and F5 loads it; these are temporary test keys until there are menus.
 
-The game starts in the Grove level with the player and a sky-blue "dude" who paces `dude_route_0`. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, trap buttons, villager, flasher, gliders) no longer spawn, but their scripts are still in `src/content/scripts.odin`.
+The game starts in the Grove level with the player and a sky-blue "dude" who paces `dude_route_0`. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, trap buttons, villager, flasher, gliders) no longer spawn, but their scripts are still in `src/game/scripts.odin`.
 
 ## Packages
 
 | Package | Holds | Imports |
 |---|---|---|
-| `src/game` | Rules and data, headless: `Game_Data`, flags, money, save files and their metadata, the `Level` and `Chest_Datum` enums; later the party, items and battles. No clocks and no real time, so it can run battles programmatically | `core:` only |
-| `src/engine` | Everything real-time and audiovisual: the world, entities, scripts, tweens, tiles and the screen size, maps, input, player control, level changes and fades, UI and menus, `save_game` / `load_game` (audio later) | `game` |
-| `src/content` | A particular game's world: `start.odin`, the levels' `init_*`, NPC scripts, the generated level code, and `enter_level`, which builds a level | `engine`, `game` |
-| `src/main.odin` | The window and the frame loop | `engine`, `content` |
+| `src/rules` | Headless state and mechanics: anything that can matter to battle state. `Game_Data` (flags, money, chests; the inventory later), save files and their metadata, the `Level` and `Chest_Datum` enums; later characters, stats, equipment, skills, items, enemies, and battle state and resolution. No clocks, no real time, no raylib, so battles can run programmatically | `core:` only |
+| `src/game` | Everything real-time and audiovisual: the world, entities, scripts, tweens, tiles and the screen size, maps, input, player control, level changes and fades, UI and menus, the levels and their NPC scripts, sprites, the generated level code, `save_game` / `load_game` around `rules`' save files; later battle presentation and audio | `rules` |
+| `src/main.odin` | The window and the frame loop | `game` |
 
-The engine never names content, which keeps the imports acyclic. Content hands the engine the one thing it needs, how to build a level, with `engine.set_level_enter(enter_level)` in `content.setup`. `./build.sh test` checks that `src/game` builds alone (`odin check`) and imports neither `../engine`, `vendor:raylib` nor `core:time`.
+`game` calls `rules`, and `rules` calls nothing: there are no hooks or callbacks between them. Content splits along the same line: item, skill and enemy tables go in `rules`, while their sprites, the levels and the NPC scripts go in `game`. `./build.sh test` checks that `src/rules` builds alone (`odin check`) and imports neither `../game`, `vendor:raylib` nor `core:time`.
 
 ## Layout
 
 | Path | Contents |
 |---|---|
 | `src/main.odin` | Window, frame loop, and a tracking allocator in debug builds |
-| `src/engine/world.odin` | `World` global state, `init` / `shutdown` / `update` |
-| `src/engine/clock.odin` | Game time: dt clamp (1/20 s), pause, time scale; `raw_dt` for the UI |
-| `src/engine/entity.odin` | `Entity`, stored in `core:container/handle_map`; deferred destroy |
-| `src/engine/sprite.odin` | Sprite types, sheet loading with palette swaps, `Sprite_State` animation, y- and layer-sorted drawing |
-| `src/engine/sprite_data.odin` | Generated: the `Sprite_Name` enum and the `sprite_metadata` table |
-| `src/engine/tween.odin` | Tweens over `[4]f32` lanes, easing from `core:math/ease` |
-| `src/engine/script.odin` | Script runtime (thread handoff) |
-| `src/engine/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
-| `src/engine/grid.odin` | Tile size, zoom, the 16 x 14 tile screen (`VIEW_TILES_*`, `WINDOW_WIDTH` / `WINDOW_HEIGHT`), `Tile`, `Direction`, tile/world conversions |
-| `src/engine/effects.odin` | Screen flash, level-change curtain |
-| `src/engine/dialogue.odin` | Dialogue box: the `say` and `choose` verbs, typing, paging, word wrap, choice pane |
-| `src/engine/input.odin` | `Game_Input` bindings (keyboard and gamepad), press/hold state, `get_input` |
-| `src/engine/text.odin`, `panes.odin`, `font.odin`, `ui_icons.odin` | UI drawing in UI tiles: text, bordered panes, the bitmap font, cursor icons |
-| `src/engine/font_data.odin` | Generated: the font's glyph table |
-| `src/engine/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
-| `src/engine/map.odin` | `Level_Map` (in `World`), `tile_free` / `tile_passable` / `tile_occupied`, `map_route`, map rendering to a render texture, `draw_map`, `Map_Mode` |
-| `src/engine/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
-| `src/engine/level.odin` | `start_level`, `egress` / `warp_to_level`, fades, edge exits, level history (`world.levels`), `clear_level` |
-| `src/engine/player.odin` | Player control: walking, talking, the temporary F4/F5 save and load keys |
-| `src/engine/save.odin` | `save_game` / `load_game`: the save point and real time around `game`'s save files |
-| `src/engine/selection.odin`, `input.odin` `grid_change` | Menu cursor helpers |
-| `src/engine/debug.odin` | F1 overlay |
-| `src/engine/world_menu.odin`, `metadata_menu.odin` | The world menu; the save-slot summaries for its future Save screen |
-| `src/engine/engine_test.odin` | 67 headless tests |
-| `src/game/data.odin` | `Game_Data` (story flags, numbers, money), `init_new_game`, save files |
-| `src/game/metadata.odin` | Save-file summaries for a future load menu (not used yet) |
-| `src/game/levels_data.odin`, `chest_data.odin` | Generated by `process_tiled.py`: the `Level` and `Chest_Datum` enums |
-| `src/content/start.odin` | What the game is: `GAME_TITLE`, `start_game` (called by `setup`), and `new_game` (resets the game data with `init_new_game` and enters Grove) |
-| `src/content/content.odin` | `setup`: registers `enter_level` with the engine, then calls `start_game` |
-| `src/content/level.odin` | `enter_level` (the engine's `Level_Enter` hook) and the player's spawn |
-| `src/content/game_aliases.odin` | Unqualified names for `game` types and procs, for content and the generated code |
-| `src/content/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
-| `src/content/stubs.odin` | Placeholders for old-project features the generated level code calls |
-| `src/content/scripts.odin`, `sprites.odin` | Example scripts, `character_sprite` |
-| `src/content/*_data.odin` | Generated by `process_tiled.py` |
+| `src/game/world.odin` | `World` global state, `init` / `shutdown` / `update` |
+| `src/game/clock.odin` | Game time: dt clamp (1/20 s), pause, time scale; `raw_dt` for the UI |
+| `src/game/entity.odin` | `Entity`, stored in `core:container/handle_map`; deferred destroy |
+| `src/game/sprite.odin` | Sprite types, sheet loading with palette swaps, `Sprite_State` animation, y- and layer-sorted drawing |
+| `src/game/sprite_data.odin` | Generated: the `Sprite_Name` enum and the `sprite_metadata` table |
+| `src/game/tween.odin` | Tweens over `[4]f32` lanes, easing from `core:math/ease` |
+| `src/game/script.odin` | Script runtime (thread handoff) |
+| `src/game/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
+| `src/game/grid.odin` | Tile size, zoom, the 16 x 14 tile screen (`VIEW_TILES_*`, `WINDOW_WIDTH` / `WINDOW_HEIGHT`), `Tile`, `Direction`, tile/world conversions |
+| `src/game/effects.odin` | Screen flash, level-change curtain |
+| `src/game/dialogue.odin` | Dialogue box: the `say` and `choose` verbs, typing, paging, word wrap, choice pane |
+| `src/game/input.odin` | `Game_Input` bindings (keyboard and gamepad), press/hold state, `get_input` |
+| `src/game/text.odin`, `panes.odin`, `font.odin`, `ui_icons.odin` | UI drawing in UI tiles: text, bordered panes, the bitmap font, cursor icons |
+| `src/game/font_data.odin` | Generated: the font's glyph table |
+| `src/game/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
+| `src/game/map.odin` | `Level_Map` (in `World`), `tile_free` / `tile_passable` / `tile_occupied`, `map_route`, map rendering to a render texture, `draw_map`, `Map_Mode` |
+| `src/game/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
+| `src/game/player.odin` | Player control: walking, talking, the temporary F4/F5 save and load keys |
+| `src/game/save.odin` | `save_game` / `load_game`: the save point and real time around `rules`' save files |
+| `src/game/selection.odin`, `input.odin` `grid_change` | Menu cursor helpers |
+| `src/game/debug.odin` | F1 overlay |
+| `src/game/world_menu.odin`, `metadata_menu.odin` | The world menu; the save-slot summaries for its future Save screen |
+| `src/game/level.odin` | `start_level` and `enter_level`, the player's spawn, `egress` / `warp_to_level`, fades, edge exits, level history (`world.levels`), `clear_level` |
+| `src/game/start.odin` | `GAME_TITLE`, `start_game` (called by `main`), and `new_game` (resets the game data with `init_new_game` and enters Grove) |
+| `src/game/rules_aliases.odin` | Unqualified names for `rules` types and procs, for level code and scripts |
+| `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
+| `src/game/stubs.odin` | Placeholders (`Legacy_*`) for old-project features the generated level code calls |
+| `src/game/scripts.odin`, `sprites.odin` | Example scripts, `character_sprite` |
+| `src/game/level_*_data.odin`, `level_data.odin`, `encounter_region_data.odin` | Generated by `process_tiled.py` |
+| `src/game/game_test.odin` | 67 headless tests |
+| `src/rules/data.odin` | `Game_Data` (story flags, numbers, money), `init_new_game`, save files |
+| `src/rules/metadata.odin` | Save-file summaries for a future load menu (not used yet) |
+| `src/rules/levels_data.odin`, `chest_data.odin` | Generated by `process_tiled.py`: the `Level` and `Chest_Datum` enums |
 | `src/build_tools/` | `process_sprites.py`, `process_tiled.py` (with `passable.py`), `generate_font.py`, `processing.py` |
 | `assets/sprites/` | Aseprite sources for the sprites |
 | `assets/tiled/` | The Tiled project: one folder per level, one `.tmx` per room, object templates |
 | `assets/tilesets/` | Aseprite sources for the tilesets |
 | `assets/textures/` | Hand-made UI textures: `font.png`, `pane.png` |
 
-## Making a game
-A game built on the framework lives in its own repo that merges this one (for example, a private copy with this repo as its `upstream` remote). To keep those merges free of conflicts:
-- Edit `src/content/start.odin` for the window title and for where a new game begins. The framework rarely touches it.
-- Add content as new files: maps under `assets/tiled/<Level>/`, sprites and tilesets under `assets/sprites/` and `assets/tilesets/`, and `src/content/level_<level>_<room>.odin`. The generators pick them up, and their output is gitignored.
-- Leave the demo's files alone until the game no longer needs them, and make framework changes upstream.
+## Downstream repos
+The game's downstream repos merge this one (for example, a private copy with this repo as its `upstream` remote) and override or add content. To keep those merges free of conflicts:
+- Edit `src/game/start.odin` for the window title and for where a new game begins. This repo rarely touches it.
+- Add content as new files: maps under `assets/tiled/<Level>/`, sprites and tilesets under `assets/sprites/` and `assets/tilesets/`, `src/game/level_<level>_<room>.odin`, and rules data (items, skills, enemies) in `src/rules`. The generators pick up the assets, and their output is gitignored.
+- Leave the demo's files alone until the game no longer needs them, and make shared changes upstream.
 
 ## Key design decisions
 
@@ -115,12 +112,12 @@ A game built on the framework lives in its own repo that merges this one (for ex
   - `move_entity`, `move_entity_to` and `tween_to_tile` don't check occupancy. They're for scripted effects such as the glider's slide.
 
 ### Talk triggers
-Pressing Z calls `engine.interact(player)`. The first entity on the tile the player faces that has a trigger runs its script.
+Pressing Z calls `interact(player)`. The first entity on the tile the player faces that has a trigger runs its script.
 - A trigger never runs its script twice at once.
 - `Trigger` has `autoface` (turn to face the talker) and `autobusy` (busy for the trigger script, so the entity's other scripts can't move or turn it). Both happen in `interact`, before the script first runs.
 - `new_trigger(script, autoface = true, autobusy = true)` is the usual way to make one. A bare `Trigger{script = ...}` does neither.
 - When a trigger script finishes, its entity's busy flag is cleared, whoever set it.
-- The engine doesn't decide when to interact; the game calls `interact` when `get_input(.ENTER)` is pressed.
+- `interact` doesn't read input; player control calls it when `get_input(.ENTER)` is pressed.
 
 ### Busy entities
 `set_busy(id)` (and `set_busy(id, false)`) stops an entity wandering or following a path while something interacts with it, such as the player talking to it.
@@ -138,7 +135,7 @@ Demo: Grove's dude has a `new_trigger`, so talking to him makes him face the pla
 Entities, tweens and scripts each live in a `hm.Dynamic_Handle_Map` (`Entity_Id`, `Tween_Id` and `Script_Id` are `distinct hm.Handle32`). A zero handle means "none". Code keeps only handles. An `^Entity` from `entity_get` is valid only for the current scope and must never be held across a script yield.
 
 ### Referring to other entities by name
-`engine.find(name)` does a linear scan of the entity map. It returns `Entity_Id{}` and logs a warning when no entity has that name, and if two share a name the first one wins. A script calls it once at the top and keeps the handle; it's never used per frame. Example: `trap_button` finds `"alarm_light"` and blinks it.
+`find(name)` does a linear scan of the entity map. It returns `Entity_Id{}` and logs a warning when no entity has that name, and if two share a name the first one wins. A script calls it once at the top and keeps the handle; it's never used per frame. Example: `trap_button` finds `"alarm_light"` and blinks it.
 
 ### Script runtime: thread handoff
 Odin's core library has no coroutines. Instead, each running script gets an OS thread, and **only one thread runs at a time**:
@@ -184,9 +181,9 @@ Demo sprites in `assets/sprites/`:
 - **Chest, light and flasher** are white shapes that tints color. The crate is a static checker, and the flasher is a 4-frame `Anim` pulse.
 - **The button** has Up and Down rows. The trap button's script switches it to `.Down` while the alarm blinks.
 - **The patroller sheet** has rows Left/Down/Right/Up, each a 2-frame idle bob, with a sky-blue body.
-  - The player (white, so script tints show true), the route patroller (lime) and the villager (pink) are palette swaps of it, all made by `character_sprite` in `src/content/sprites.odin`.
+  - The player (white, so script tints show true), the route patroller (lime) and the villager (pink) are palette swaps of it, all made by `character_sprite` in `src/game/sprites.odin`.
   - All four characters use `follow_facing`, so the player's sprite turns with input.
-- **The patrollers' movement:** the first patroller turns at each end of its patrol and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds. The lime patroller loops `PATROL_ROUTE` (in `src/content/scripts.odin`) with `walk_route` at the same pace, pausing at corners and between laps.
+- **The patrollers' movement:** the first patroller turns at each end of its patrol and toward the player when talked to. It steps one tile every 0.4 s, with a 0.25 s pause between moves, including at the turnarounds. The lime patroller loops `PATROL_ROUTE` (in `src/game/scripts.odin`) with `walk_route` at the same pace, pausing at corners and between laps.
 
 ### Dialogue
 `say(text, speaker = "", hurry = false, pause = 0, clear = true)` types `text` into a pane across the top of the screen, one character every `DIALOGUE_SPEED` (0.05 s), and blocks the script until the player has read it. Consecutive `say` calls play as one conversation, because the box only closes once the speaking script stops talking.
@@ -215,7 +212,7 @@ Demo: Grove's introduction says "You're new in town… Press Z to start!" the fi
 | `PAUSE` | Space | middle right (start) |
 | `UP` / `DOWN` / `LEFT` / `RIGHT` | arrow keys | D-pad |
 
-- `main` calls `input_update(dt)` once per frame, before `engine.update`. Each input is `Input_Up`, `Input_Pressed` (this frame only) or `Input_Held{t}`.
+- `main` calls `input_update(dt)` once per frame, before `game.update`. Each input is `Input_Up`, `Input_Pressed` (this frame only) or `Input_Held{t}`.
 - `get_input(k)` is true on the press and, once held for `HOLD_TIME` (1 s), on every frame after. `get_input(k, down = true)` is true on every frame it's held, which is what walking uses.
 - `consume_input(k)` swallows the current press.
 - `get_menu_input`, `get_x_input` and `get_y_input` read pressed directions for menus.
@@ -257,12 +254,12 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - named points as constants (`GROVE_MAIN_PLAYER_SPAWN_INTRO`)
   - routes from polylines and polygons
   - the tile layers, and a passability table
-  - `tiled_init_<lr>`: calls `engine.set_map` with the map's size, tilesets, routes, mode and `open_edges`. It also sets `engine.world.levels.edge` and spawns the door entities and chests.
-  - `render_<lr>`: draws every layer into the map's render texture through `engine.begin_map_render`, `draw_map_tile` and `end_map_render`
+  - `tiled_init_<lr>`: calls `set_map` with the map's size, tilesets, routes, passability table, mode and `open_edges`. It also sets `world.levels.edge` and spawns the door entities and chests.
+  - `render_<lr>`: draws every layer into the map's render texture through `begin_map_render`, `draw_map_tile` and `end_map_render`
   - `<lr>_player_spawn`: the entrance rules
-- **`level_data.odin`:** `tiled_init_level`, `init_level`, `render_level`, `player_spawn_level` and `passable` dispatch. Its switches are `#partial`, since the `Level` enum (`src/game/levels_data.odin`) also lists any level a door or edge names that has no map.
-- **Engine names:** the generated code uses `engine.Tile`, `engine.Direction`, `engine.egress` / `engine.warp_to_level` and `engine.world.levels` directly, and `game` names through `game_aliases.odin`.
-- **Stale outputs:** the generator first deletes old `level_*_data.odin`, `level_data.odin` and `encounter_region_data.odin` files from `src/content` and `src/game`, so renamed or removed maps, and outputs from before the level code moved to content, don't linger.
+- **`level_data.odin`:** `tiled_init_level`, `init_level`, `render_level`, and `player_spawn_level` dispatch. Its switches are `#partial`, since the `Level` enum (`src/rules/levels_data.odin`) also lists any level a door or edge names that has no map.
+- **Names:** the generated code is in package `game`, and reaches `rules` names through `rules_aliases.odin`.
+- **Stale outputs:** the generator first deletes old `level_*_data.odin`, `level_data.odin` and `encounter_region_data.odin` files from `src/game` and `src/rules`, and any `*_data.odin` left in the old `src/engine` and `src/content` (removing those directories once empty), so renamed or removed maps and the old package layout leave nothing behind.
 - **Map properties** (custom properties on each `.tmx`):
   - `edge_level`: where stepping off the map goes. It's `Level` or `Level/room`, with the room defaulting to `main`; empty means the edges are walls.
   - `map_mode`: `DEFAULT`, `CLAMP` or `WRAP`.
@@ -272,15 +269,15 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - `level`/`room` name the other side, defaulting to overworld/main; with only `room` set, the level is this one.
   - **Egress:** a ghost entity on the door tile whose `on_step` calls `warp_to_level` (if `warp` is set) or `egress(dest, door_idx)` when the player steps onto it. Warp pads have no sprite yet; the F1 overlay doesn't show them either, since they have no talk trigger.
   - **Ingress:** a rule in `<lr>_player_spawn`: if `world.levels.prev`, `.egress_idx` and (when `eFace` is set) `.prev_face` match, spawn on the door tile facing `iFace`, one tile further in that direction if `iOffset` is set. Edge exits use `eFace` to choose where along the edge the player comes in.
-- **Leaving a level** (`src/engine/level.odin`):
+- **Leaving a level** (`src/game/level.odin`):
   - `egress(l, idx)` / `warp_to_level(l, idx)` record the door index, set `world.levels.pending`, and fade the curtain to black (`FADE_TIME` 0.25 s). They're ignored while a change is under way.
   - Stepping off the map edge is egress index 0 to `world.levels.edge`. Player control checks it when the player's step finishes (`check_edge_exit`).
   - `level_transition_update` runs at the top of player control. Once the fade-out finishes it calls `start_level` and fades back in. Input is ignored until the fade-in is done.
-- **Entering a level:** `engine.start_level(l, at = nil, face = .Down)`
+- **Entering a level:** `start_level(l, at = nil, face = .Down)`
   1. records the previous level and the player's tile and facing
   2. `clear_level()` destroys all entities, cancels every script (they finish on the next update), removes every tween, and unloads the map
-  3. calls the content's `Level_Enter` hook, `content.enter_level(l, at, face)`, which:
-     1. runs the generated `tiled_init_level` and sets the passability lookup
+  3. `enter_level(l, at, face)`:
+     1. runs the generated `tiled_init_level`, which sets the map and its passability table
      2. spawns the player: at `at` facing `face` if given (a new game and loading a save), otherwise by the entrance rules. If no rule matches, it logs an error and uses the map center.
      3. runs the hand-written `init_<lr>` (Grove adds the dude; the other levels add nothing yet), then the generated `render_level`
   4. has the camera follow the player
@@ -291,23 +288,23 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - `CLAMP`: `camera_update` keeps the view inside the map, and centers a map smaller than the view.
   - `WRAP`: the render texture repeats. An entity that steps off one edge is moved to the other side when its step finishes (`entity_arrived`), so tiles stay in range for doors and spawn rules.
 - **Passability:** `passable.py` builds each level's `PASSABLE` table from per-tileset tables (`TILESET_TERRAIN_PASSABLE`, ...) and ORs the flags of every layer except those named `Passable_*`. `PARTY_IMPASSABLE` (1) blocks walking; `BOAT_IMPASSABLE` (2) is for later.
-  - `enter_level` hands the engine a lookup (`set_map_passability`) that reads the generated `passable(level, i, j)`.
+  - The table is row-major `[w * h]u8` (`<LEVEL>_PASSABLE`), and `set_map` takes it as `Level_Map.passable`. It's data, not a callback; an empty slice means everything is passable.
   - `tile_passable(t)` checks it. In WRAP mode it wraps `t`; otherwise tiles outside the map are passable only if the level has an edge exit (`open_edges`). With no map loaded, every tile is passable.
   - The player's input calls `tile_free` before each step. A blocked step still turns the player.
 - **Routes:** `map_route(i)` returns route `i` of the current map. The generated `<LEVEL>_<NAME>` constants give the indices, for example `GROVE_MAIN_DUDE_ROUTE_0`. In Grove, `pace_dude_route_0` walks the dude from `GROVE_MAIN_DUDE_SPAWN_NOT_MET` to the route's start, then loops `walk_route`. A two-point route paces out and back.
 - **Camera:** `camera_follow(id)` makes `camera_update` center the camera on that entity's tweened `pos` every frame, so it glides with each step.
 - **Curtain:** `curtain_to(alpha, seconds)` tweens `world.curtain` (0 clear, 1 black). `draw_screen_effects` draws it over the world and under the dialogue box.
-- **Tilesets:** `Tileset_Id` and `tileset_files` are generated into `src/engine/tileset_data.odin` from `assets/tiled/tilesets/*.tsx`. Each tileset's name is title-cased, and its file is the stem of its image's filename. A tileset's column count comes from its texture width. Textures load on first use, on the main thread.
-- **Stubs:** `src/content/stubs.odin` stands in for old-project features the generated code still calls, so the maps' chests don't appear yet:
+- **Tilesets:** `Tileset_Id` and `tileset_files` are generated into `src/game/tileset_data.odin` from `assets/tiled/tilesets/*.tsx`. Each tileset's name is title-cased, and its file is the stem of its image's filename. A tileset's column count comes from its texture width. Textures load on first use, on the main thread.
+- **Stubs:** `src/game/stubs.odin` stands in for old-project features the generated code still calls, so the maps' chests don't appear yet:
   - the old `Entity` / `add_world_entity` / `Id`
   - `.Box` sprites
   - `items_in_a_box`, `monster_in_a_box`
   - `try_spawn_from_save`
 
 ### Game data and saving
-`game_data: Game_Data` (`src/game/data.odin`) holds the story state: `Bool_Datum` flags, `Int_Datum` numbers, chests, money, steps and play time. Scripts read and write it with `get_game_data` / `set_game_data`. `init_new_game` resets it, and `new_game` (`start.odin`) calls it.
-- `engine.save_game(filename)` builds the `Save_Point` (the current level and the player's tile) and reads the clock, then `game.save_game(save_point, time_saved, filename)` writes `Save_Data` (the game data, the save point and the time saved) as JSON to `saves/<filename>`, creating `saves/` if needed (it's gitignored). With no filename it writes a new uniquely named file.
-- `engine.load_game(filename)` calls `game.load_game`, which reads the file (`read_saved_game_data`), restores the game data (`load_saved_game`) and returns the save point. The engine then calls `start_level` at the saved level and tile, facing Down. Both report failure by logging and returning `false`; nothing exits the game.
+`game_data: Game_Data` (`src/rules/data.odin`) holds the story state: `Bool_Datum` flags, `Int_Datum` numbers, chests, money, steps and play time. Scripts read and write it with `get_game_data` / `set_game_data`. `init_new_game` resets it, and `new_game` (`start.odin`) calls it.
+- `game.save_game(filename)` builds the `Save_Point` (the current level and the player's tile) and reads the clock, then `rules.save_game(save_point, time_saved, filename)` writes `Save_Data` (the game data, the save point and the time saved) as JSON to `saves/<filename>`, creating `saves/` if needed (it's gitignored). With no filename it writes a new uniquely named file.
+- `game.load_game(filename)` calls `rules.load_game`, which reads the file (`read_saved_game_data`), restores the game data (`load_saved_game`) and returns the save point. It then calls `start_level` at the saved level and tile, facing Down. Both report failure by logging and returning `false`; nothing exits the game.
 - The `game` side takes the time as an argument, so it never reads a clock.
 - Levels are saved by name (`use_enum_names`). The flag and number arrays are saved by position, so add new `Bool_Datum` and `Int_Datum` values at the end, or older saves load into the wrong slots.
 - The player's facing isn't saved; after a load they face Down.
@@ -316,7 +313,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 
 ### Frame order
 1. `clock_advance`, `input_update`
-2. `engine.update`:
+2. `game.update`:
    1. player control (a pending level change, edge exits, player steps, Z → `interact`, S → the world menu)
    2. tweens; tile moves that finish fire step triggers (doors)
    3. scripts
@@ -334,7 +331,7 @@ Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step pla
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - Map passability only stops the player; scripted moves ignore it. Single-tween moves (`move_entity`, `tween_to_tile`) ignore other entities too.
-- Chests, items and encounters are stubbed (`src/content/stubs.odin`). Saving and loading have no menus yet, only the F4/F5 test keys. The world menu's commands do nothing yet. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
+- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Saving and loading have no menus yet, only the F4/F5 test keys. The world menu's commands do nothing yet. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
 - In WRAP mode, entities near the seam pop across when one of them steps over it, since only the stepping entity is moved.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.

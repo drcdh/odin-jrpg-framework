@@ -1,4 +1,4 @@
-DEST = "./src/engine"
+DEST = "./src/game"
 TILE_SIZE = 8
 
 letters = [
@@ -11,7 +11,7 @@ letters = [
 ]
 
 out_f = open(f"{DEST}/font_data.odin", "w")
-out_f.write(f"""package engine
+out_f.write(f"""package game
 
 import rl "vendor:raylib"
 

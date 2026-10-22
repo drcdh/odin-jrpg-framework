@@ -11,11 +11,10 @@ import passable
 
 ROOT = "./assets/tiled"
 TILESETS = "./assets/tilesets"
-# Level code drives the engine, so it goes in content; the Level and
-# Chest_Datum enums are game data, so they go in the (headless) game package.
-DEST = "./src/content"
-GAME_DEST = "./src/game"
-ENGINE_DEST = "./src/engine"
+# Level code goes in the game package; the Level and Chest_Datum enums are
+# saved game data, so they go in the (headless) rules package.
+DEST = "./src/game"
+RULES_DEST = "./src/rules"
 MAP_MODES = ("DEFAULT", "CLAMP", "WRAP")
 
 def orderedpair_to_tile(c):
@@ -63,8 +62,7 @@ def process_tmx(level_name, room_name):
 	level_filename = f"{DEST}/level_{lr_lower}_data.odin"
 	out_f = open(level_filename, "w")
 
-	out_f.write("package content\n")
-	out_f.write("import \"../engine\"\n")
+	out_f.write("package game\n")
 
 	item_entities = []
 	map_layers = []
@@ -78,7 +76,7 @@ def process_tmx(level_name, room_name):
 	tileset_firstgids = tuple((ts.name, ts.firstgid) for ts in tmap.tilesets.values())
 
 	# Custom map properties: where leaving the map edge goes (none if empty),
-	# and the engine's Map_Mode.
+	# and the Map_Mode.
 	edge_level = tmap.properties.get("edge_level", "") if tmap.properties else ""
 	map_mode = (tmap.properties.get("map_mode", "") if tmap.properties else "") or "DEFAULT"
 	assert map_mode in MAP_MODES, f"{tmx_file}: map_mode must be one of {MAP_MODES}"
@@ -123,7 +121,7 @@ def process_tmx(level_name, room_name):
 					elif not obj.name.startswith("!"):
 						name = obj.name.upper()
 						pos = orderedpair_to_tile(obj.coordinates)
-						out_f.write(f"{prefix}{name} :: engine.Tile{{ {pos[0]}, {pos[1]} }}\n")
+						out_f.write(f"{prefix}{name} :: Tile{{ {pos[0]}, {pos[1]} }}\n")
 				elif isinstance(obj, pytiled_parser.tiled_object.Polygon):
 					if obj.name.startswith("encounter"):
 						encounter_regions[lr_title].append((tiled_poly_to_odin_poly(obj), obj.properties["region"]))
@@ -143,7 +141,7 @@ def process_tmx(level_name, room_name):
 	out_f.write(f"{prefix}HEIGHT :: {h_tiles}\n")
 
 	out_f.write("@(rodata)\n")
-	out_f.write(f"{prefix}TILESETS := [{len(tileset_firstgids)}]engine.Tileset_Id{{\n")
+	out_f.write(f"{prefix}TILESETS := [{len(tileset_firstgids)}]Tileset_Id{{\n")
 	for ts, _ in tileset_firstgids:
 		out_f.write(f"\t.{ts.title()},\n")
 	out_f.write(f"}}\n")
@@ -163,13 +161,13 @@ def process_tmx(level_name, room_name):
 		out_f.write("},\n")
 	out_f.write("}\n")
 
+	# Row-major, for Level_Map.passable.
+	flags = [p for row in passable.process(map_layers, tileset_firstgids) for p in row]
 	out_f.write("@(rodata)\n")
-	out_f.write(f"{prefix}PASSABLE := [{h_tiles}][{w_tiles}]u8 ")
-	out_f.write(str(passable.process(map_layers, tileset_firstgids)).replace("[","{").replace("]", "}"))
-	out_f.write("\n")
+	out_f.write(f"{prefix}PASSABLE := [{h_tiles * w_tiles}]u8{{ {str(flags)[1:-1]} }}\n")
 
 	out_f.write("@(rodata)\n")
-	out_f.write(f"{prefix}ROUTES := [][]engine.Tile{{\n")
+	out_f.write(f"{prefix}ROUTES := [][]Tile{{\n")
 	for p in paths:
 		out_f.write("{\n")
 		for t in p:
@@ -181,29 +179,30 @@ def process_tmx(level_name, room_name):
 		out_f.write(f"{prefix}{p.upper()} :: {i}\n")
 	out_f.write(f"""
 render_{lr_lower} :: proc() {{
-	engine.begin_map_render()
+	begin_map_render()
 	for l in 0..<{num_layers} {{
 		for j in 0..<{h_tiles} {{
 			for i in 0..<{w_tiles} {{
-				engine.draw_map_tile({lr_lower}_map[l][j][i], i, j)
+				draw_map_tile({lr_lower}_map[l][j][i], i, j)
 			}}
 		}}
 	}}
-	engine.end_map_render()
+	end_map_render()
 }}
 """)
 
 	out_f.write(f"""tiled_init_{lr_lower} :: proc() {{
 	// fmt.println(\"Running tiled_init_{lr_lower}\")
-	engine.set_map({{
+	set_map({{
 		size = {{ {prefix}WIDTH, {prefix}HEIGHT }},
 		tilesets = {prefix}TILESETS[:],
 		firstgids = {prefix}FIRSTGIDS[:],
 		routes = {prefix}ROUTES[:],
+		passable = {prefix}PASSABLE[:],
 		mode = .{map_mode},
 		open_edges = {"true" if edge_level else "false"},
 	}})
-	engine.world.levels.edge = {"." + edge_level if edge_level else "nil"}
+	world.levels.edge = {"." + edge_level if edge_level else "nil"}
 	""")
 	for n, item_entity in enumerate(item_entities):
 		datum = f"{lr_title}_{n}"
@@ -214,16 +213,16 @@ render_{lr_lower} :: proc() {{
 		items = item_entity.properties["items"]
 		items = ", " + ", ".join(["."+_s for _s in items.split(",")]) if items else ""
 		script = f"items_in_a_box(id, Chest_Datum.{datum}{items})"
-		v = "" if hidden else f"v = create_sprite_state(.Box, get_game_data(Chest_Datum.{datum}) ? .Opened : .Closed),"
+		v = "" if hidden else f"v = legacy_sprite_state(.Box, get_game_data(Chest_Datum.{datum}) ? .Opened : .Closed),"
 		ghost = "true" if hidden else "false"
 		if encounter:
 			script = f"monster_in_a_box(id, .{datum}, .{encounter}{items})"
-		out_f.write(f"""\n\tadd_world_entity( Entity{{
-		id = new_id(),
+		out_f.write(f"""\n\tadd_legacy_entity( Legacy_Entity{{
+		id = legacy_id(),
 		ghost = {ghost},
 		tile = {{ {x}, {y} }},
 		n = "chest:{datum}",
-		talk = get_game_data(Chest_Datum.{datum}) ? nil : proc(id: Id) {{ {script} }},
+		talk = get_game_data(Chest_Datum.{datum}) ? nil : proc(id: Legacy_Id) {{ {script} }},
 		{v}
 	}} )""")
 
@@ -232,18 +231,18 @@ render_{lr_lower} :: proc() {{
 	# Warp pads have no sprite yet.
 	for n, (destination, pos, i, warp) in enumerate(egresses):
 		x, y = pos
-		proc = f"engine.warp_to_level({destination.title()}, {i})" if warp else f"engine.egress({destination.title()}, {i})"
-		out_f.write(f"""\n\tengine.spawn_entity({{
+		proc = f"warp_to_level({destination.title()}, {i})" if warp else f"egress({destination.title()}, {i})"
+		out_f.write(f"""\n\tspawn_entity({{
 		name = "egress:{n}:{destination[1:].title()}",
 		tile = {{ {x}, {y} }},
 		ghost = true,
-		on_step = proc(_, by: engine.Entity_Id) {{ if by == engine.player() {{ {proc} }} }},
+		on_step = proc(_, by: Entity_Id) {{ if by == player() {{ {proc} }} }},
 	}})""")
 
 	out_f.write("}\n")
 
-	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (engine.Tile, engine.Direction, bool) {{\n")
-	out_f.write("\tlv := &engine.world.levels\n")
+	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile, Direction, bool) {{\n")
+	out_f.write("\tlv := &world.levels\n")
 	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face, true }\n")
 	# ENTRANCES
 	for n, (lfrom, pos, eFace, iFace, iOffset, i) in enumerate(entrances):
@@ -280,15 +279,15 @@ def write_case_proc(f, proc_name):
 			f.write(f"case .{lenum}:\n\t{proc_name}_{lname}()\n")
 		f.write("}\n}\n\n")
 
-# Tileset_Id and tileset_files for the engine, from the Tiled tilesets: the
+# Tileset_Id and tileset_files for the map code, from the Tiled tilesets: the
 # enum member is the tileset's name, title-cased; the file is its image's stem.
 def write_tileset_data():
 	tilesets = []
 	for tsx in sorted(pathlib.Path(f"{ROOT}/tilesets").glob("*.tsx")):
 		root = ET.parse(tsx).getroot()
 		tilesets.append((root.get("name").title(), pathlib.Path(root.find("image").get("source")).stem))
-	with open(f"{ENGINE_DEST}/tileset_data.odin", "w") as f:
-		f.write("package engine\n\nTileset_Id :: enum {\n")
+	with open(f"{DEST}/tileset_data.odin", "w") as f:
+		f.write("package game\n\nTileset_Id :: enum {\n")
 		for name, _ in tilesets:
 			f.write(f"\t{name},\n")
 		f.write("}\n\n@(rodata)\ntileset_files := [Tileset_Id]string {\n")
@@ -301,13 +300,20 @@ def export_tilesets():
 		print(f"exporting {file}")
 		subprocess.check_call(["aseprite", "-b", str(file), "--save-as", str(file.with_suffix(".png"))])
 
-# Generated files are gitignored, so outputs of renamed or removed maps, and
-# outputs from before the level code moved from game to content, would linger.
+# Generated files are gitignored, so outputs of renamed or removed maps would
+# linger, as would outputs from the old package layout (src/engine and
+# src/content, now src/game; and level code that src/game held before it
+# became src/rules).
 def remove_stale_outputs():
 	for pattern in ("level_*_data.odin", "level_data.odin", "encounter_region_data.odin"):
-		for d in (DEST, GAME_DEST):
+		for d in (DEST, RULES_DEST):
 			for f in pathlib.Path(d).glob(pattern):
 				f.unlink()
+	for d in ("./src/engine", "./src/content"):
+		for f in pathlib.Path(d).glob("*_data.odin"):
+			f.unlink()
+		if pathlib.Path(d).is_dir() and not any(pathlib.Path(d).iterdir()):
+			pathlib.Path(d).rmdir()
 
 def main():
 	remove_stale_outputs()
@@ -319,36 +325,30 @@ def main():
 		print(f"processing {level_name}/{room_name}.tmx")
 		process_tmx(level_name, room_name)
 
-	# The Level enum is game data (save points name levels); the dispatch below
-	# runs level code, so it stays in content.
-	with open(f"{GAME_DEST}/levels_data.odin", "w") as f:
-		f.write("package game\n\nLevel :: enum {\n")
+	# The Level enum is saved game data (save points name levels), so it goes in
+	# rules; the dispatch below runs level code, so it stays in game.
+	with open(f"{RULES_DEST}/levels_data.odin", "w") as f:
+		f.write("package rules\n\nLevel :: enum {\n")
 		for lenum in level_enums + sorted(referenced_levels - set(level_enums)):
 			f.write(f"\t{lenum},\n")
 		f.write("}\n")
 
 	with open(f"{DEST}/level_data.odin", "w") as levels_data_f:
-		levels_data_f.write("package content\n\nimport \"../engine\"\n")
+		levels_data_f.write("package game\n")
 
 		write_case_proc(levels_data_f, "tiled_init")
 		write_case_proc(levels_data_f, "init")
 		write_case_proc(levels_data_f, "render")
 
-		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (engine.Tile, engine.Direction, bool) {\n")
+		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (Tile, Direction, bool) {\n")
 		levels_data_f.write("\t#partial switch l {\n")
 		for lenum in level_enums:
 			levels_data_f.write(f"\tcase .{lenum}: return {lenum.lower()}_player_spawn()\n")
 		levels_data_f.write("\t}\n\treturn {}, .Down, false\n}\n\n")
 
-		levels_data_f.write("passable :: proc(l: Level, i, j: Tile_T) -> (p: u8) {\n")
-		levels_data_f.write("\t#partial switch l {\n")
-		for l in level_enums:
-			levels_data_f.write(f"\t\tcase .{l}:\n")
-			levels_data_f.write(f"\t\t\tp = {l.upper()}_PASSABLE[j][i]\n")
-		levels_data_f.write("}\nreturn\n}\n\n")
 
 	with open(f"{DEST}/encounter_region_data.odin", "w") as regions_f:
-		regions_f.write("package content\n\nimport rl \"vendor:raylib\"\nimport \"../engine\"\n_ :: rl // unused when no level has encounter regions\n\nEncounter_Region :: enum {\nNone,\n")
+		regions_f.write("package game\n\nimport rl \"vendor:raylib\"\n_ :: rl // unused when no level has encounter regions\n\nEncounter_Region :: enum {\nNone,\n")
 		for r in set(_s for _s in encounter_sets):
 			regions_f.write(f"\t{r.title()},\n")
 		regions_f.write("}\n\n")
@@ -357,7 +357,7 @@ def main():
 			for (_poly, _), _r in regions:
 				regions_f.write(f"@(rodata)\n{_level.upper()}_{_r.upper()} := {_poly}\n")
 
-		regions_f.write("get_encounter_region :: proc(level: Level, tile: engine.Tile) -> (r: Encounter_Region) {\n")
+		regions_f.write("get_encounter_region :: proc(level: Level, tile: Tile) -> (r: Encounter_Region) {\n")
 		regions_f.write("#partial switch level {\n")
 		for _level, _regions in encounter_regions.items():
 			regions_f.write("case .{}:\n".format(_level))
@@ -369,8 +369,8 @@ def main():
 		regions_f.write("}\nreturn\n")
 		regions_f.write("}\n\n")
 
-	with open(f"{GAME_DEST}/chest_data.odin", "w") as f:
-		f.write("package game\n\n")
+	with open(f"{RULES_DEST}/chest_data.odin", "w") as f:
+		f.write("package rules\n\n")
 		f.write("Chest_Datum :: enum {\n")
 		for d in chest_data:
 			f.write(f"\t{d},\n")

@@ -7,7 +7,7 @@ import subprocess
 import processing
 
 ROOT = "./assets/sprites"
-DEST = "./src/engine"
+DEST = "./src/game"
 
 sprite_names = []
 sprites = []
@@ -66,7 +66,7 @@ def process_ase_tagged(name):
 	sprites.append(".{name} = {{\"{filename}\", {{ {frame_width}, {frame_height} }}, {kind}, {poses_str}, {frames_str}, {frame_t} }},\n".format(**metadata))
 
 def write_sprite_data(f):
-	f.write("package engine\n\n")
+	f.write("package game\n\n")
 
 	sort_order = [i[0] for i in sorted(enumerate(sprite_names), key=lambda x:x[1])]
 
