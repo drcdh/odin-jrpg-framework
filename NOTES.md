@@ -32,7 +32,7 @@ Every target first runs the generators. They need Python 3, the `aseprite` CLI o
 - `src/build_tools/process_items.py` and `process_skills.py` turn `content/consumables.csv`, `equippables.csv` and `skills.csv` into `src/rules/item_data.odin` (`Item_Name`, `items`) and `skill_data.odin` (`Skill_Name`, `skills`).
 - `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/game/level_<level>_<room>_data.odin`. It also writes `src/game/level_data.odin`, `encounter_region_data.odin` and `tileset_data.odin`, and `src/rules/levels_data.odin` (the `Level` enum) and `chest_data.odin`.
 
-Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state. F4 saves to `saves/test.json` and F5 loads it; these are temporary test keys until there are menus.
+Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
 
 The game starts in the Grove level with the player and a sky-blue "dude" who paces `dude_route_0`. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, trap buttons, villager, flasher, gliders) no longer spawn, but their scripts are still in `src/game/scripts.odin`.
 
@@ -68,10 +68,10 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/game/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
 | `src/game/map.odin` | `Level_Map` (in `World`), `tile_free` / `tile_passable` / `tile_occupied`, `map_route`, map rendering to a render texture, `draw_map`, `Map_Mode` |
 | `src/game/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
-| `src/game/player.odin` | Player control: walking, talking, the temporary F4/F5 save and load keys |
+| `src/game/player.odin` | Player control: walking, talking, the F4/F5 save and load test keys (debug builds) |
 | `src/game/save.odin` | `save_game` / `load_game`: the save point and real time around `rules`' save files |
 | `src/game/selection.odin`, `input.odin` `grid_change` | Menu cursor helpers |
-| `src/game/debug.odin` | F1 overlay |
+| `src/game/debug.odin` | F1 overlay, and the old game's debug keys (`debug_update`, `debug_draw`); debug builds only |
 | `src/game/world_menu.odin`, `metadata_menu.odin` | The world menu; the save-slot summaries for its future Save screen |
 | `src/game/level.odin` | `start_level` and `enter_level`, the player's spawn, `egress` / `warp_to_level`, fades, edge exits, level history (`world.levels`), `clear_level` |
 | `src/game/start.odin` | `GAME_TITLE`, `start_game` (called by `main`), and `new_game` (resets the game data with `init_new_game` and enters Grove) |
@@ -321,7 +321,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 - Levels are saved by name (`use_enum_names`). The flag and number arrays are saved by position, so add new `Bool_Datum` and `Int_Datum` values at the end, or older saves load into the wrong slots.
 - The player's facing isn't saved; after a load they face Down.
 - Saves also hold each PC's equipment, level, experience, hitpoints, name and status (`party_data`). Loading re-equips them without touching the inventory, which is saved separately.
-- For now, F4 / F5 in player control (`player.odin`) save to and load from `TEST_SAVE` (`test.json`). They're ignored during a level transition.
+- In debug builds, F4 / F5 in player control (`player.odin`) save to and load from `TEST_SAVE` (`test.json`). They're ignored during a level transition.
 
 ### Frame order
 1. `clock_advance`, `input_update`
@@ -343,7 +343,7 @@ Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step pla
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - Map passability only stops the player; scripted moves ignore it. Single-tween moves (`move_entity`, `tween_to_tile`) ignore other entities too.
-- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Saving and loading have no menus yet, only the F4/F5 test keys. Item and skill effects, sounds, battles and play time aren't ported yet. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
+- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Loading has no menu yet, only the F5 test key in debug builds. Item and skill effects, sounds, battles and play time aren't ported yet. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
 - In WRAP mode, entities near the seam pop across when one of them steps over it, since only the stepping entity is moved.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.

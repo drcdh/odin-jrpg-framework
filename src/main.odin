@@ -26,7 +26,7 @@ main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
 	defer rl.CloseWindow()
-	rl.SetTargetFPS(60)
+	rl.SetTargetFPS(game.THROTTLED_FPS)
 
 	game.init()
 	defer game.shutdown() // before CloseWindow: it unloads textures
@@ -48,6 +48,7 @@ main :: proc() {
 		game.draw_dialogue()
 		game.draw_world_menu()
 		game.draw_debug_hud()
+		game.debug_draw()
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)

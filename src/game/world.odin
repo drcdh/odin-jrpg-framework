@@ -74,6 +74,7 @@ shutdown :: proc() {
 // One simulation step, starting with the player's turn. Call after
 // clock_advance and input_update.
 update :: proc() {
+	debug_update()
 	player_update()
 	tweens_update(world.clock.dt)
 	scripts_update()

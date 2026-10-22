@@ -4,9 +4,11 @@ import rl "vendor:raylib"
 
 import "../rules"
 
+_ :: rl // only used in debug builds
+
 STEP_TIME :: 0.15 // seconds per tile
 
-// F4 saves to and F5 loads from SAVE_DIR/TEST_SAVE (temporary).
+// In debug builds, F4 saves to and F5 loads from SAVE_DIR/TEST_SAVE.
 TEST_SAVE :: "test.json"
 
 Player_Control :: struct {
@@ -19,15 +21,17 @@ Player_Control :: struct {
 // when a step finishes (step triggers); the map edge is checked here.
 @(private)
 player_update :: proc() {
-	if rl.IsKeyPressed(.F1) do toggle_debug()
+	when ODIN_DEBUG do if rl.IsKeyPressed(.F1) do toggle_debug()
 	if world_menu_active() do return // it reads its own input
 	if level_transition_update() do return
 
-	// TODO: temporary; saving and loading will go through menus.
-	if rl.IsKeyPressed(.F4) do save_game(TEST_SAVE)
-	if rl.IsKeyPressed(.F5) {
-		load_game(TEST_SAVE)
-		return
+	// Test keys, debug builds only; saving also goes through the world menu.
+	when ODIN_DEBUG {
+		if rl.IsKeyPressed(.F4) do save_game(TEST_SAVE)
+		if rl.IsKeyPressed(.F5) {
+			load_game(TEST_SAVE)
+			return
+		}
 	}
 
 	// The dialogue box reads its own input; the player waits.
