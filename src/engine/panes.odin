@@ -5,6 +5,8 @@ import rl "vendor:raylib"
 // Bordered UI boxes, drawn from the 3x3 grid of 8 px pieces in pane.png, in
 // UI tiles (see text.odin). Screen space.
 
+LABEL_COLOR :: rl.Color{0, 200, 200, 255}
+
 PANE_BACKGROUND_COLOR :: rl.Color{1, 87, 155, 255}
 
 @(private = "file")

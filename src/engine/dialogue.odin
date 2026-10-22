@@ -58,8 +58,8 @@ dialogue_init :: proc(allocator := context.allocator) {
 	d := &world.dialogue
 	d.state = Dialogue_Hidden{}
 	d.lines = DEFAULT_DIALOGUE_LINES
-	// The old game's width: the screen less a tile of border. 38 without a window.
-	d.line_width = int(2 * view_tiles().x) - 2 if rl.IsWindowReady() else 38
+	// The old game's width: the screen less a tile of border.
+	d.line_width = 2 * VIEW_TILES_W - 2
 	strings.builder_init(&d.buffer, allocator)
 	strings.builder_init(&d.speaker, allocator)
 	d.choices = make([dynamic]string, allocator)

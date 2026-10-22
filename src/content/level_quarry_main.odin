@@ -1,5 +1,5 @@
-package game
+package content
 
 // The map, its doors and the player come from the generated level code and
-// start_level; Quarry adds nothing else yet.
+// enter_level; Quarry adds nothing else yet.
 init_quarry_main :: proc() {}

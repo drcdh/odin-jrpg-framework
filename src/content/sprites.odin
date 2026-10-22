@@ -1,4 +1,4 @@
-package game
+package content
 
 import rl "vendor:raylib"
 import "../engine"

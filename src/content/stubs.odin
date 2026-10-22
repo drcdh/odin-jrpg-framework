@@ -1,4 +1,4 @@
-package game
+package content
 
 import "../engine"
 
@@ -17,7 +17,7 @@ new_id :: proc() -> Id { return {} }
 Entity :: struct {
 	id:    Id,
 	ghost: bool,
-	tile:  Tile_Coord,
+	tile:  engine.Tile,
 	n:     string,
 	talk:  proc(id: Id),
 	trap:  proc(id, c_id: Id),
@@ -32,7 +32,7 @@ Legacy_Sprite :: enum {
 	Warp,
 }
 
-create_sprite_state :: proc(name: Legacy_Sprite, tag: Sprite_Tag = {}) -> engine.Sprite_State { return {} }
+create_sprite_state :: proc(name: Legacy_Sprite, tag: engine.Sprite_Tag = {}) -> engine.Sprite_State { return {} }
 
 Item :: enum {
 	Potion,
@@ -45,4 +45,4 @@ Monster :: enum {
 items_in_a_box   :: proc(id: Id, d: Chest_Datum, items: ..Item) {}
 monster_in_a_box :: proc(id: Id, d: Chest_Datum, m: Monster, items: ..Item) {}
 
-try_spawn_from_save :: proc() -> (tile: Tile_Coord, face: Sprite_Tag, ok: bool) { return }
+try_spawn_from_save :: proc() -> (tile: engine.Tile, face: engine.Direction, ok: bool) { return }

@@ -1,5 +1,5 @@
 #+private file
-package game
+package content
 
 import "../engine"
 

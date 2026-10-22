@@ -26,6 +26,8 @@ World :: struct {
 	input:           Input,
 	ui:              UI, // font, pane texture, icons; loaded only with a window
 	player:          Entity_Id,
+	player_control:  Player_Control,
+	levels:          Levels, // the current level and level changes
 	debug_overlay:   bool,
 }
 
@@ -67,8 +69,10 @@ shutdown :: proc() {
 	world = {}
 }
 
-// One simulation step. Call after clock_advance, input_update and the game's own update.
+// One simulation step, starting with the player's turn. Call after
+// clock_advance and input_update.
 update :: proc() {
+	player_update()
 	tweens_update(world.clock.dt)
 	scripts_update()
 	dialogue_update(world.clock.dt)

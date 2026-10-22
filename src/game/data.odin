@@ -6,8 +6,6 @@ import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:strings"
-import "core:time"
-import "../engine"
 
 SAVE_DIR :: "saves"
 
@@ -31,7 +29,7 @@ Game_Data :: struct {
 	chest_data:       [len(Chest_Datum)]bool,
 	int_data:         [len(Int_Datum)]Int_Data_Type,
 	// party_membership: [NUM_PC]bool,
-	boat_coord:       Tile_Coord,
+	boat_coord:       [2]i32, // a tile
 	// inventory:        [NUM_ITEMS]u8,
 	money:            Money,
 	steps:            u32,
@@ -57,7 +55,7 @@ Save_Data :: struct {
 
 Save_Point :: struct {
 	level: Level,
-	tile:  Tile_Coord,
+	tile:  [2]i32, // the player's tile
 }
 
 game_data: Game_Data
@@ -98,10 +96,9 @@ init_new_game :: proc() {
 // }
 
 // Writes the game to SAVE_DIR/`filename`, or to a new uniquely named file.
-// Returns false (and logs why) if it couldn't.
-save_game :: proc(filename: Maybe(string) = nil) -> bool {
-	time_saved := time.to_unix_nanoseconds(time.now())
-	save_point := Save_Point{current_level, engine.entity_tile(engine.player())}
+// `time_saved` is in Unix nanoseconds; the caller reads the clock, since the
+// game package keeps no real time. Returns false (and logs why) if it couldn't.
+save_game :: proc(save_point: Save_Point, time_saved: i64, filename: Maybe(string) = nil) -> bool {
 	info := Save_Data{/* encode_character_data(), */ game_data = game_data, save_point = save_point, time_saved = time_saved}
 
 	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true}, context.temp_allocator)
@@ -148,7 +145,7 @@ read_saved_game_data :: proc(filename: string) -> (save_data: Save_Data, ok: boo
 	return save_data, true
 }
 
-// Restores the game data and enters the saved level at the saved tile.
+// Restores the game data from a save.
 load_saved_game :: proc(save_data: Save_Data) {
 	game_data = save_data.game_data
 	// set_inventory_order()
@@ -167,15 +164,15 @@ load_saved_game :: proc(save_data: Save_Data) {
 	// 	pc.name = strings.clone(csd.name)
 	// }
 	// set_all_skills()
-	start_level(save_data.save_point.level, at = save_data.save_point.tile)
 }
 
-// Reads and loads SAVE_DIR/`filename`. Returns false (and logs why) if it couldn't.
-load_game :: proc(filename: string) -> bool {
+// Reads SAVE_DIR/`filename` into game_data and returns where the player was.
+// Entering that level is the engine's job (engine.load_game). Returns false
+// (and logs why) if it couldn't.
+load_game :: proc(filename: string) -> (save_point: Save_Point, ok: bool) {
 	save_data := read_saved_game_data(filename) or_return
 	load_saved_game(save_data)
-	log.infof("Loaded game from %s/%s", SAVE_DIR, filename)
-	return true
+	return save_data.save_point, true
 }
 
 get_game_data_bool :: proc(d: Bool_Datum) -> bool {

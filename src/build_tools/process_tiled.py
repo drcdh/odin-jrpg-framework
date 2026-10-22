@@ -11,7 +11,10 @@ import passable
 
 ROOT = "./assets/tiled"
 TILESETS = "./assets/tilesets"
-DEST = "./src/game"
+# Level code drives the engine, so it goes in content; the Level and
+# Chest_Datum enums are game data, so they go in the (headless) game package.
+DEST = "./src/content"
+GAME_DEST = "./src/game"
 ENGINE_DEST = "./src/engine"
 MAP_MODES = ("DEFAULT", "CLAMP", "WRAP")
 
@@ -60,8 +63,7 @@ def process_tmx(level_name, room_name):
 	level_filename = f"{DEST}/level_{lr_lower}_data.odin"
 	out_f = open(level_filename, "w")
 
-	out_f.write("package game\n")
-	# out_f.write("import \"core:fmt\"\n")
+	out_f.write("package content\n")
 	out_f.write("import \"../engine\"\n")
 
 	item_entities = []
@@ -121,7 +123,7 @@ def process_tmx(level_name, room_name):
 					elif not obj.name.startswith("!"):
 						name = obj.name.upper()
 						pos = orderedpair_to_tile(obj.coordinates)
-						out_f.write(f"{prefix}{name} :: Tile_Coord{{ {pos[0]}, {pos[1]} }}\n")
+						out_f.write(f"{prefix}{name} :: engine.Tile{{ {pos[0]}, {pos[1]} }}\n")
 				elif isinstance(obj, pytiled_parser.tiled_object.Polygon):
 					if obj.name.startswith("encounter"):
 						encounter_regions[lr_title].append((tiled_poly_to_odin_poly(obj), obj.properties["region"]))
@@ -141,7 +143,7 @@ def process_tmx(level_name, room_name):
 	out_f.write(f"{prefix}HEIGHT :: {h_tiles}\n")
 
 	out_f.write("@(rodata)\n")
-	out_f.write(f"{prefix}TILESETS := [{len(tileset_firstgids)}]Tileset_Id{{\n")
+	out_f.write(f"{prefix}TILESETS := [{len(tileset_firstgids)}]engine.Tileset_Id{{\n")
 	for ts, _ in tileset_firstgids:
 		out_f.write(f"\t.{ts.title()},\n")
 	out_f.write(f"}}\n")
@@ -167,7 +169,7 @@ def process_tmx(level_name, room_name):
 	out_f.write("\n")
 
 	out_f.write("@(rodata)\n")
-	out_f.write(f"{prefix}ROUTES := [][]Tile_Coord{{\n")
+	out_f.write(f"{prefix}ROUTES := [][]engine.Tile{{\n")
 	for p in paths:
 		out_f.write("{\n")
 		for t in p:
@@ -201,7 +203,7 @@ render_{lr_lower} :: proc() {{
 		mode = .{map_mode},
 		open_edges = {"true" if edge_level else "false"},
 	}})
-	edge_level = {"." + edge_level if edge_level else "nil"}
+	engine.world.levels.edge = {"." + edge_level if edge_level else "nil"}
 	""")
 	for n, item_entity in enumerate(item_entities):
 		datum = f"{lr_title}_{n}"
@@ -230,7 +232,7 @@ render_{lr_lower} :: proc() {{
 	# Warp pads have no sprite yet.
 	for n, (destination, pos, i, warp) in enumerate(egresses):
 		x, y = pos
-		proc = f"warp_to_level({destination.title()}, {i})" if warp else f"egress({destination.title()}, {i})"
+		proc = f"engine.warp_to_level({destination.title()}, {i})" if warp else f"engine.egress({destination.title()}, {i})"
 		out_f.write(f"""\n\tengine.spawn_entity({{
 		name = "egress:{n}:{destination[1:].title()}",
 		tile = {{ {x}, {y} }},
@@ -240,16 +242,17 @@ render_{lr_lower} :: proc() {{
 
 	out_f.write("}\n")
 
-	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile_Coord, Sprite_Tag, bool) {{\n")
+	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (engine.Tile, engine.Direction, bool) {{\n")
+	out_f.write("\tlv := &engine.world.levels\n")
 	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face, true }\n")
 	# ENTRANCES
 	for n, (lfrom, pos, eFace, iFace, iOffset, i) in enumerate(entrances):
 		x, y = pos
-		stmt = f"if prev_level == {lfrom.title()}"
+		stmt = f"if lv.prev == {lfrom.title()}"
 		if i >= 0:
-			stmt += f" && prev_level_egress_idx == {i}"
+			stmt += f" && lv.egress_idx == {i}"
 		if eFace:
-			stmt += f" && prev_level_face == .{eFace.title()}"
+			stmt += f" && lv.prev_face == .{eFace.title()}"
 		iFace = iFace or (eFace or "Down")
 		if iOffset:
 			if iFace == "Down":
@@ -298,7 +301,16 @@ def export_tilesets():
 		print(f"exporting {file}")
 		subprocess.check_call(["aseprite", "-b", str(file), "--save-as", str(file.with_suffix(".png"))])
 
+# Generated files are gitignored, so outputs of renamed or removed maps, and
+# outputs from before the level code moved from game to content, would linger.
+def remove_stale_outputs():
+	for pattern in ("level_*_data.odin", "level_data.odin", "encounter_region_data.odin"):
+		for d in (DEST, GAME_DEST):
+			for f in pathlib.Path(d).glob(pattern):
+				f.unlink()
+
 def main():
+	remove_stale_outputs()
 	export_tilesets()
 	write_tileset_data()
 	for file in pathlib.Path(ROOT).rglob("*.tmx"):
@@ -307,17 +319,22 @@ def main():
 		print(f"processing {level_name}/{room_name}.tmx")
 		process_tmx(level_name, room_name)
 
-	with open(f"{DEST}/level_data.odin", "w") as levels_data_f:
-		levels_data_f.write("package game\n\nLevel :: enum {\n")
+	# The Level enum is game data (save points name levels); the dispatch below
+	# runs level code, so it stays in content.
+	with open(f"{GAME_DEST}/levels_data.odin", "w") as f:
+		f.write("package game\n\nLevel :: enum {\n")
 		for lenum in level_enums + sorted(referenced_levels - set(level_enums)):
-			levels_data_f.write(f"\t{lenum},\n")
-		levels_data_f.write("}\n")
+			f.write(f"\t{lenum},\n")
+		f.write("}\n")
+
+	with open(f"{DEST}/level_data.odin", "w") as levels_data_f:
+		levels_data_f.write("package content\n\nimport \"../engine\"\n")
 
 		write_case_proc(levels_data_f, "tiled_init")
 		write_case_proc(levels_data_f, "init")
 		write_case_proc(levels_data_f, "render")
 
-		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (Tile_Coord, Sprite_Tag, bool) {\n")
+		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (engine.Tile, engine.Direction, bool) {\n")
 		levels_data_f.write("\t#partial switch l {\n")
 		for lenum in level_enums:
 			levels_data_f.write(f"\tcase .{lenum}: return {lenum.lower()}_player_spawn()\n")
@@ -331,7 +348,7 @@ def main():
 		levels_data_f.write("}\nreturn\n}\n\n")
 
 	with open(f"{DEST}/encounter_region_data.odin", "w") as regions_f:
-		regions_f.write("package game\n\nimport rl \"vendor:raylib\"\n_ :: rl // unused when no level has encounter regions\n\nEncounter_Region :: enum {\nNone,\n")
+		regions_f.write("package content\n\nimport rl \"vendor:raylib\"\nimport \"../engine\"\n_ :: rl // unused when no level has encounter regions\n\nEncounter_Region :: enum {\nNone,\n")
 		for r in set(_s for _s in encounter_sets):
 			regions_f.write(f"\t{r.title()},\n")
 		regions_f.write("}\n\n")
@@ -340,7 +357,7 @@ def main():
 			for (_poly, _), _r in regions:
 				regions_f.write(f"@(rodata)\n{_level.upper()}_{_r.upper()} := {_poly}\n")
 
-		regions_f.write("get_encounter_region :: proc(level: Level, tile: Tile_Coord) -> (r: Encounter_Region) {\n")
+		regions_f.write("get_encounter_region :: proc(level: Level, tile: engine.Tile) -> (r: Encounter_Region) {\n")
 		regions_f.write("#partial switch level {\n")
 		for _level, _regions in encounter_regions.items():
 			regions_f.write("case .{}:\n".format(_level))
@@ -352,7 +369,7 @@ def main():
 		regions_f.write("}\nreturn\n")
 		regions_f.write("}\n\n")
 
-	with open(f"{DEST}/chest_data.odin", "w") as f:
+	with open(f"{GAME_DEST}/chest_data.odin", "w") as f:
 		f.write("package game\n\n")
 		f.write("Chest_Datum :: enum {\n")
 		for d in chest_data:

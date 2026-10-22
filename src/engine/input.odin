@@ -134,3 +134,39 @@ get_y_input :: proc() -> Maybe(int) {
 	if m := get_menu_input(); m.y != 0 do return m.y
 	return nil
 }
+
+grid_change :: proc(i, dx, dy, W, H: int) -> int {
+	// if dx or dy are non-zero, their magnitude is assumed to be 1
+	_i := i
+	if dx < 0 {
+		if i % W == 0 {
+			// left edge
+			_i += W - 1
+		} else {
+			_i -= 1
+		}
+	} else if dx > 0 {
+		if (i + 1) % W == 0 {
+			// right edge
+			_i -= W - 1
+		} else {
+			_i += 1
+		}
+	}
+	if dy < 0 {
+		if i < W {
+			// top edge
+			_i += W * (H - 1)
+		} else {
+			_i -= W
+		}
+	} else if dy > 0 {
+		if i >= W * (H - 1) {
+			// bottom edge
+			_i -= W * (H - 1)
+		} else {
+			_i += W
+		}
+	}
+	return _i
+}

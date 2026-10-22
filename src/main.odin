@@ -4,7 +4,7 @@ import "core:log"
 import "core:mem"
 import rl "vendor:raylib"
 import "engine"
-import "game"
+import "content"
 
 _ :: mem // only used in debug builds
 
@@ -25,18 +25,17 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
+	rl.InitWindow(engine.WINDOW_WIDTH, engine.WINDOW_HEIGHT, content.GAME_TITLE)
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
 	engine.init()
 	defer engine.shutdown() // before CloseWindow: it unloads textures
-	game.setup()
+	content.setup()
 
 	for !rl.WindowShouldClose() {
 		engine.clock_advance(rl.GetFrameTime())
 		engine.input_update(rl.GetFrameTime())
-		game.update()
 		engine.update()
 
 		rl.BeginDrawing()

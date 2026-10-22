@@ -1,4 +1,4 @@
-package game
+package content
 
 import "core:math/rand"
 import rl "vendor:raylib"

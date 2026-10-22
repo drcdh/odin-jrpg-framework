@@ -8,9 +8,9 @@ import rl "vendor:raylib"
 
 UI_TILE :: f32(TILE_SIZE * ZOOM)
 
-// The screen's size in UI tiles (20 x 11.25 for 1280x720).
+// The screen's size in UI tiles.
 view_tiles :: proc() -> [2]f32 {
-	return {f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())} / UI_TILE
+	return {VIEW_TILES_W, VIEW_TILES_H}
 }
 
 // UI tile coordinates to screen pixels.
