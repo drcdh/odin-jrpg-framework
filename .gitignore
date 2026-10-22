@@ -1,6 +1,7 @@
 build/
 saves/
 *_data.odin
+.~lock.*
 
 ### Python ###
 __pycache__/
