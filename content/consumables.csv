@@ -1,0 +1,15 @@
+name,skill,price,description
+Potion,Potion,10,Heals 50 hitpoints.
+Super Potion,Super_Potion,100,Heals 500 hitpoints.
+Antidote,Antidote,10,Cures poison.
+Poisonous Mushroom,Poisonous_Mushroom,50,Looks non-poisonous.
+Thingamajig,,,"It's a, uhm, er|\nWell, it's what it would say on the tin, if it came in a tin."
+Doodad,,,"These are a dime a dozen, and dimes aren't worth much in this economy."
+Deluxe Doodad,,,Worth several dimes a dozen.
+Postcard,,,It's about some far-away place called Milwaukee.
+Generic Trinket,,,Typical.
+Mundane Tchotchke,,,Kinda neat if you're really into this sort of thing.
+Boost Donut,Level_Up,100000,"Holy hell, this looks freaking delicious."
+Tea,,20,Elegant and healthful!
+Small Smoke Bomb,Small_Smoke_Bomb,100,Distracts an enemy.
+Cyanide Pill,Suicide,,For when you've had enough.

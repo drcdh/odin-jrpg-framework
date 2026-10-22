@@ -2,6 +2,7 @@ package game
 
 import hm "core:container/handle_map"
 import rl "vendor:raylib"
+import "../rules"
 
 // All game state. Script threads touch it too, but only while the main
 // thread is blocked waiting for them, so no locking is needed.
@@ -51,6 +52,7 @@ init :: proc(allocator := context.allocator) {
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
 shutdown :: proc() {
+	rules.destroy()
 	scripts_shutdown()
 	dialogue_destroy()
 	ui_destroy()

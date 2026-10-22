@@ -1,0 +1,30 @@
+name,targeting,effect_type,constant,power,psy_power,pierce,psy_pierce,hit_acc,risk,ranged,sts_acc,status,stg_acc,stagger,int_acc,windup,cost,cooldown,animation,sound,description
+Potion,One_Ally,Heal,50,,,,,,,,,,,,,10,50,,Heal,Warp,
+Super Potion,One_Ally,Heal,500,,,,,,,,,,,,,10,50,,Heal,Warp,
+Antidote,One_Ally,Heal,,,,,,,,,100,.Poison,,,,10,50,,Heal,Warp,
+Poisonous Mushroom,One_Ally,Attack,,,,,,,,,100,.Poison,,,,10,50,,Heal,Warp,
+Level Up,One_Ally,Level_Up,1,,,,,,,,,,,,,,,,Heal,Warp,
+Suicide,One_Ally,Death,,,,,,100,,,,,,,,,,,Heal,Blerp,
+Small Smoke Bomb,One_Opponent,Attack,,,,,,,,,,,,50,90,20,50,,Smack,Warp,
+Smack,One_Opponent,Attack,,60,,,,,,,,,,,,,,,Smack,Whack,Basic smack.
+Punch,One_Opponent,Attack,,80,,,,,150,,,,,,,,,,Smack,Whack,"Biff, pow, socko, and/or wham!"
+Smash,One_Opponent,Attack,,100,,,,,,,,,,,,,,,Smack,Whack,Use weight to your destructive advantage.
+Slash,One_Opponent,Attack,,100,,,,,,,,,,,,,,,Slash,Whack,Aim sharp side towards enemy.
+Bite,One_Opponent,Attack,,150,,,,,,,,,,,,,,,Ffvi_Stars,Whack,Chomp!
+Stab,One_Opponent,Attack,,80,,50,,,,,,,,,,,,,Stab,Whack,Poke in the nooks 'n' crannies.
+Wild Swing,One_Opponent,Attack,,200,,,,,300,,,,,,,,,60,Slash,Whack,Powerful but risky attack.
+Slash All,All_Opponents,Attack,,100,,,,,,,,,,,,30,150,100,Slash,Whack,Attack all enemies simultaneously.
+Quake Smash,All_Opponents,Attack,,300,,,,,,ranged,,,,,,60,150,500,Smack,Whack,Slam your weapon on the ground so hard it cracks the earth.
+Tickle,One_Opponent,Attack,,,,,,,200,,,,30,10,10,,,,Ffvi_Stars,Warp,Distract an enemy.
+Tangle,One_Opponent,Attack,,,100,,,,,ranged,,,100,200,100,40,,300,Green_Swirl,Whack,Grow vines to trap and restrict an enemy.
+Pommel Strike,One_Opponent,Attack,,20,,,,,200,,100,.Confuse,100,50,,,110,,Smack,Whack,Concussive force confuses an enemy.
+Plague Bite,One_Opponent,Attack,,150,,,,,,,100,.Poison,,,,,,200,Ffvi_Stars,Whack,Icky chomp!
+Fire,Some_Opponents,Attack,,,100,,,,,ranged,,,,,,,,,Small_Flame,Warp,Singe an enemy.
+Gust,One_Opponent,Attack,,,10,,,,,ranged,,,90,10,2,,,,Blue_Swirl,Warp,Stagger an enemy slightly with a gust of wind.
+Frost,One_Opponent,Attack,,,80,30,,,,ranged,,,75,20,,,,200,Blue_Stars,Warp,Chill an enemy.
+Heal,One_Ally,Heal,,100,,,,,,,,,,,,20,,50,Heal,Warp,Heal an ally.
+Heal All,All_Allies,Heal,,50,,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
+Healing Hymn,All_Allies,Heal,,70,,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
+Mind Control,One_Opponent,Attack,,,,,,,,ranged,100,.Control,,,,50,,200,Heal,Warp,Attempt to control an enemy's actions.
+Ultimagnitude 9000,All_Combatants,Attack,,1000,1000,50,50,,,ranged,,,,90,90,500,500,0,Heal,Warp,Flip the table of reality.
+Super Hyper Slash,One_Opponent,Attack,,1000,,150,,,,,,,,,,500,500,,Slash,Whack,God stays out of the way.

@@ -2,6 +2,8 @@ package game
 
 import rl "vendor:raylib"
 
+import "../rules"
+
 STEP_TIME :: 0.15 // seconds per tile
 
 // F4 saves to and F5 loads from SAVE_DIR/TEST_SAVE (temporary).
@@ -37,6 +39,7 @@ player_update :: proc() {
 	if !tween_done(pc.step) do return
 	if pc.stepping {
 		pc.stepping = false
+		rules.do_party_step_effects() // counts the step, ticks poison, charges skills
 		check_edge_exit()
 		if level_transition_update() do return
 	}

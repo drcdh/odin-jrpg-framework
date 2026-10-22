@@ -6,9 +6,9 @@ import "core:strings"
 
 Metadata :: struct {
 	filepath:         string,
-	// level:            int,
-	// name:             string,
-	// party_membership: [NUM_PC]bool,
+	level:            int,
+	name:             string,
+	party_membership: [NUM_PC]bool,
 	steps:            u32,
 	time:             u32,
 	time_loaded:      i64,
@@ -20,7 +20,7 @@ metadata: [dynamic]Metadata
 metadata_clear :: proc() {
 	for md in metadata {
 		delete(md.filepath)
-		// delete(md.name)
+		delete(md.name)
 	}
 	clear(&metadata)
 }
@@ -56,9 +56,9 @@ metadata_load :: proc() {
 			if !ok do continue
 			md := Metadata {
 				filepath         = strings.clone(fi.name),
-				// level            = d.character_data[0].level,
-				// name             = strings.clone(d.character_data[0].name),
-				// party_membership = d.game_data.party_membership,
+				level            = d.party_data[0].level,
+				name             = strings.clone(d.party_data[0].name),
+				party_membership = d.game_data.party_membership,
 				steps            = d.game_data.steps,
 				time             = d.game_data.time,
 				// time_loaded      = d.save_data.time_loaded,
@@ -72,4 +72,5 @@ metadata_load :: proc() {
 metadata_unload :: proc() {
 	metadata_clear()
 	delete(metadata)
+	metadata = nil
 }

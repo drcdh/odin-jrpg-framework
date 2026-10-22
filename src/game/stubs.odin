@@ -1,5 +1,7 @@
 package game
 
+import "../rules"
+
 // Stand-ins for old-project code that the generated level files
 // (process_tiled.py) call: chests, items, encounters and saves. They do
 // nothing or return defaults, so the chests in the maps don't appear yet.
@@ -32,15 +34,11 @@ Legacy_Sprite :: enum {
 
 legacy_sprite_state :: proc(name: Legacy_Sprite, tag: Sprite_Tag = {}) -> Sprite_State { return {} }
 
-Item :: enum {
-	Potion,
-}
-
 Monster :: enum {
 	Rat,
 }
 
-items_in_a_box   :: proc(id: Legacy_Id, d: Chest_Datum, items: ..Item) {}
-monster_in_a_box :: proc(id: Legacy_Id, d: Chest_Datum, m: Monster, items: ..Item) {}
+items_in_a_box   :: proc(id: Legacy_Id, d: Chest_Datum, items: ..rules.Item_Name) {}
+monster_in_a_box :: proc(id: Legacy_Id, d: Chest_Datum, m: Monster, items: ..rules.Item_Name) {}
 
 try_spawn_from_save :: proc() -> (tile: Tile, face: Direction, ok: bool) { return }

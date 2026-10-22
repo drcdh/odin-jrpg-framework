@@ -28,26 +28,28 @@ Game_Data :: struct {
 	bool_data:        [len(Bool_Datum)]bool,
 	chest_data:       [len(Chest_Datum)]bool,
 	int_data:         [len(Int_Datum)]Int_Data_Type,
-	// party_membership: [NUM_PC]bool,
-	boat_coord:       [2]i32, // a tile
-	// inventory:        [NUM_ITEMS]u8,
+	party_membership: [NUM_PC]bool,
+	// boat_coord:       [2]i32, // Tile
+	inventory:        [NUM_ITEMS]u8,
 	money:            Money,
 	steps:            u32,
 	time:             u32,
 }
 
-// Character_Save_Data :: struct {
-// 	equipment:   Equipment,
-// 	exp_to_next: Maybe(int),
-// 	hitpoints:   int,
-// 	level:       int,
-// 	name:        string,
-// 	status:      Status,
-// }
+Character_Save_Data :: struct {
+	equipment:   Equipment,
+	exp_to_next: Maybe(int),
+	hitpoints:   int,
+	level:       int,
+	name:        string,
+	status:      Status,
+}
+
+Party_Save_Data :: [NUM_PC]Character_Save_Data
 
 Save_Data :: struct {
-	// character_data: [NUM_PC]Character_Save_Data,
 	game_data:      Game_Data,
+	party_data: Party_Save_Data,
 	save_point:     Save_Point,
 	// time_loaded:      i64,
 	time_saved:     i64,
@@ -55,51 +57,58 @@ Save_Data :: struct {
 
 Save_Point :: struct {
 	level: Level,
-	tile:  [2]i32, // the player's tile
+	tile:  [2]i32, // Tile
 }
 
 game_data: Game_Data
 
+// Frees everything the rules package allocated: the PCs, the inventory
+// orders and the save-file metadata.
+destroy :: proc() {
+	delete_pcs()
+	delete_inventory_order()
+	metadata_unload()
+}
+
 init_new_game :: proc() {
 	game_data = Game_Data{}
 	// game_data.boat_coord = OVERWORLD_DEMO_BOAT_SPAWN
-	// game_data.party_membership = {true, false, false, false, false, false}
-	// for item_name in Item_Name {
-	// 	if item_name != .None {
-	// 		game_data.inventory[item_name] = 1
-	// 	}
-	// }
-	// game_data.money = Money(MONEY_MAX / 8)
-	// game_data.time = 0
-	// set_inventory_order()
-	// init_pcs()
-	// init_levels := [6]int{1, 1, 1, 1, 1, 1}
-	// for l, pc_idx in init_levels {
-	// 	set_level(&playable_characters[pc_idx], l)
-	// 	set_leveled_stats(&playable_characters[pc_idx])
-	// }
-	// set_all_skills()
-	// heal_party()
-	// reset_save_points()
+	game_data.party_membership = {true, false, false, false, false, false}
+	for item_name in Item_Name {
+		if item_name != .None {
+			game_data.inventory[item_name] = 1
+		}
+	}
+	game_data.money = Money(MONEY_MAX / 8)
+	game_data.time = 0
+	set_inventory_order()
+	init_pcs()
+	init_levels := [6]int{1, 1, 1, 1, 1, 1}
+	for l, pc_idx in init_levels {
+		set_level(&playable_characters[pc_idx], l)
+		set_leveled_stats(&playable_characters[pc_idx])
+	}
+	set_all_skills()
+	heal_party()
 }
 
-// encode_character_data :: proc() -> (d: [NUM_PC]Character_Save_Data) {
-// 	for pc, pc_idx in playable_characters {
-// 		d[pc_idx].equipment = pc.equipment
-// 		d[pc_idx].exp_to_next = pc.exp_to_next
-// 		d[pc_idx].hitpoints = pc.hitpoints
-// 		d[pc_idx].level = pc.level
-// 		d[pc_idx].name = pc.name
-// 		d[pc_idx].status = pc.status
-// 	}
-// 	return
-// }
+encode_party_data :: proc() -> (d: Party_Save_Data) {
+	for pc, pc_idx in playable_characters {
+		d[pc_idx].equipment = pc.equipment
+		d[pc_idx].exp_to_next = pc.exp_to_next
+		d[pc_idx].hitpoints = pc.hitpoints
+		d[pc_idx].level = pc.level
+		d[pc_idx].name = pc.name
+		d[pc_idx].status = pc.status
+	}
+	return
+}
 
 // Writes the game to SAVE_DIR/`filename`, or to a new uniquely named file.
 // `time_saved` is in Unix nanoseconds; the caller reads the clock, since the
 // game package keeps no real time. Returns false (and logs why) if it couldn't.
 save_game :: proc(save_point: Save_Point, time_saved: i64, filename: Maybe(string) = nil) -> bool {
-	info := Save_Data{/* encode_character_data(), */ game_data = game_data, save_point = save_point, time_saved = time_saved}
+	info := Save_Data{party_data = encode_party_data(), game_data = game_data, save_point = save_point, time_saved = time_saved}
 
 	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true}, context.temp_allocator)
 	if err != nil {
@@ -145,25 +154,25 @@ read_saved_game_data :: proc(filename: string) -> (save_data: Save_Data, ok: boo
 	return save_data, true
 }
 
-// Restores the game data from a save.
 load_saved_game :: proc(save_data: Save_Data) {
 	game_data = save_data.game_data
-	// set_inventory_order()
-	// party_unequip_all(to_inventory = false)
-	// init_pcs()
-	//
-	// for csd, pc_idx in save_data.character_data {
-	// 	pc := &playable_characters[pc_idx]
-	// 	pc.status = csd.status
-	// 	for slot in Equipment_Slot {
-	// 		character_set_equipped_item(pc, slot, csd.equipment[slot], false, false)
-	// 	}
-	// 	set_level(pc, csd.level)
-	// 	pc.exp_to_next = csd.exp_to_next
-	// 	pc.hitpoints = csd.hitpoints
-	// 	pc.name = strings.clone(csd.name)
-	// }
-	// set_all_skills()
+	set_inventory_order()
+	party_unequip_all(to_inventory = false)
+	init_pcs()
+
+	for csd, pc_idx in save_data.party_data {
+		pc := &playable_characters[pc_idx]
+		pc.status = csd.status
+		for slot in Equipment_Slot {
+			character_set_equipped_item(pc, slot, csd.equipment[slot], false, false)
+		}
+		set_level(pc, csd.level)
+		pc.exp_to_next = csd.exp_to_next
+		pc.hitpoints = csd.hitpoints
+		delete(pc.name)
+		pc.name = strings.clone(csd.name)
+	}
+	set_all_skills()
 }
 
 // Reads SAVE_DIR/`filename` into game_data and returns where the player was.
@@ -251,17 +260,17 @@ have_money_Money :: proc(v: Money) -> bool {
 	return game_data.money >= v
 }
 
-// have_money_Price :: proc(v: Price) -> bool {
-// 	switch v in v {
-// 	case Money:
-// 		return have_money_Money(Money(v))
-// 	}
-// 	return false
-// }
+have_money_Price :: proc(v: Price) -> bool {
+	switch v in v {
+	case Money:
+		return have_money_Money(Money(v))
+	}
+	return false
+}
 
 have_money :: proc {
 	have_money_Money,
-	// have_money_Price,
+	have_money_Price,
 }
 
 get_sell_price :: proc(v: Money) -> Money {

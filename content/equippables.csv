@@ -1,0 +1,21 @@
+name,slot,price,mWP,aWP,mAR,aAR,mHP,aHP,mVG,aVG,mST,aST,mPP,aPP,mSP,aSP,mEV,aEV,aPD,mPD,description
+Chump Charm,Accessory,200,,,,,,1,,,,,,,,,-100,,,,Has an upside.
+Speed Ring,Accessory,10000,,,,,,,,,,,,,,5,25,,,,Gotta go fast!
+Wind Beads,Accessory,50000,10,5,,,,,,,,,,,10,1,100,10,,,Feels like there's a breeze coming from each bread.
+Shirt,Body,10,,,,1,,,,,,,,,,,,,,,Covers your nipples.
+Leather Vest,Body,32,,,,4,,,,,,,,,,,,,,,Comfy and good looking.
+Plate,Body,1000,,,25,30,,,,,,,,,,-5,-90,,,,"Clunky and uncomfortable, but blocks weapons well."
+Chainmail,Body,1000,,,25,15,,,,,,,,,,-1,-40,,,,"A little heavy, but effective without being very restrictive."
+Mithril Vest,Body,100000,,,50,120,5,50,,4,,5,,1,,,,,,3,Looks expensive.
+Mirage Vest,Body,,,,,5,,,,,,,,,10,1,,70,,,Makes you really hard to see.
+Boots,Feet,20,,,,1,,,,,,,,,,,,,,,Protects your tootsies.
+Moon Boots,Feet,100000,,,,30,,,,1,,1,,,,2,100,10,,,Bouncy and chic.
+Leather Cap,Head,12,,,,2,,,,,,,,,,,,,,,"Very boring, but better than nothing."
+Sword,Mainhand,100,,10,,,,,,,,,,,,,,,,,"It has a pointy end, and it has a holdy end."
+Knife,Mainhand,24,,3,,,,,,,,,,,,,,,,,Good for cheese.
+Dagger,Mainhand,40,,5,,,,,,,,,,,,,,,,,Good for large cheese.
+Nail Bat,Mainhand,500,,7,,,,,,1,,1,,,,,,,,,Good on squishy targets.
+Basic Wand,Mainhand,100,,1,,,,,,,,,5,5,,,,,,,"Helps channel psy, kinda."
+Atom Slicer,Mainhand,,,100,,,,,,,,,,,,,,,,,Sharp in a way that planets are large.
+Leather Bracer,Sidehand,12,,,,1,,,,,,,,,,,,,,,Simple piece of leather laced around the wrist.
+Beef Bracer,Sidehand,500,,,,20,10,10,,5,,5,,,,,,,,,Emblazoned with the mark of the beefcake.

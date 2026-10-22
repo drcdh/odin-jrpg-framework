@@ -20,6 +20,7 @@ case "${1:-run}" in
 			echo "src/rules must not import the game, raylib or core:time" >&2
 			exit 1
 		fi
+		odin test  src/rules -debug -vet -define:ODIN_TEST_THREADS=1 -out:build/rules_test
 		odin test  src/game -debug -vet -define:ODIN_TEST_THREADS=1 -out:build/game_test ;;
 	*)       echo "unknown target: $1" >&2; exit 1 ;;
 esac
