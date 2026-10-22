@@ -68,3 +68,29 @@ save_and_load_restore_the_party :: proc(t: ^testing.T) {
 	testing.expect_value(t, game_data.money, 123)
 	testing.expect(t, .Slash in pc.skill_set, "skills follow the loaded equipment")
 }
+
+@(test)
+debug_equippables_floor_stats_and_unequipping_restores_them :: proc(t: ^testing.T) {
+	init_new_game(); defer destroy()
+	pc := &playable_characters[0]
+	// No other gear: percentage modifiers scale only the base stats, so other
+	// items' flat bonuses would survive Debug Mul.
+	character_unequip_all(pc, to_inventory = false)
+	game_data.inventory[Item_Name.Debug_Abs] = 1
+	game_data.inventory[Item_Name.Debug_Mul] = 1
+	set_inventory_order()
+
+	for item in ([]Item_Name{.Debug_Abs, .Debug_Mul}) {
+		original := pc.stats
+		testing.expect(t, original[Stat_Name.Hitpoints] > MIN_HITPOINTS, "max hitpoints start at the floor, so the test proves little")
+
+		character_set_equipped_item(pc, .Accessory, item)
+		for v, s in pc.stats {
+			want := MIN_HITPOINTS if Stat_Name(s) == .Hitpoints else MIN_STAT
+			testing.expectf(t, v == want, "%v equipped: %v is %v, want %v", item, Stat_Name(s), v, want)
+		}
+
+		character_set_equipped_item(pc, .Accessory, .None)
+		testing.expectf(t, pc.stats == original, "%v unequipped: stats %v, want %v", item, pc.stats, original)
+	}
+}

@@ -54,11 +54,20 @@ set_stat :: proc(stats: ^Stats, stat_name: Stat_Name, v: Stat) {
 	stats[stat_name] = v
 }
 
-get_modded_stats :: proc(base, mult, add: Stats) -> Stats {
-	return base + base * (mult / 100) + add
+// `mult` is in percent. No stat drops below MIN_STAT, nor max hitpoints
+// below MIN_HITPOINTS, however harsh the modifiers.
+get_modded_stats :: proc(base, mult, add: Stats) -> (modded: Stats) {
+	modded = base + base * (mult / 100) + add
+	for &v, s in modded {
+		v = max(v, MIN_HITPOINTS if Stat_Name(s) == .Hitpoints else MIN_STAT)
+	}
+	return
 }
 
 MAX_LEVEL :: 99
+
+MIN_STAT      :: Stat(0)
+MIN_HITPOINTS :: Stat(1)
 MAX_LEVEL_F :: f32(99)
 
 leveled_stats :: proc(level: int, base: Stats) -> (leveled: Stats) {

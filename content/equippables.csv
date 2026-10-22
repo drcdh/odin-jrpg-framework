@@ -1,5 +1,7 @@
-name,slot,price,mWP,aWP,mAR,aAR,mHP,aHP,mVG,aVG,mST,aST,mPP,aPP,mSP,aSP,mEV,aEV,aPD,mPD,description
+name,slot,price,mWP,aWP,mAR,aAR,mHP,aHP,mVG,aVG,mST,aST,mPP,aPP,mSP,aSP,mEV,aEV,mPD,aPD,description
 Chump Charm,Accessory,200,,,,,,1,,,,,,,,,-100,,,,Has an upside.
+Debug Abs,Accessory,0,,-10000,,-10000,,-10000,,-10000,,-10000,,-10000,,-10000,,-10000,,-10000,"Reduces all stats, to put it mildly."
+Debug Mul,Accessory,0,-100,,-100,,-100,,-100,,-100,,-100,,-100,,-100,,-100,,Minimizes all stats.
 Speed Ring,Accessory,10000,,,,,,,,,,,,,,5,25,,,,Gotta go fast!
 Wind Beads,Accessory,50000,10,5,,,,,,,,,,,10,1,100,10,,,Feels like there's a breeze coming from each bread.
 Shirt,Body,10,,,,1,,,,,,,,,,,,,,,Covers your nipples.
