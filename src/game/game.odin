@@ -10,7 +10,8 @@ player_step: engine.Tween_Id
 stepping:    bool // player_step hasn't been checked for an edge exit yet
 
 setup :: proc() {
-	start_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO)
+	// TODO: enter the start menu
+	start_game() // eventually, this will only be called when starting a new game from the start menu
 }
 
 update :: proc() {

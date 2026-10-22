@@ -25,7 +25,7 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(1280, 720, "Odin JRPG")
+	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(60)
 
@@ -49,7 +49,6 @@ main :: proc() {
 		engine.draw_screen_effects()
 		engine.draw_dialogue()
 		engine.draw_debug_hud()
-		rl.DrawText("Arrows: move    Z: talk / confirm    F1: debug overlay", 10, 695, 16, rl.GRAY)
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)
