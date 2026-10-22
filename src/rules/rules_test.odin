@@ -2,15 +2,30 @@ package rules
 
 import "core:fmt"
 import "core:os"
+import "core:strings"
 import "core:testing"
 
 // Headless: no window, no clock. The rules keep their state in package
 // globals, so run with ODIN_TEST_THREADS=1.
+//
+// init_new_game only resets and allocates the globals; each test sets up the
+// state it checks, so the tests don't depend on how a new game starts (the
+// starting party, inventory and names are content and will change).
+
+// PC 0 with an empty main hand and exactly one Knife in the inventory.
+@(private = "file")
+setup_bare_handed_pc :: proc() -> ^Character {
+	init_new_game()
+	pc := &playable_characters[0]
+	character_set_equipped_item(pc, .Mainhand, .None, to_inventory = false)
+	game_data.inventory[Item_Name.Knife] = 1
+	set_inventory_order()
+	return pc
+}
 
 @(test)
 equipping_a_knife_takes_it_from_the_inventory_and_grants_skills :: proc(t: ^testing.T) {
-	init_new_game(); defer destroy()
-	pc := &playable_characters[0]
+	pc := setup_bare_handed_pc(); defer destroy()
 	testing.expect(t, .Slash not_in pc.skill_set, "bare hands shouldn't slash")
 
 	character_set_equipped_item(pc, .Mainhand, .Knife)
@@ -26,10 +41,11 @@ equipping_a_knife_takes_it_from_the_inventory_and_grants_skills :: proc(t: ^test
 @(test)
 save_and_load_restore_the_party :: proc(t: ^testing.T) {
 	FILE :: "rules_test.json"
-	init_new_game(); defer destroy()
+	pc := setup_bare_handed_pc(); defer destroy()
 	defer os.remove(fmt.tprintf("%s/%s", SAVE_DIR, FILE))
 
-	pc := &playable_characters[0]
+	delete(pc.name)
+	pc.name = strings.clone("Tester")
 	character_set_equipped_item(pc, .Mainhand, .Knife)
 	set_level(pc, 3)
 	pc.hitpoints = 7
@@ -48,7 +64,7 @@ save_and_load_restore_the_party :: proc(t: ^testing.T) {
 	testing.expect_value(t, equipped_item(pc.equipment, Equipment_Slot.Mainhand), Item_Name.Knife)
 	testing.expect_value(t, pc.level, 3)
 	testing.expect_value(t, pc.hitpoints, 7)
-	testing.expect_value(t, pc.name, "One")
+	testing.expect_value(t, pc.name, "Tester")
 	testing.expect_value(t, game_data.money, 123)
 	testing.expect(t, .Slash in pc.skill_set, "skills follow the loaded equipment")
 }
