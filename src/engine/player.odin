@@ -18,6 +18,7 @@ Player_Control :: struct {
 @(private)
 player_update :: proc() {
 	if rl.IsKeyPressed(.F1) do toggle_debug()
+	if world_menu_active() do return // it reads its own input
 	if level_transition_update() do return
 
 	// TODO: temporary; saving and loading will go through menus.
@@ -42,6 +43,12 @@ player_update :: proc() {
 
 	// A script holds the player (set_busy_player): no walking or talking.
 	if is_busy(p) do return
+
+	if get_input(.MENU) {
+		// Only at rest: a script may be moving the player without holding it.
+		if e, _ := entity_get(p); e.pos == tile_center(e.tile) do world_menu_enter()
+		return
+	}
 
 	if dir, held := held_direction(); held {
 		// Facing is the direction the player last tried to move, even into a wall.

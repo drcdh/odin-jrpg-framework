@@ -1198,3 +1198,56 @@ tag_direction_inverts_direction_tag :: proc(t: ^testing.T) {
 	for d in Direction do testing.expect_value(t, tag_direction(direction_tag(d)), d)
 	testing.expect_value(t, tag_direction(.Walk), Direction.Down)
 }
+
+// --- World menu ---
+
+@(test)
+world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	world_menu_enter()
+	testing.expect(t, world_menu_active(), "the menu should open")
+	testing.expect(t, world.clock.paused, "the menu should pause the world")
+	before := time()
+	run_for(0.5)
+	testing.expect_value(t, time(), before)
+	tap(.DOWN) // moves the cursor; the menu stays open
+	testing.expect(t, world_menu_active(), "DOWN shouldn't close the menu")
+	tap(.CANCEL)
+	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
+	testing.expect(t, !world.clock.paused, "closing should unpause")
+
+	// A world paused before the menu opened stays paused after it closes.
+	set_paused(true)
+	world_menu_enter()
+	world_menu_exit()
+	testing.expect(t, world.clock.paused, "closing should restore the earlier pause")
+}
+
+@(test)
+menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	p := spawn_entity({name = "player"})
+	set_player(p)
+
+	tap(.MENU)
+	testing.expect(t, world_menu_active(), "MENU should open the menu when idle")
+	world.input.state[.RIGHT] = Input_Held{t = 0.1}
+	run_for(0.5)
+	world.input.state[.RIGHT] = Input_Up{}
+	testing.expect_value(t, entity_tile(p), Tile{0, 0}) // no walking while it's open
+	tap(.CANCEL)
+	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
+
+	set_busy(p)
+	tap(.MENU)
+	testing.expect(t, !world_menu_active(), "MENU shouldn't open the menu while the player is busy")
+	set_busy(p, false)
+
+	move := tween_to_tile(p, {3, 0}, 1) // as a script's move_entity would
+	tap(.MENU)
+	testing.expect(t, !world_menu_active(), "MENU shouldn't open the menu while the player moves")
+	run_for(1.1)
+	testing.expect(t, tween_done(move), "the move should finish")
+	tap(.MENU)
+	testing.expect(t, world_menu_active(), "MENU should open the menu once the player stops")
+}

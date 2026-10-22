@@ -76,8 +76,9 @@ update :: proc() {
 	tweens_update(world.clock.dt)
 	scripts_update()
 	dialogue_update(world.clock.dt)
+	world_menu_update()
 	sprites_update(world.clock.dt)
-	ui_update(world.clock.dt)
+	ui_update(world.clock.raw_dt) // cursors animate while the menu pauses the world
 	camera_update({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
 	entities_flush_destroyed()
 }

@@ -47,6 +47,7 @@ main :: proc() {
 		rl.EndMode2D()
 		engine.draw_screen_effects()
 		engine.draw_dialogue()
+		engine.draw_world_menu()
 		engine.draw_debug_hud()
 		rl.EndDrawing()
 
