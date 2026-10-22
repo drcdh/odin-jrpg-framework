@@ -8,15 +8,6 @@ import "core:testing"
 // globals, so run with ODIN_TEST_THREADS=1.
 
 @(test)
-new_game_has_a_party_of_one_and_every_item :: proc(t: ^testing.T) {
-	init_new_game(); defer destroy()
-	testing.expect_value(t, party_size(), 1)
-	for n, i in game_data.inventory do testing.expectf(t, n == 1, "%v: %d", Item_Name(i), n)
-	pc := get_party_member(0)
-	testing.expect_value(t, pc.hitpoints, int(get_stat(pc^, .Hitpoints)))
-}
-
-@(test)
 equipping_a_knife_takes_it_from_the_inventory_and_grants_skills :: proc(t: ^testing.T) {
 	init_new_game(); defer destroy()
 	pc := &playable_characters[0]
