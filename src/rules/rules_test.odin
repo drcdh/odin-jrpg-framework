@@ -82,11 +82,11 @@ debug_equippables_floor_stats_and_unequipping_restores_them :: proc(t: ^testing.
 
 	for item in ([]Item_Name{.Debug_Abs, .Debug_Mul}) {
 		original := pc.stats
-		testing.expect(t, original[Stat_Name.Hitpoints] > MIN_HITPOINTS, "max hitpoints start at the floor, so the test proves little")
+		testing.expect(t, original[Stat_Name.Hitpoints] > MIN_STATS[.Hitpoints], "max hitpoints start at the floor, so the test proves little")
 
 		character_set_equipped_item(pc, .Accessory, item)
 		for v, s in pc.stats {
-			want := MIN_HITPOINTS if Stat_Name(s) == .Hitpoints else MIN_STAT
+			want := MIN_STATS[Stat_Name(s)]
 			testing.expectf(t, v == want, "%v equipped: %v is %v, want %v", item, Stat_Name(s), v, want)
 		}
 
