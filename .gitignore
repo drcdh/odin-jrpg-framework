@@ -1,4 +1,5 @@
 build/
+saves/
 *_data.odin
 
 ### Python ###

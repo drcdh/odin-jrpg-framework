@@ -5,6 +5,9 @@ import "../engine"
 
 STEP_TIME :: 0.15 // seconds per tile
 
+// F4 saves to and F5 loads from SAVE_DIR/TEST_SAVE (temporary).
+TEST_SAVE :: "test.json"
+
 // The player's current step; while it runs, input is ignored.
 player_step: engine.Tween_Id
 stepping:    bool // player_step hasn't been checked for an edge exit yet
@@ -17,6 +20,13 @@ setup :: proc() {
 update :: proc() {
 	if rl.IsKeyPressed(.F1) do engine.toggle_debug()
 	if update_transition() do return
+
+	// TODO: temporary; saving and loading will go through menus.
+	if rl.IsKeyPressed(.F4) do save_game(TEST_SAVE)
+	if rl.IsKeyPressed(.F5) {
+		load_game(TEST_SAVE)
+		return
+	}
 
 	// The dialogue box reads its own input; the player waits.
 	if engine.dialogue_active() do return

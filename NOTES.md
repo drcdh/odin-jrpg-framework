@@ -31,7 +31,7 @@ Every target first runs two generators. They need Python 3, the `aseprite` CLI o
 - `src/build_tools/process_sprites.py` exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/engine/sprite_data.odin`.
 - `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/game/level_<level>_<room>_data.odin`. It also writes `src/game/level_data.odin`, `chest_data.odin` and `encounter_region_data.odin`, and `src/engine/tileset_data.odin`.
 
-Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. A gamepad works too (see Input). F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state.
+Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. A gamepad works too (see Input). F1 toggles the debug overlay: grid lines, trigger outlines, the faced tile, and each live script's wait state. F4 saves to `saves/test.json` and F5 loads it; these are temporary test keys until there are menus.
 
 The game starts in the Grove level with the player and a sky-blue "dude" who paces `dude_route_0`. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, trap buttons, villager, flasher, gliders) no longer spawn, but their scripts are still in `src/game/scripts.odin`.
 
@@ -61,7 +61,9 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/engine/debug.odin` | F1 overlay |
 | `src/engine/engine_test.odin` | 65 headless tests |
 | `src/game/start.odin` | What the game is: `GAME_TITLE` and `WINDOW_WIDTH` / `WINDOW_HEIGHT` for the window, `start_game` (called by `setup`), and `new_game` (resets the game data with `init_new_game` and enters Grove) |
-| `src/game/game.odin` | `setup` (calls `start_game`), player input |
+| `src/game/game.odin` | `setup` (calls `start_game`), player input, the temporary F4/F5 save and load keys |
+| `src/game/data.odin` | `Game_Data` (story flags, numbers, money), `init_new_game`, saving and loading |
+| `src/game/metadata.odin` | Save-file summaries for a future load menu (not used yet) |
 | `src/game/level.odin` | `start_level`, `egress` / `warp_to_level`, transitions, edge exits, level history, type aliases for the generated code |
 | `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
 | `src/game/stubs.odin` | Placeholders for old-project features the generated level code calls |
@@ -273,8 +275,17 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 - **Stubs:** `src/game/stubs.odin` stands in for old-project features the generated code still calls, so the maps' chests don't appear yet:
   - the old `Entity` / `add_world_entity` / `Id`
   - `.Box` sprites
-  - `get_game_data`, `items_in_a_box`, `monster_in_a_box`
+  - `items_in_a_box`, `monster_in_a_box`
   - `try_spawn_from_save`
+
+### Game data and saving
+`game_data: Game_Data` (`src/game/data.odin`) holds the story state: `Bool_Datum` flags, `Int_Datum` numbers, chests, money, steps and play time. Scripts read and write it with `get_game_data` / `set_game_data`. `init_new_game` resets it, and `new_game` (`start.odin`) calls it.
+- `save_game(filename)` writes `Save_Data` as JSON to `saves/<filename>`, creating `saves/` if needed (it's gitignored). `Save_Data` holds the game data, a `Save_Point` (the current level and the player's tile) and the time saved. With no filename it writes a new uniquely named file.
+- `load_game(filename)` reads the file (`read_saved_game_data`) and then `load_saved_game` restores the game data and calls `start_level` at the saved level and tile. Both report failure by logging and returning `false`; nothing exits the game.
+- Levels are saved by name (`use_enum_names`). The flag and number arrays are saved by position, so add new `Bool_Datum` and `Int_Datum` values at the end, or older saves load into the wrong slots.
+- The player's facing isn't saved; after a load they face the level's default direction.
+- Party and character data from the old project are still commented out in `data.odin` and `metadata.odin`.
+- For now, F4 / F5 in `game.update` save to and load from `TEST_SAVE` (`test.json`). They're ignored during a level transition.
 
 ### Frame order
 1. `clock_advance`, `input_update`
@@ -289,12 +300,12 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - Map passability only stops the player; scripted moves ignore it. Single-tween moves (`move_entity`, `tween_to_tile`) ignore other entities too.
-- Chests, items, encounters and saves are stubbed (`src/game/stubs.odin`). Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
+- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Saving and loading have no menus yet, only the F4/F5 test keys. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
 - In WRAP mode, entities near the seam pop across when one of them steps over it, since only the stepping entity is moved.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.

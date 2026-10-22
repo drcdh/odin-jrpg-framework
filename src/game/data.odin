@@ -1,11 +1,13 @@
 package game
 
-// import "core:encoding/json"
-// import "core:encoding/uuid"
+import "core:encoding/json"
+import "core:encoding/uuid"
 import "core:fmt"
-// import "core:os"
-// import "core:strings"
-// import "core:time"
+import "core:log"
+import "core:os"
+import "core:strings"
+import "core:time"
+import "../engine"
 
 SAVE_DIR :: "saves"
 
@@ -48,9 +50,14 @@ Game_Data :: struct {
 Save_Data :: struct {
 	// character_data: [NUM_PC]Character_Save_Data,
 	game_data:      Game_Data,
-	// save_point:     Save_Point,
+	save_point:     Save_Point,
 	// time_loaded:      i64,
 	time_saved:     i64,
+}
+
+Save_Point :: struct {
+	level: Level,
+	tile:  Tile_Coord,
 }
 
 game_data: Game_Data
@@ -90,73 +97,86 @@ init_new_game :: proc() {
 // 	return
 // }
 
-// save_game :: proc(filepath: Maybe(string) = nil) {
-// 	t := time.now()
-// 	time_saved := t._nsec
-// 	save_point := Save_Point{current_level, get_world_entity(PLAYER_ID).tile}
-// 	info := Save_Data{encode_character_data(), game_data, save_point, time_saved}
-//
-// 	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true})
-// 	if err != nil {
-// 		fmt.eprintfln("Unable to marshal JSON: %v", err)
-// 		quitting = true
-// 		return
-// 	}
-// 	defer delete(json_data)
-//
-// 	if filepath != nil {
-// 		fmt.printfln("Overwriting file %s/%s", SAVE_DIR, filepath)
-// 	}
-//
-// 	filepath :=
-// 		filepath == nil ? fmt.aprintf("%s/odinjrpg_%s.json", SAVE_DIR, uuid.to_string_allocated(uuid.generate_v7(), context.temp_allocator)) : fmt.aprintf("%s/%s", SAVE_DIR, filepath)
-// 	defer delete(filepath)
-//
-// 	werr := os.write_entire_file(filepath, json_data)
-// 	if werr != nil {
-// 		fmt.eprintfln("Unable to write save game file: %v", werr)
-// 		quitting = true
-// 	}
-//
-// 	fmt.printfln("Saved game to %s", filepath)
-// }
+// Writes the game to SAVE_DIR/`filename`, or to a new uniquely named file.
+// Returns false (and logs why) if it couldn't.
+save_game :: proc(filename: Maybe(string) = nil) -> bool {
+	time_saved := time.to_unix_nanoseconds(time.now())
+	save_point := Save_Point{current_level, engine.entity_tile(engine.player())}
+	info := Save_Data{/* encode_character_data(), */ game_data = game_data, save_point = save_point, time_saved = time_saved}
 
-// read_saved_game_data :: proc(filename: string) -> (save_data: Save_Data) {
-// 	filepath := strings.concatenate({"./", SAVE_DIR, "/", filename}, context.temp_allocator)
-// 	json_data, err := os.read_entire_file(filepath, context.temp_allocator)
-// 	if err != nil {
-// 		fmt.eprintfln("Failed to read the file '%s': %v", filepath, err)
-// 		os.exit(1)
-// 	}
-//
-// 	unmarshal_err := json.unmarshal(json_data, &save_data, allocator = context.temp_allocator)
-// 	if unmarshal_err != nil {
-// 		fmt.eprintfln("Failed to unmarshal save game data: %v", unmarshal_err)
-// 		os.exit(1)
-// 	}
-//
-// 	return
-// }
+	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true}, context.temp_allocator)
+	if err != nil {
+		log.errorf("Unable to marshal JSON: %v", err)
+		return false
+	}
 
-// load_saved_game :: proc(save_data: Save_Data) {
-// 	game_data = save_data.game_data
-// 	set_inventory_order()
-// 	party_unequip_all(to_inventory = false)
-// 	init_pcs()
-//
-// 	for csd, pc_idx in save_data.character_data {
-// 		pc := &playable_characters[pc_idx]
-// 		pc.status = csd.status
-// 		for slot in Equipment_Slot {
-// 			character_set_equipped_item(pc, slot, csd.equipment[slot], false, false)
-// 		}
-// 		set_level(pc, csd.level)
-// 		pc.exp_to_next = csd.exp_to_next
-// 		pc.hitpoints = csd.hitpoints
-// 		pc.name = strings.clone(csd.name)
-// 	}
-// 	set_all_skills()
-// }
+	if !os.exists(SAVE_DIR) {
+		if mkerr := os.make_directory(SAVE_DIR); mkerr != nil {
+			log.errorf("Unable to create directory '%s': %v", SAVE_DIR, mkerr)
+			return false
+		}
+	}
+
+	name, named := filename.?
+	if !named do name = fmt.tprintf("odinjrpg_%s.json", uuid.to_string_allocated(uuid.generate_v7(), context.temp_allocator))
+	filepath := fmt.tprintf("%s/%s", SAVE_DIR, name)
+	if os.exists(filepath) do log.infof("Overwriting file %s", filepath)
+
+	if werr := os.write_entire_file(filepath, json_data); werr != nil {
+		log.errorf("Unable to write save game file: %v", werr)
+		return false
+	}
+
+	log.infof("Saved game to %s", filepath)
+	return true
+}
+
+// Reads SAVE_DIR/`filename`. The result is in the temp allocator.
+read_saved_game_data :: proc(filename: string) -> (save_data: Save_Data, ok: bool) {
+	filepath := strings.concatenate({SAVE_DIR, "/", filename}, context.temp_allocator)
+	json_data, err := os.read_entire_file(filepath, context.temp_allocator)
+	if err != nil {
+		log.errorf("Failed to read the file '%s': %v", filepath, err)
+		return
+	}
+
+	if unmarshal_err := json.unmarshal(json_data, &save_data, allocator = context.temp_allocator); unmarshal_err != nil {
+		log.errorf("Failed to unmarshal save game data in '%s': %v", filepath, unmarshal_err)
+		return
+	}
+
+	return save_data, true
+}
+
+// Restores the game data and enters the saved level at the saved tile.
+load_saved_game :: proc(save_data: Save_Data) {
+	game_data = save_data.game_data
+	// set_inventory_order()
+	// party_unequip_all(to_inventory = false)
+	// init_pcs()
+	//
+	// for csd, pc_idx in save_data.character_data {
+	// 	pc := &playable_characters[pc_idx]
+	// 	pc.status = csd.status
+	// 	for slot in Equipment_Slot {
+	// 		character_set_equipped_item(pc, slot, csd.equipment[slot], false, false)
+	// 	}
+	// 	set_level(pc, csd.level)
+	// 	pc.exp_to_next = csd.exp_to_next
+	// 	pc.hitpoints = csd.hitpoints
+	// 	pc.name = strings.clone(csd.name)
+	// }
+	// set_all_skills()
+	start_level(save_data.save_point.level, at = save_data.save_point.tile)
+}
+
+// Reads and loads SAVE_DIR/`filename`. Returns false (and logs why) if it couldn't.
+load_game :: proc(filename: string) -> bool {
+	save_data := read_saved_game_data(filename) or_return
+	load_saved_game(save_data)
+	log.infof("Loaded game from %s/%s", SAVE_DIR, filename)
+	return true
+}
 
 get_game_data_bool :: proc(d: Bool_Datum) -> bool {
 	return game_data.bool_data[d]
