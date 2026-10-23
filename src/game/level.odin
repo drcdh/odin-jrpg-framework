@@ -28,16 +28,19 @@ clear_level :: proc() {
 FADE_TIME :: 0.25 // seconds for each half of a level change
 
 Levels :: struct {
-	current:    rules.Level,
-	prev:       rules.Level, // the level left, with the player's tile and facing there
-	prev_tile:  Tile,
-	prev_face:  Direction,
-	egress_idx: int, // the door (0 = the map edge) the player left `prev` by
+	current:      rules.Level,
+	prev:         rules.Level, // the level left, with the player's tile and facing there
+	prev_tile:    Tile,
+	prev_face:    Direction,
+	egress_idx:   int, // the door (0 = the map edge) the player left `prev` by
 	// Where stepping off the map edge goes; nil when the edges are closed.
 	// Set by the generated tiled_init_* from the map's edge_level property.
-	edge:       Maybe(rules.Level),
-	pending:    Maybe(rules.Level), // the level being faded to
-	transition: Tween_Id,          // the curtain tween of the current fade
+	edge:         Maybe(rules.Level),
+	pending:      Maybe(rules.Level), // the level being faded to (change_level)
+	pending_at:   Maybe(Tile),        // the player's spawn there; nil = the entrance rules
+	pending_face: Direction,
+	pending_fade: f32,                // seconds for each half of the change
+	transition:   Tween_Id,           // the curtain tween of the current fade
 }
 
 current_level :: proc() -> rules.Level {
@@ -45,8 +48,10 @@ current_level :: proc() -> rules.Level {
 }
 
 // Leaves the current level and enters `l`: clears the world, then the
-// enter_level builds the new one, and the camera follows the player.
-start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down) {
+// enter_level builds the new one, and the camera follows the player. Without
+// `with_player` (cutscenes) no player spawns, so nothing takes input and the
+// camera follows nothing until a script calls camera_follow.
+start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down, with_player := true) {
 	lv := &world.levels
 	if p, ok := entity_get(player()); ok {
 		lv.prev_face = p.facing
@@ -56,7 +61,7 @@ start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Dow
 	lv.current = l
 	lv.edge = nil
 	clear_level()
-	enter_level(l, at, face)
+	enter_level(l, at, face, with_player)
 	camera_follow(player())
 }
 
@@ -64,15 +69,28 @@ restart_level :: proc() {
 	start_level(world.levels.current)
 }
 
-// Leaving through a door or the map edge: fade out, enter `l`, fade in. The
-// destination's entrance rules pick the spawn from the level left, the door
-// index and the player's facing. Ignored while a level change is under way.
+// A level change on the main thread, so scripts can ask for one (start_level
+// would cancel the calling script): fade out over `fade` seconds, start `l`
+// with the player at `at` facing `face`, fade back in. With no `at`, the
+// level's entrance rules pick the spawn. Ignored while a change is under way.
+change_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down, fade: f32 = FADE_TIME) {
+	lv := &world.levels
+	if _, busy := lv.pending.?; busy do return
+	lv.pending = l
+	lv.pending_at = at
+	lv.pending_face = face
+	lv.pending_fade = fade
+	lv.transition = curtain_to(1, fade)
+}
+
+// Leaving through a door or the map edge: a level change whose spawn the
+// destination's entrance rules pick from the level left, the door index and
+// the player's facing.
 egress :: proc(l: rules.Level, egress_idx: int) {
 	lv := &world.levels
 	if _, busy := lv.pending.?; busy do return
 	lv.egress_idx = egress_idx
-	lv.pending = l
-	lv.transition = curtain_to(1, FADE_TIME)
+	change_level(l)
 }
 
 // A warp pad: egress with the warp sound.
@@ -89,8 +107,8 @@ level_transition_update :: proc() -> bool {
 	if l, ok := lv.pending.?; ok {
 		if !tween_done(lv.transition) do return true
 		lv.pending = nil
-		start_level(l)
-		lv.transition = curtain_to(0, FADE_TIME)
+		start_level(l, lv.pending_at, lv.pending_face)
+		lv.transition = curtain_to(0, lv.pending_fade)
 		return true
 	}
 	return !tween_done(lv.transition)
@@ -106,14 +124,15 @@ check_edge_exit :: proc() {
 }
 
 // Builds level `l` in the cleared world: the generated tiled_init_* sets the
-// map and its doors, the player spawns (at `at` facing `face`, or by the
-// level's entrance rules), the hand-written init_* adds the rest, and the
+// map and its doors, the player spawns unless `with_player` is false (at `at`
+// facing `face`, or by the level's entrance rules), the hand-written init_*
+// adds the rest, and the
 // generated render_* draws the map once.
 @(private = "file")
-enter_level :: proc(l: rules.Level, at: Maybe(Tile), face: Direction) {
+enter_level :: proc(l: rules.Level, at: Maybe(Tile), face: Direction, with_player: bool) {
 	start := time.tick_now()
 	tiled_init_level(l)
-	spawn_player(l, at, face)
+	if with_player do spawn_player(l, at, face)
 	init_level(l)
 	render_level(l)
 	log.infof("loaded level %v (%v tiles) in %v", l, world.level_map.size, time.tick_since(start))

@@ -1372,3 +1372,29 @@ get_items_groups_duplicates :: proc(t: ^testing.T) {
 	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 2)
 	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Tea], 1)
 }
+
+@(test)
+level_without_player :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	rules.init_new_game()
+	start_level(.Quarry_Main, with_player = false)
+	testing.expect(t, !entity_alive(player()), "a player spawned")
+	testing.expect(t, !entity_alive(world.camera_follow), "the camera follows something")
+	run_for(0.1)
+	testing.expect_value(t, current_level(), rules.Level.Quarry_Main)
+}
+
+@(test)
+script_changes_level :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	rules.init_new_game()
+	start_level(.Quarry_Main, with_player = false)
+	spawn(proc(_: Entity_Id) { change_level(.Grove_Main, at = Tile{3, 4}, face = .Left, fade = 0.2) })
+	run_for(0.3)
+	testing.expect_value(t, current_level(), rules.Level.Grove_Main)
+	testing.expect_value(t, entity_tile(player()), Tile{3, 4})
+	testing.expect_value(t, entity_get(player()).facing, Direction.Left)
+	testing.expect(t, world.curtain > 0, "already faded in")
+	run_for(0.3)
+	testing.expect_value(t, world.curtain, 0)
+}

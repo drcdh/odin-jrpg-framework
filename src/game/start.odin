@@ -8,8 +8,10 @@ start_game :: proc() {
 	new_game()
 }
 
+// Resets the game data and plays the opening cutscene, which then starts
+// Grove (cutscene_intro.odin).
 new_game :: proc() {
 	// Eventually, this procedure should be called from the start menu when starting a new game
 	init_new_game()
-	start_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO)
+	start_intro()
 }
