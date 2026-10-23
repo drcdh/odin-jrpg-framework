@@ -1256,3 +1256,61 @@ menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
 	tap(.MENU)
 	testing.expect(t, world_menu_active(), "MENU should open the menu once the player stops")
 }
+
+@(test)
+delayed_sound_waits_on_game_time :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	play_sound(.Warp, delay = 0.5)
+	run_for(0.4)
+	testing.expect_value(t, len(world.audio.pending), 1)
+	run_for(0.2)
+	testing.expect_value(t, len(world.audio.pending), 0) // no audio device: dropped, not played
+}
+
+@(test)
+paused_clock_holds_sounds :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	play_sound(.Warp, delay = 0.1)
+	set_paused(true)
+	run_for(1)
+	testing.expect_value(t, len(world.audio.pending), 1)
+	set_paused(false)
+	run_for(0.2)
+	testing.expect_value(t, len(world.audio.pending), 0)
+}
+
+@(test)
+script_queues_sound :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	spawn(proc(_: Entity_Id) {
+		play_sound(.Whack, delay = 1)
+	})
+	run_for(FRAME * 2)
+	testing.expect_value(t, len(world.audio.pending), 1)
+	testing.expect_value(t, world.audio.pending[0].sound, Sound_Name.Whack)
+}
+
+@(test)
+play_music_remembers_the_previous_track :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	testing.expect(t, world.audio.music.thread == nil, "no audio device, so no music thread")
+	play_music(.Town)
+	play_music(.Cave)
+	play_music(.Cave) // the same track again keeps .Town as previous
+	testing.expect_value(t, world.audio.music.requested, Music_Name.Cave)
+	testing.expect_value(t, world.audio.music.prev, Music_Name.Town)
+	play_prev_music()
+	testing.expect_value(t, world.audio.music.requested, Music_Name.Town)
+	testing.expect_value(t, world.audio.music.prev, Music_Name.Cave)
+}
+
+@(test)
+music_fades_are_requests :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	music_fade_down()
+	testing.expect(t, world.audio.music.faded)
+	play_music(.Town) // a track change doesn't undo the fade
+	testing.expect(t, world.audio.music.faded)
+	music_fade_up()
+	testing.expect(t, !world.audio.music.faded)
+}

@@ -96,7 +96,7 @@ get_input :: proc(k: Game_Input, down := false, silent := false) -> (v: bool) {
 	case Input_Pressed: v = true
 	case Input_Held:    v = down || s.t >= HOLD_TIME
 	}
-	// TODO: play .UI_Blip when v && !silent, once audio is ported.
+	if v && !silent do play_sound(.Ui_Blip)
 	return
 }
 

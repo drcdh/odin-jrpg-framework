@@ -27,6 +27,8 @@ main :: proc() {
 	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
 	defer rl.CloseWindow()
 	rl.SetTargetFPS(game.THROTTLED_FPS)
+	rl.InitAudioDevice()
+	defer rl.CloseAudioDevice() // after game.shutdown: it unloads sounds
 
 	game.init()
 	defer game.shutdown() // before CloseWindow: it unloads textures

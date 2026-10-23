@@ -6,6 +6,8 @@ dude_pace: Script_Id
 
 @(private)
 init_grove_main :: proc() {
+	play_music(.Town)
+
 	DRINK_TEA :: 1
 	DRINK_COFFEE_BLACK :: 2
 	DRINK_COFFEE_CREAM :: 3
@@ -128,14 +130,14 @@ init_grove_main :: proc() {
 						if pay == 0 {
 							if true || have_money(3) {
 								dec_money(3)
-								// music_fade_down()
+								music_fade_down()
 								// fade screen out
 								// heal_party()
 								pause(.75)
-								// play_sound(.Warp)
+								play_sound(.Warp)
 								pause(.75)
 								// fade screen in
-								// music_fade_up()
+								music_fade_up()
 								say("You feel great!")
 								pause(.5)
 								say("|but you're still hungry.")

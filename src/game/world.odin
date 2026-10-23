@@ -24,6 +24,7 @@ World :: struct {
 	flash:           Screen_Flash,
 	curtain:         f32, // 0 clear .. 1 black; see curtain_to
 	dialogue:        Dialogue,
+	audio:           Audio, // sound effects; see sound.odin
 	input:           Input,
 	ui:              UI, // font, pane texture, icons; loaded only with a window
 	player:          Entity_Id,
@@ -48,6 +49,8 @@ init :: proc(allocator := context.allocator) {
 	input_init()
 	ui_init() // after the sprite maps: it creates the icon sprites
 	dialogue_init(allocator)
+	sounds_init(allocator)
+	music_init()
 }
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
@@ -55,6 +58,8 @@ shutdown :: proc() {
 	rules.destroy()
 	scripts_shutdown()
 	dialogue_destroy()
+	music_shutdown()
+	sounds_destroy()
 	ui_destroy()
 	it := hm.iterator_make(&world.images)
 	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
@@ -79,6 +84,7 @@ update :: proc() {
 	tweens_update(world.clock.dt)
 	scripts_update()
 	dialogue_update(world.clock.dt)
+	sounds_update(world.clock.dt)
 	world_menu_update()
 	sprites_update(world.clock.dt)
 	ui_update(world.clock.raw_dt) // cursors animate while the menu pauses the world

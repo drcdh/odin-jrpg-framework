@@ -75,8 +75,9 @@ egress :: proc(l: rules.Level, egress_idx: int) {
 	lv.transition = curtain_to(1, FADE_TIME)
 }
 
-// A warp pad. Same as egress until there are sounds to tell them apart.
+// A warp pad: egress with the warp sound.
 warp_to_level :: proc(l: rules.Level, egress_idx: int) {
+	play_sound(.Warp)
 	egress(l, egress_idx)
 }
 

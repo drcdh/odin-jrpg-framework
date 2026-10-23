@@ -29,7 +29,8 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 
 Every target first runs the generators. They need Python 3, the `aseprite` CLI on `PATH`, and `pytiled_parser`. All of their outputs are gitignored.
 - `src/build_tools/process_sprites.py` exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/game/sprite_data.odin`.
-- `src/build_tools/process_items.py` and `process_skills.py` turn `content/consumables.csv`, `equippables.csv` and `skills.csv` into `src/rules/item_data.odin` (`Item_Name`, `items`) and `skill_data.odin` (`Skill_Name`, `skills`).
+- `src/build_tools/process_audio.py` turns the files in `assets/audio/sounds/` and `assets/audio/music/` into `src/game/sound_data.odin` (`Sound_Name`, `sound_files`) and `music_data.odin` (`Music_Name`, starting with `None`, and `music_files`). Each file's name becomes its enum value: `door_knock.wav` is `Door_Knock`.
+- `src/build_tools/process_items.py` and `process_skills.py` turn `content/consumables.csv`, `equippables.csv` and `skills.csv` into `src/rules/item_data.odin` (`Item_Name`, `items`) and `skill_data.odin` (`Skill_Name`, `skills`). `process_skills.py` also writes each skill's sound (the `sound` column) to `src/game/skill_sound_data.odin` (`skill_sounds`), since sounds are presentation.
 - `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/game/level_<level>_<room>_data.odin`. It also writes `src/game/level_data.odin`, `encounter_region_data.odin` and `tileset_data.odin`, and `src/rules/levels_data.odin` (the `Level` enum) and `chest_data.odin`.
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
@@ -41,7 +42,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | Package | Holds | Imports |
 |---|---|---|
 | `src/rules` | Headless state and mechanics: anything that can matter to battle state. `Game_Data` (flags, money, chests, inventory, party membership), the playable characters with their stats, equipment, status and charged skills, items, skills and targeting types, save files and their metadata, the `Level` and `Chest_Datum` enums; later enemies, and battle state and resolution. Its globals are freed with `rules.destroy()`, which `game.shutdown` calls. No clocks, no real time, no raylib, so battles can run programmatically | `core:` only |
-| `src/game` | Everything real-time and audiovisual: the world, entities, scripts, tweens, tiles and the screen size, maps, input, player control, level changes and fades, UI and menus, the levels and their NPC scripts, sprites, the generated level code, `save_game` / `load_game` around `rules`' save files; later battle presentation and audio | `rules` |
+| `src/game` | Everything real-time and audiovisual: the world, entities, scripts, tweens, tiles and the screen size, maps, input, player control, level changes and fades, UI and menus, the levels and their NPC scripts, sprites, the generated level code, `save_game` / `load_game` around `rules`' save files, sound and music; later battle presentation | `rules` |
 | `src/main.odin` | The window and the frame loop | `game` |
 
 `game` calls `rules`, and `rules` calls nothing: there are no hooks or callbacks between them. Content splits along the same line: item, skill and enemy tables go in `rules`, while their sprites, the levels and the NPC scripts go in `game`. `./build.sh test` checks that `src/rules` builds alone (`odin check`) and imports neither `../game`, `vendor:raylib` nor `core:time`.
@@ -62,6 +63,10 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/game/grid.odin` | Tile size, zoom, the 16 x 14 tile screen (`VIEW_TILES_*`, `WINDOW_WIDTH` / `WINDOW_HEIGHT`), `Tile`, `Direction`, tile/world conversions |
 | `src/game/effects.odin` | Screen flash, level-change curtain |
 | `src/game/dialogue.odin` | Dialogue box: the `say` and `choose` verbs, typing, paging, word wrap, choice pane |
+| `src/game/sound.odin` | Sound effects: `play_sound`, the queue in `world.audio`, volumes |
+| `src/game/music.odin` | Music: `play_music`, fades, the music thread |
+| `src/game/sound_data.odin`, `music_data.odin` | Generated by `process_audio.py`: `Sound_Name` / `Music_Name` and their files |
+| `src/game/skill_sound_data.odin` | Generated: `skill_sounds`, each skill's sound |
 | `src/game/input.odin` | `Game_Input` bindings (keyboard and gamepad), press/hold state, `get_input` |
 | `src/game/text.odin`, `panes.odin`, `font.odin`, `ui_icons.odin` | UI drawing in UI tiles: text, bordered panes, the bitmap font, cursor icons |
 | `src/game/font_data.odin` | Generated: the font's glyph table |
@@ -80,7 +85,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/game/stubs.odin` | Placeholders (`Legacy_*`) for old-project features the generated level code calls |
 | `src/game/scripts.odin`, `sprites.odin` | Example scripts, `character_sprite` |
 | `src/game/level_*_data.odin`, `level_data.odin`, `encounter_region_data.odin` | Generated by `process_tiled.py` |
-| `src/game/game_test.odin` | 67 headless tests |
+| `src/game/game_test.odin` | 72 headless tests |
 | `src/rules/data.odin` | `Game_Data` (story flags, numbers, money, inventory, party membership), `init_new_game`, save files, `destroy` |
 | `src/rules/character.odin`, `party.odin` | `Character` (stats, level, equipment, status, skills), experience and levels; the six PCs (`playable_characters`), party membership, skill sets from equipment, step effects |
 | `src/rules/stats.odin`, `equipment.odin`, `inventory.odin`, `item.odin`, `skill.odin`, `targeting.odin` | Stats and their modifiers, equipment slots, the inventory and its display orders, items (consumables and equippables), charged skills, target types |
@@ -93,6 +98,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `assets/tiled/` | The Tiled project: one folder per level, one `.tmx` per room, object templates |
 | `assets/tilesets/` | Aseprite sources for the tilesets |
 | `assets/textures/` | Hand-made UI textures: `font.png`, `pane.png` |
+| `assets/audio/` | `sounds/` and `music/`, named after their enum values; `CREDITS.md` lists each file's original name and source |
 
 ## Downstream repos
 The game's downstream repos merge this one (for example, a private copy with this repo as its `upstream` remote) and override or add content. To keep those merges free of conflicts:
@@ -221,7 +227,7 @@ Demo: Grove's introduction says "You're new in town… Press Z to start!" the fi
 - `get_input(k)` is true on the press and, once held for `HOLD_TIME` (1 s), on every frame after. `get_input(k, down = true)` is true on every frame it's held, which is what walking uses.
 - `consume_input(k)` swallows the current press.
 - `get_menu_input`, `get_x_input` and `get_y_input` read pressed directions for menus.
-- Sounds aren't ported, so `silent` does nothing yet (TODO in `get_input`).
+- `get_input` plays `.UI_Blip` when it returns true, unless `silent` is set. Walking passes `silent = true`.
 - F1 (debug overlay) is still read straight from raylib.
 
 ### UI drawing
@@ -244,7 +250,22 @@ The player's menu outside of battle (`world_menu.odin`). MENU (S) opens it with 
   - **Skills:** a member's skills, their charge and descriptions.
   - **Save:** the save files (`rules.metadata`) and New Save.
   - **System:** empty.
-- The menu reads and changes `rules` state directly. Presentation stays in `game`: PC menu sprites (`pc_menu_sprite`, `PC_BODIES` in `sprites.odin`), colors, and sounds (TODO). `selection.odin` and `grid_change` (`input.odin`) are the cursor helpers.
+- The menu reads and changes `rules` state directly. Presentation stays in `game`: PC menu sprites (`pc_menu_sprite`, `PC_BODIES` in `sprites.odin`), colors, and sounds (`.Blerp` for an item that can't be used, the skill's `skill_sounds` entry when one is). `selection.odin` and `grid_change` (`input.odin`) are the cursor helpers.
+
+### Sound and music
+`play_sound(name, delay = 0)` (`src/game/sound.odin`) queues a sound effect in `world.audio.pending`.
+- `sounds_update` (after the dialogue box) counts the delays down on game time, so a paused world holds them, and plays what's due.
+- Only the main thread calls raylib, so scripts can call `play_sound` from their threads.
+- Each sound loads (`rl.LoadSound`) from `assets/audio/sounds/` the first time it plays; `shutdown` unloads them. A file that won't load logs a warning.
+- `main` opens the audio device after the window and closes it after `game.shutdown`. Without a device (headless tests) due sounds are dropped silently.
+- `world.audio.effects_volume` (0..`SOUND_MAX_VOLUME`, 10) applies to each sound as it plays.
+- **Music** (`src/game/music.odin`) streams on its own thread, so it doesn't stutter on long frames (the Cat & Onion pattern). The game and scripts only store requests in atomics; the thread does every raylib music call, every 10 ms.
+  - `play_music(name)` switches tracks (`.None` is silence). Asking for the track already playing does nothing, so each level's `init_*` requests its music on every entry: Overworld plays `.Overworld`, Grove, House and Quarry `.Town`, and Cave `.None`. `.Battle` waits for battles.
+  - `play_prev_music()` goes back to the track before the current one.
+  - `music_fade_down()` fades to silence over a second, and the music stays silent across track changes until `music_fade_up()`. Grove's healing fades the music around the warp sound.
+  - `set_music_volume(v)` (0..`SOUND_MAX_VOLUME`, default 7).
+  - Tracks load from `assets/audio/music/` with `rl.LoadMusicStream` and loop. The thread starts in `init` only if there's an audio device; `shutdown` joins it, and the thread unloads the stream.
+- **Adding audio:** drop a file into `assets/audio/sounds/` or `music/` (the name becomes the enum value), rerun `./data_build.sh`, and add its source to `assets/audio/CREDITS.md`. Sound effects are 44.1 kHz 16-bit WAV (`LoadSound` decodes them into memory anyway, so lossless costs only disk); convert a new one with `ffmpeg -i in.ext -ar 44100 -c:a pcm_s16le -map_metadata -1 out.wav`. Music stays MP3.
 
 ### Screen flash
 `flash_screen(color, duration)` covers the screen with `color` and fades it out over `duration`.
@@ -282,7 +303,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - **Egress:** a ghost entity on the door tile whose `on_step` calls `warp_to_level` (if `warp` is set) or `egress(dest, door_idx)` when the player steps onto it. Warp pads have no sprite yet; the F1 overlay doesn't show them either, since they have no talk trigger.
   - **Ingress:** a rule in `<lr>_player_spawn`: if `world.levels.prev`, `.egress_idx` and (when `eFace` is set) `.prev_face` match, spawn on the door tile facing `iFace`, one tile further in that direction if `iOffset` is set. Edge exits use `eFace` to choose where along the edge the player comes in.
 - **Leaving a level** (`src/game/level.odin`):
-  - `egress(l, idx)` / `warp_to_level(l, idx)` record the door index, set `world.levels.pending`, and fade the curtain to black (`FADE_TIME` 0.25 s). They're ignored while a change is under way.
+  - `egress(l, idx)` / `warp_to_level(l, idx)` record the door index, set `world.levels.pending`, and fade the curtain to black (`FADE_TIME` 0.25 s). They're ignored while a change is under way. `warp_to_level` also plays `.Warp`.
   - Stepping off the map edge is egress index 0 to `world.levels.edge`. Player control checks it when the player's step finishes (`check_edge_exit`).
   - `level_transition_update` runs at the top of player control. Once the fade-out finishes it calls `start_level` and fades back in. Input is ignored until the fade-in is done.
 - **Entering a level:** `start_level(l, at = nil, face = .Down)`
@@ -330,25 +351,25 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
    2. tweens; tile moves that finish fire step triggers (doors)
    3. scripts
    4. dialogue box (typing, paging, choices; closes once its speaker stops talking)
-   5. world menu input
-   6. sprite animations; UI icon animations on `raw_dt`
-   7. camera follow
-   8. flush destroyed entities
+   5. sounds that are due (music runs on its own thread)
+   6. world menu input
+   7. sprite animations; UI icon animations on `raw_dt`
+   8. camera follow
+   9. flush destroyed entities
 3. draw. Inside `BeginMode2D(camera)`: map, entities, debug world overlay. Then, in screen space, the screen flash and curtain, the dialogue box, the world menu and the HUD.
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items, status and equipment, skills, saving), deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items, status and equipment, skills, saving), sound effects and music, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - Map passability only stops the player; scripted moves ignore it. Single-tween moves (`move_entity`, `tween_to_tile`) ignore other entities too.
-- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Loading has no menu yet, only the F5 test key in debug builds. Item and skill effects, sounds, battles and play time aren't ported yet. Warp pads have no sprite. No sounds yet, so `warp_to_level` is the same as `egress`.
+- Chests, items and encounters are stubbed (`src/game/stubs.odin`). Loading has no menu yet, only the F5 test key in debug builds. Item and skill effects, battles and play time aren't ported yet. Warp pads have no sprite.
 - In WRAP mode, entities near the seam pop across when one of them steps over it, since only the stepping entity is moved.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.
 - `Handle32` has a 16-bit generation counter, so a slot's generation wraps after 65,536 reuses. Switch to `Handle64` if tween churn gets that high.
 - Overlapping properties (`.Pos` vs `.Pos_X`) aren't detected as conflicting. Two scripts tweening the same property cut each other off, and the cut-off script's wait returns `true`.
-- No sounds yet: `get_input`'s UI blip is a TODO.
 - No start menu yet: `start_game` goes straight to `new_game`. Once there is one, `new_game` will run only when the player starts a new game from it.
 - Ideas: timeline/sequence helpers, camera tweens via `tween_f32`. The script backend (minicoro or stackless) could be swapped behind the same verb API if wasm or very large script counts are ever needed.

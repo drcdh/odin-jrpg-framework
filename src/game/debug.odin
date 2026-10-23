@@ -267,12 +267,12 @@ debug_toggle_pc :: proc(pc_idx: int) {
 	if rules.game_data.party_membership[pc_idx] {
 		if rules.party_size() > 1 {
 			rules.game_data.party_membership[pc_idx] = false
-			// TODO: play_sound(.Kaching)
+			play_sound(.Kaching)
 		} else {
-			// TODO: play_sound(.Blerp)
+			play_sound(.Blerp)
 		}
 	} else {
 		rules.game_data.party_membership[pc_idx] = true
-		// TODO: play_sound(.Warp)
+		play_sound(.Warp)
 	}
 }

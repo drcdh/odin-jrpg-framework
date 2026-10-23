@@ -262,7 +262,7 @@ world_menu_update :: proc() {
 				menu.ui_state = .Item_Target
 			} else {
 				fmt.printfln("Item %s isn't a rules.Consumable", rules.items[item_name])
-				// TODO: play the error sound once audio is ported
+				play_sound(.Blerp)
 			}
 		} else if dy, ok := get_y_input().?; ok {
 			menu.inven_sel = shift_windowed_selection(dy, menu.inven_sel, INVENTORY_ROWS, len(rules.inventory_order))
@@ -277,7 +277,7 @@ world_menu_update :: proc() {
 			party_idx := menu.party_idx
 			if consumable, ok := rules.items[item_name].data.(rules.Consumable); ok {
 				skill := rules.skills[consumable]
-				// TODO: play the skill's sound once audio is ported
+				if s, has_sound := skill_sounds[consumable].?; has_sound do play_sound(s)
 				pc := rules.get_party_member(party_idx)
 				rules.do_skill(nil, pc, skill)
 				rules.remove_item(item_name)

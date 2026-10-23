@@ -4,6 +4,7 @@ from processing import name_to_enum, process_text
 
 ROOT = "./content"
 DEST = "./src/rules"
+GAME_DEST = "./src/game"
 
 DEFAULTS = dict(
 	constant=0,
@@ -45,7 +46,7 @@ def odin_skill(row):
 		"cost": row["cost"] or 100,
 		"cooldown": row["cooldown"] or 0,
 		# "animation": ("." + row["animation"]) if row["animation"] else "nil",
-		# "sound": ("." + row["sound"]) if row["sound"] else "nil",
+		"sound": ("." + row["sound"]) if row["sound"] else "nil",
 		"description": process_text(row.get("description", "")),
 	}
 def write_skill(f, oskill):
@@ -76,3 +77,14 @@ out_f.write("}\n")
 
 out_f.close()
 
+
+# A skill's sound is presentation, so its table lives in the game package.
+out_f = open(f"{GAME_DEST}/skill_sound_data.odin", "w")
+out_f.write("package game\n\n")
+out_f.write("import \"../rules\"\n\n")
+out_f.write("@(rodata)\n")
+out_f.write("skill_sounds := [rules.Skill_Name]Maybe(Sound_Name) {\n")
+for skill in skills:
+	out_f.write(f"\t.{name_to_enum(skill['name'])} = {skill['sound']},\n")
+out_f.write("}\n")
+out_f.close()
