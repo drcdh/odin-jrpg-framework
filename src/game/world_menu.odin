@@ -1,6 +1,8 @@
 package game
 
+import sa "core:container/small_array"
 import "core:fmt"
+import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -57,7 +59,23 @@ World_Menu :: struct {
 	using ui_data: World_Menu_UI_Data,
 	ui_state:      World_Menu_UI_State,
 	was_paused:    bool, // the clock before the menu opened
+	popups:        sa.Small_Array(MAX_POPUPS, Popup),
 }
+
+// Text that rises from a party member's sprite in the Targeting pane and
+// fades out, e.g. the HP an item heals. See world_menu_popup.
+@(private = "file")
+Popup :: struct {
+	slot:  int, // party slot
+	text:  [16]u8, // NUL-terminated
+	color: rl.Color,
+	t:     f32, // seconds since it appeared; negative while it waits
+}
+
+@(private = "file")
+MAX_POPUPS :: 16
+@(private = "file")
+POPUP_TIME :: f32(1)
 
 @(private = "file")
 EQUIPMENT_ROWS :: 10
@@ -108,7 +126,46 @@ world_menu_enter :: proc() {
 world_menu_exit :: proc() {
 	if !world_menu_active() do return
 	menu.ui_state = .Inactive
+	sa.clear(&menu.popups)
 	set_paused(menu.was_paused)
+}
+
+// Shows `text` rising from party slot `slot` in the Targeting pane after
+// `delay` seconds (UI time, so it runs while the menu pauses the world).
+world_menu_popup :: proc(slot: int, color: rl.Color, delay: f32, text: string) {
+	p := Popup{slot = slot, color = color, t = -delay}
+	copy(p.text[:len(p.text) - 1], text)
+	if !sa.push(&menu.popups, p) do log.warnf("Too many world menu popups; dropped %q", text)
+}
+
+world_menu_popup_count :: proc() -> int {
+	return sa.len(menu.popups)
+}
+
+@(private = "file")
+popups_update :: proc(dt: f32) {
+	for i := 0; i < sa.len(menu.popups); {
+		p := sa.get_ptr(&menu.popups, i)
+		p.t += dt
+		if p.t >= POPUP_TIME {
+			sa.ordered_remove(&menu.popups, i)
+		} else {
+			i += 1
+		}
+	}
+}
+
+@(private = "file")
+draw_popups :: proc() {
+	for &p in sa.slice(&menu.popups) {
+		if p.t < 0 do continue
+		k := p.t / POPUP_TIME
+		color := p.color
+		color.a = u8(255 * (1 - k))
+		// Over the sprite in the Targeting pane (draw_targeting), rising half a
+		// tile towards the target cursor as it fades.
+		draw_text_center(2 + 2.5 * f32(p.slot), 11.25 - 0.5 * k, cstring(&p.text[0]), color)
+	}
 }
 
 world_menu_active :: proc() -> bool {
@@ -133,7 +190,9 @@ draw_world_menu :: proc() {
 	case .Skill_Target:
 		draw_textures(.Skills, .Targeting)
 	case .Inventory:
-		draw_textures(.Inventory)
+		// After the last of an item is used, its popups still need the pane.
+		if sa.len(menu.popups) > 0 do draw_textures(.Inventory, .Targeting)
+		else do draw_textures(.Inventory)
 	case .Item_Target:
 		draw_textures(.Inventory, .Targeting)
 	case .System:
@@ -141,11 +200,13 @@ draw_world_menu :: proc() {
 	case .Save:
 		draw_textures(.Save)
 	}
+	draw_popups()
 }
 
 // Reads the menu's input. Call after dialogue_update.
 @(private)
 world_menu_update :: proc() {
+	popups_update(world.clock.raw_dt)
 	#partial switch menu.ui_state {
 	case .Inactive:
 
@@ -276,10 +337,8 @@ world_menu_update :: proc() {
 			item_name := rules.inventory_order[menu.inven_sel.select_idx]
 			party_idx := menu.party_idx
 			if consumable, ok := rules.items[item_name].data.(rules.Consumable); ok {
-				skill := rules.skills[consumable]
-				if s, has_sound := skill_sounds[consumable].?; has_sound do play_sound(s)
 				pc := rules.get_party_member(party_idx)
-				rules.do_skill(nil, pc, skill)
+				do_skill(nil, party_idx, consumable, .World_Menu)
 				rules.remove_item(item_name)
 				if rules.game_data.inventory[item_name] == 0 {
 					menu.ui_state = .Inventory

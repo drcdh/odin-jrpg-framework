@@ -39,8 +39,8 @@ def effect_data_str(row):
 def odin_skill(row):
 	return {
 		"name": row["name"],
-		# "effect": effect_data_str(row),
-		# "effect_type": row["effect_type"],
+		"effect": effect_data_str(row),
+		"effect_type": row["effect_type"],
 		"targeting": "." + row["targeting"],
 		"windup": row["windup"] or 0,
 		"cost": row["cost"] or 100,
@@ -50,7 +50,7 @@ def odin_skill(row):
 		"description": process_text(row.get("description", "")),
 	}
 def write_skill(f, oskill):
-	f.write("\t{{ \"{name}\", {targeting}, {windup}, {cost}, {cooldown}, \"{description}\" }},\n".format(**oskill))
+	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, \"{description}\" }},\n".format(**oskill))
 	# f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
 
 in_f = open(f"{ROOT}/skills.csv")

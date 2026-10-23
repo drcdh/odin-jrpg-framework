@@ -7,6 +7,8 @@ import "core:strings"
 import "core:testing"
 import rl "vendor:raylib"
 
+import "../rules"
+
 // Headless: no window. Each test owns the global world, so run with ODIN_TEST_THREADS=1.
 
 @(private = "file")
@@ -1313,4 +1315,19 @@ music_fades_are_requests :: proc(t: ^testing.T) {
 	testing.expect(t, world.audio.music.faded)
 	music_fade_up()
 	testing.expect(t, !world.audio.music.faded)
+}
+
+@(test)
+item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	rules.init_new_game()
+	pc := rules.get_party_member(0)
+	pc.stats[rules.Stat_Name.Hitpoints] = 100
+	pc.hitpoints = 1
+	r := do_skill(nil, 0, .Potion, .World_Menu)
+	testing.expect_value(t, r.hp_change, 50)
+	testing.expect_value(t, pc.hitpoints, 51)
+	testing.expect_value(t, world_menu_popup_count(), 1)
+	run_for(1.1) // popups run on raw_dt, which run_for advances too
+	testing.expect_value(t, world_menu_popup_count(), 0)
 }

@@ -2,8 +2,8 @@ package rules
 
 Skill :: struct {
 	name:        string,
-	// effect_data: Effect_Data,
-	// effect_type: Effect_Type,
+	effect_data: Effect_Data,
+	effect_type: Effect_Type,
 	targeting:   Target_Type,
 	windup:      int,
 	cost:        int,
@@ -86,6 +86,16 @@ is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
 	return
 }
 
-do_skill :: proc(actor, target: ^Character, skill: Skill, runner_idx: Maybe(int) = nil) {
-	// do_effect(actor, target, skill.effect_data, skill.effect_type, runner_idx)
+// `actor` is nil for an item.
+do_skill_character :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
+	return do_effect_character(actor, target, skill.effect_data, skill.effect_type)
+}
+
+do_skill_combatant :: proc(actor, target: ^Combatant, skill: Skill) -> Effect_Result {
+	return do_effect_combatant(actor, target, skill.effect_data, skill.effect_type)
+}
+
+do_skill :: proc {
+	do_skill_character,
+	do_skill_combatant,
 }
