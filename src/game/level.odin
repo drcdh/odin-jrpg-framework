@@ -136,7 +136,7 @@ spawn_player :: proc(l: rules.Level, at: Maybe(Tile), at_face: Direction) {
 		name   = "player",
 		tile   = tile,
 		facing = face,
-		sprite = character_sprite(PLAYER_BODY, layer = 1),
+		sprite = walker_sprite(.Player_World, layer = 1),
 	})
 	set_player(player)
 }

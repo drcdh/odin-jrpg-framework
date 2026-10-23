@@ -1,6 +1,10 @@
 package game
 
+import "core:fmt"
+import "core:strings"
 import rl "vendor:raylib"
+
+import "../rules"
 
 // --- Immediate verbs: usable anywhere. Each cancels any tween on the property it sets. ---
 
@@ -58,6 +62,12 @@ set_rotation :: proc(id: Entity_Id, degrees: f32) {
 
 set_visible :: proc(id: Entity_Id, visible: bool) {
 	if e, ok := entity_get(id); ok do e.sprite.hidden = !visible
+}
+
+// Removes `id`'s talk trigger, e.g. after a one-time gift. A script running
+// from it carries on.
+clear_trigger :: proc(id: Entity_Id) {
+	if e, ok := entity_get(id); ok do e.trigger.script = nil
 }
 
 // Sprite playback on an entity. Only switches rows and frames of an already
@@ -211,4 +221,23 @@ rotate_to :: proc(id: Entity_Id, degrees: f32, duration: f32, easing := Ease.Lin
 
 rotate_by :: proc(id: Entity_Id, degrees: f32, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
 	return wait_tween(tween_by(id, .Rotation, {degrees, 0, 0, 0}, duration, easing), loc)
+}
+
+// Adds `items` to the inventory and says so: "Got Potion x2, Tea!". Does
+// nothing without items.
+get_items :: proc(items: ..rules.Item_Name, loc := #caller_location) -> bool {
+	if len(items) == 0 do return true
+	counts: [rules.Item_Name]int
+	for item in items {
+		rules.add_item(item)
+		counts[item] += 1
+	}
+	names := make([dynamic]string, 0, len(items), context.temp_allocator)
+	for item in items { // in order of first appearance
+		n := counts[item]
+		if n == 0 do continue
+		append(&names, n == 1 ? rules.items[item].name : fmt.tprintf("%s x%d", rules.items[item].name, n))
+		counts[item] = 0
+	}
+	return say(strings.concatenate({"Got ", strings.join(names[:], ", ", context.temp_allocator), "!"}, context.temp_allocator), loc = loc)
 }

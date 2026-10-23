@@ -27,14 +27,20 @@ delete_inventory_order :: proc() {
 	equippables_order, inventory_order = nil, nil
 }
 
+MAX_ITEM_COUNT :: 99
+
+// Adds up to MAX_ITEM_COUNT of an item; any more are lost.
 add_item :: proc(item_name: Item_Name, n: u8 = 1) {
-	game_data.inventory[item_name] += n
+	have := &game_data.inventory[item_name]
+	have^ = u8(min(int(have^) + int(n), MAX_ITEM_COUNT))
 	set_inventory_order()
 	fmt.printfln("Got %d %s", n, item_name)
 }
 
+// Removes up to as many of an item as there are.
 remove_item :: proc(item_name: Item_Name, n: u8 = 1) {
-	game_data.inventory[item_name] -= n
+	have := &game_data.inventory[item_name]
+	have^ -= min(n, have^)
 	set_inventory_order()
 	fmt.printfln("Lost %d %s", n, item_name)
 }

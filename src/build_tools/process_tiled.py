@@ -212,30 +212,33 @@ render_{lr_lower} :: proc() {{
 		hidden = item_entity.properties["hidden"]
 		items = item_entity.properties["items"]
 		items = ", " + ", ".join(["."+_s for _s in items.split(",")]) if items else ""
-		script = f"items_in_a_box(id, Chest_Datum.{datum}{items})"
-		v = "" if hidden else f"v = legacy_sprite_state(.Box, get_game_data(Chest_Datum.{datum}) ? .Opened : .Closed),"
-		ghost = "true" if hidden else "false"
+		# A Box entity; a hidden chest is an invisible ghost on its tile.
+		script = f"items_in_a_box(self, .{datum}{items})"
 		if encounter:
-			script = f"monster_in_a_box(id, .{datum}, .{encounter}{items})"
-		out_f.write(f"""\n\tadd_legacy_entity( Legacy_Entity{{
-		id = legacy_id(),
-		ghost = {ghost},
+			script += f" // TODO: monster_in_a_box (encounter {encounter})"
+		opened = f"get_game_data(Chest_Datum.{datum})"
+		sprite = "" if hidden else f"\n\t\tsprite = create_sprite_state(.Box, {opened} ? .Opened : .Closed),"
+		ghost = "true" if hidden else "false"
+		out_f.write(f"""\n\tspawn_entity({{
+		name = "chest:{datum}",
 		tile = {{ {x}, {y} }},
-		n = "chest:{datum}",
-		talk = get_game_data(Chest_Datum.{datum}) ? nil : proc(id: Legacy_Id) {{ {script} }},
-		{v}
-	}} )""")
+		ghost = {ghost},{sprite}
+		trigger = {opened} ? {{}} : new_trigger(proc(self: Entity_Id) {{
+			{script}
+		}}, autoface = false),
+	}})""")
 
 	# EGRESSES
 	# Ghost entities on the door tiles; stepping on one leaves the level.
-	# Warp pads have no sprite yet.
+	# Warp pads show the Warp sprite under whoever stands on them.
 	for n, (destination, pos, i, warp) in enumerate(egresses):
 		x, y = pos
 		proc = f"warp_to_level({destination.title()}, {i})" if warp else f"egress({destination.title()}, {i})"
+		sprite = "\n\t\tsprite = create_sprite_state(.Warp, play = true)," if warp else ""
 		out_f.write(f"""\n\tspawn_entity({{
 		name = "egress:{n}:{destination[1:].title()}",
 		tile = {{ {x}, {y} }},
-		ghost = true,
+		ghost = true,{sprite}
 		on_step = proc(_, by: Entity_Id) {{ if by == player() {{ {proc} }} }},
 	}})""")
 

@@ -17,7 +17,7 @@ init_grove_main :: proc() {
 	{
 		name    = "dude",
 		tile    = GROVE_MAIN_DUDE_SPAWN_MET if met else GROVE_MAIN_DUDE_SPAWN_NOT_MET,
-		sprite  = character_sprite(),
+		sprite  = walker_sprite(.Dude),
 		// Faces the player and stops pacing while they talk.
 		trigger = new_trigger(
 			proc(self: Entity_Id) {
@@ -52,6 +52,7 @@ init_grove_main :: proc() {
 						say(
 							"Y'know what? I actually have an extra cup of hot tea right here. How about that?",
 						)
+						get_items(.Tea)
 					}
 				} else {
 					switch get_game_data(Int_Datum.Drink_Choice) {
@@ -73,7 +74,7 @@ init_grove_main :: proc() {
 		{
 			name = "Button 1",
 			sprite = create_sprite_state(.Button),
-			tile = GROVE_MAIN_PLAYER_SPAWN_INTRO + {1, 1},
+			tile = GROVE_MAIN_BUTTON_1,
 			trigger = new_trigger(proc(self: Entity_Id) {
 					set_sprite_tag_of(self, .Down)
 					say("*Beep*")
@@ -87,7 +88,7 @@ init_grove_main :: proc() {
 		{
 			name = "Button 2",
 			sprite = create_sprite_state(.Button),
-			tile = GROVE_MAIN_PLAYER_SPAWN_INTRO + {2, 1},
+			tile = GROVE_MAIN_BUTTON_2,
 			trigger = new_trigger(proc(self: Entity_Id) {
 					set_sprite_tag_of(self, .Down)
 					say("*Boop*", hurry = true, pause = .5)

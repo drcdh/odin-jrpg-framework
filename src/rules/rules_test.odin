@@ -177,3 +177,17 @@ only_combatants_are_staggered :: proc(t: ^testing.T) {
 	testing.expect(t, !target.windup, "windup not broken")
 	testing.expect_value(t, target.hitpoints, 10)
 }
+
+@(test)
+item_counts_stay_between_0_and_max :: proc(t: ^testing.T) {
+	init_new_game(); defer destroy()
+	game_data.inventory[Item_Name.Potion] = MAX_ITEM_COUNT - 1
+	add_item(.Potion, 5)
+	testing.expect_value(t, game_data.inventory[Item_Name.Potion], MAX_ITEM_COUNT)
+	game_data.inventory[Item_Name.Potion] = 255
+	add_item(.Potion) // a count above the cap (an old save) comes back down to it
+	testing.expect_value(t, game_data.inventory[Item_Name.Potion], MAX_ITEM_COUNT)
+	game_data.inventory[Item_Name.Potion] = 2
+	remove_item(.Potion, 5)
+	testing.expect_value(t, game_data.inventory[Item_Name.Potion], 0)
+}

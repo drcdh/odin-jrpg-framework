@@ -501,7 +501,7 @@ follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
 @(test)
 create_sprite_state_without_window :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := create_sprite_state(.Patroller, tint = rl.GOLD, play = true, speed = 2, follow_facing = true, layer = 3)
+	s := create_sprite_state(.Man_Ps, tint = rl.GOLD, play = true, speed = 2, follow_facing = true, layer = 3)
 	testing.expect_value(t, s.sprite, Sprite_Handle{})
 	testing.expect_value(t, s.tint, rl.GOLD)
 	testing.expect_value(t, s.scale, [2]f32{1, 1})
@@ -1193,10 +1193,10 @@ palette_swaps_are_cached :: proc(t: ^testing.T) {
 	lime := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
 	lime_again := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
 	pink := Palette_Swap{{rl.SKYBLUE, rl.PINK}}
-	a := get_sprite_h(.Patroller, lime)
-	testing.expect_value(t, get_sprite_h(.Patroller, lime_again), a)
-	testing.expect(t, get_sprite_h(.Patroller, pink) != a)
-	testing.expect(t, get_sprite_h(.Patroller) != a, "unswapped is cached separately")
+	a := get_sprite_h(.Man_Ps, lime)
+	testing.expect_value(t, get_sprite_h(.Man_Ps, lime_again), a)
+	testing.expect(t, get_sprite_h(.Man_Ps, pink) != a)
+	testing.expect(t, get_sprite_h(.Man_Ps) != a, "unswapped is cached separately")
 	testing.expect_value(t, hm.len(world.sprites), 3)
 }
 
@@ -1330,4 +1330,45 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 	testing.expect_value(t, world_menu_popup_count(), 1)
 	run_for(1.1) // popups run on raw_dt, which run_for advances too
 	testing.expect_value(t, world_menu_popup_count(), 0)
+}
+
+@(test)
+box_gives_its_items_once :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	rules.init_new_game()
+	datum := rules.Chest_Datum(0)
+	rules.game_data.inventory[rules.Item_Name.Potion] = 0
+	rules.set_inventory_order()
+
+	box := spawn_entity({
+		name    = "box",
+		tile    = {5, 4},
+		sprite  = create_sprite_state(.Box, Sprite_Tag.Closed),
+		trigger = new_trigger(proc(self: Entity_Id) {
+			items_in_a_box(self, rules.Chest_Datum(0), .Potion)
+		}, autoface = false),
+	})
+	opener := spawn_entity({name = "opener", tile = {5, 5}, facing = .Up})
+
+	testing.expect(t, interact(opener), "the box's script didn't start")
+	run_for(0.1)
+	testing.expect(t, get_game_data(datum), "datum not set")
+	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 1)
+	testing.expect_value(t, entity_get(box).sprite.tag, Sprite_Tag.Opened)
+	testing.expect(t, dialogue_active(), "no message")
+
+	testing.expect(t, !interact(opener), "the box opened twice")
+}
+
+@(test)
+get_items_groups_duplicates :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	rules.init_new_game()
+	rules.game_data.inventory[rules.Item_Name.Potion] = 0
+	rules.game_data.inventory[rules.Item_Name.Tea] = 0
+	spawn(proc(_: Entity_Id) { get_items(.Potion, .Tea, .Potion) })
+	run_for(0.1)
+	testing.expect_value(t, strings.to_string(world.dialogue.buffer), "Got Potion x2, Tea!")
+	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 2)
+	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Tea], 1)
 }
