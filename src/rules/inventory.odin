@@ -1,6 +1,6 @@
 package rules
 
-import "core:fmt"
+import "core:log"
 
 equippables_order: [dynamic]Item_Name
 inventory_order: [dynamic]Item_Name
@@ -34,7 +34,7 @@ add_item :: proc(item_name: Item_Name, n: u8 = 1) {
 	have := &game_data.inventory[item_name]
 	have^ = u8(min(int(have^) + int(n), MAX_ITEM_COUNT))
 	set_inventory_order()
-	fmt.printfln("Got %d %s", n, item_name)
+	log.infof("Got %d %s", n, item_name)
 }
 
 // Removes up to as many of an item as there are.
@@ -42,5 +42,5 @@ remove_item :: proc(item_name: Item_Name, n: u8 = 1) {
 	have := &game_data.inventory[item_name]
 	have^ -= min(n, have^)
 	set_inventory_order()
-	fmt.printfln("Lost %d %s", n, item_name)
+	log.infof("Lost %d %s", n, item_name)
 }

@@ -1,6 +1,6 @@
 package rules
 
-import "core:fmt"
+import "core:log"
 import "core:math"
 import "core:strings"
 
@@ -72,13 +72,13 @@ gain_level :: proc(c: ^Character) {
 	set_level(c, c.level + 1)
 	new_skills := c.skill_set - prev_skill_set
 	for k in new_skills {
-		fmt.printfln("%s learned %s", c.name, skills[k].name)
+		log.infof("%s learned %s", c.name, skills[k].name)
 	}
 }
 
 get_experience :: proc(c: ^Character, exp: int) {
 	for exp := exp; exp > 0; {
-		fmt.printfln("~ %s gets %d exp", c.name, exp)
+		log.infof("~ %s gets %d exp", c.name, exp)
 		if exp_needed, ok := c.exp_to_next.(int); ok {
 			if exp >= exp_needed {
 				gain_level(c)

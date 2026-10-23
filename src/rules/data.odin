@@ -243,7 +243,7 @@ inc_money :: proc(v: Money) {
 	if game_data.money > MONEY_MAX {
 		game_data.money = MONEY_MAX
 	}
-	fmt.printfln("Money increased by %d from %d to %d", v, prev, game_data.money)
+	log.infof("Money increased by %d from %d to %d", v, prev, game_data.money)
 }
 
 dec_money :: proc(v: Money) {
@@ -253,7 +253,7 @@ dec_money :: proc(v: Money) {
 	} else {
 		game_data.money -= v
 	}
-	fmt.printfln("Money decreased by %d from %d to %d", v, prev, game_data.money)
+	log.infof("Money decreased by %d from %d to %d", v, prev, game_data.money)
 }
 
 have_money_Money :: proc(v: Money) -> bool {

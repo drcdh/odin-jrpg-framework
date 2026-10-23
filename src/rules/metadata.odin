@@ -1,6 +1,6 @@
 package rules
 
-import "core:fmt"
+import "core:log"
 import "core:os"
 import "core:strings"
 
@@ -25,13 +25,16 @@ metadata_clear :: proc() {
 	clear(&metadata)
 }
 
+// Reads the summaries of the save files in SAVE_DIR. With no SAVE_DIR (no
+// saves yet) or an unreadable one, the list is empty.
 metadata_load :: proc() {
 	metadata_clear()
+	if !os.exists(SAVE_DIR) do return
 
 	f, open_err := os.open(SAVE_DIR)
 	if open_err != nil {
-		fmt.eprintfln("Could not open directory '%s' for reading: %v", SAVE_DIR, open_err)
-		os.exit(1)
+		log.errorf("Could not open directory '%s' for reading: %v", SAVE_DIR, open_err)
+		return
 	}
 	defer os.close(f)
 
@@ -41,17 +44,17 @@ metadata_load :: proc() {
 	read_err: os.Error
 	fis, read_err = os.read_dir(f, -1, context.allocator)
 	if read_err != nil {
-		fmt.eprintfln("Could not read directory: %v", read_err)
-		os.exit(2)
+		log.errorf("Could not read directory '%s': %v", SAVE_DIR, read_err)
+		return
 	}
 
-	fmt.printfln("Current working directory %v contains:", SAVE_DIR)
+	log.debugf("Current working directory %v contains:", SAVE_DIR)
 
 	for fi in fis {
 		if fi.type == .Directory {
-			fmt.printfln("%v (directory)", fi.name)
+			log.debugf("%v (directory)", fi.name)
 		} else {
-			fmt.printfln("%v (%M)", fi.name, fi.size)
+			log.debugf("%v (%M)", fi.name, fi.size)
 			d, ok := read_saved_game_data(fi.name)
 			if !ok do continue
 			md := Metadata {
