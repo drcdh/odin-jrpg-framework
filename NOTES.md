@@ -61,7 +61,7 @@ The game starts in the Grove level with the player and a sky-blue "dude" who pac
 | `src/game/script.odin` | Script runtime (thread handoff) |
 | `src/game/script_api.odin` | Verbs: immediate (`set_*`) and blocking (`pause`, `move_entity`, ...) |
 | `src/game/grid.odin` | Tile size, zoom, the 16 x 14 tile screen (`VIEW_TILES_*`, `WINDOW_WIDTH` / `WINDOW_HEIGHT`), `Tile`, `Direction`, tile/world conversions |
-| `src/game/effects.odin` | Screen flash, level-change curtain |
+| `src/game/screen_effects.odin` | Screen flash, level-change curtain |
 | `src/game/dialogue.odin` | Dialogue box: the `say` and `choose` verbs, typing, paging, word wrap, choice pane |
 | `src/game/sound.odin` | Sound effects: `play_sound`, the queue in `world.audio`, volumes |
 | `src/game/music.odin` | Music: `play_music`, fades, the music thread |
