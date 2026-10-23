@@ -164,7 +164,8 @@ draw_popups :: proc() {
 		color.a = u8(255 * (1 - k))
 		// Over the sprite in the Targeting pane (draw_targeting), rising half a
 		// tile towards the target cursor as it fades.
-		draw_text_center(2 + 2.5 * f32(p.slot), 11.25 - 0.5 * k, cstring(&p.text[0]), color)
+		w := sprite_size(pc_menu_sprite(rules.get_pc_idx(p.slot))).x / UI_TILE
+		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color)
 	}
 }
 
