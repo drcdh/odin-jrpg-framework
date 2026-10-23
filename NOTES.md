@@ -35,7 +35,7 @@ Every target first runs the generators. They need Python 3, the `aseprite` CLI o
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
 
-A new game opens with a cutscene (`src/game/cutscene_intro.odin`, played in Quarry for now): no player, Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After a pause the screen fades and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
+A new game opens with a cutscene (`src/game/level_cutscene_intro.odin`, played in Quarry for now): no player, Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After a pause the screen fades and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
 
 ## Packages
 
@@ -81,7 +81,7 @@ A new game opens with a cutscene (`src/game/cutscene_intro.odin`, played in Quar
 | `src/game/world_menu.odin`, `metadata_menu.odin` | The world menu; the save-slot summaries for its future Save screen |
 | `src/game/level.odin` | `start_level` (optionally without a player) and `enter_level`, the player's spawn, `change_level` / `egress` / `warp_to_level`, fades, edge exits, level history (`world.levels`), `clear_level` |
 | `src/game/start.odin` | `GAME_TITLE`, `start_game` (called by `main`), and `new_game` (resets the game data with `init_new_game` and plays the intro cutscene) |
-| `src/game/cutscene_intro.odin` | `start_intro`: the opening cutscene in Quarry (no player), which ends by changing to Grove |
+| `src/game/level_cutscene_intro.odin` | `start_intro`: the opening cutscene in Quarry (no player), which ends by changing to Grove |
 | `src/game/rules_aliases.odin` | Unqualified names for `rules` types and procs, for level code and scripts |
 | `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
 | `src/game/stubs.odin` | Placeholders for old-project features the generated level code calls (`try_spawn_from_save`) |
