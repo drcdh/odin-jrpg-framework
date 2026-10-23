@@ -261,7 +261,6 @@ The player's menu outside of battle (`world_menu.odin`). MENU (S) opens it with 
 - `do_skill`, `do_effect` and `effect_attack` are proc groups with a `Character` and a `Combatant` version. Only the Combatant version staggers (takes `ticks`, may break the `windup`) and rolls for a counter (still a stub); the world menu passes Characters. `Combatant` (`combatant.odin`) is a stub until battles are ported; its `using c: Character` comes first, so a `^Combatant` passes as a `^Character`.
 - `game.do_skill(actor, target_party_idx, skill, ctx)` (`src/game/skill_effects.odin`) calls `rules.do_skill`, plays `skill_sounds[skill]` and animates the result by `Skill_Context`. In the world menu that's popups over the target's sprite in the targeting strip (`world_menu_popup`), 0.4 s apart: Miss/Evade in gray, damage in white, healing in green, "+N LV" and Ineff!/Resist!/Miss in purple, an added status in red, "Cured" in green. They rise and fade over a second on `raw_dt`, and the strip stays up until they're done. Battle presentation is a TODO.
 - `VERBOSE` (`-define:VERBOSE=true`) logs the damage formula.
-- The Heal, Heal All and Healing Hymn skills set `power`, but healing reads `constant` and `psy_power`, so they heal nothing yet.
 
 ### Sound and music
 `play_sound(name, delay = 0)` (`src/game/sound.odin`) queues a sound effect in `world.audio.pending`.
