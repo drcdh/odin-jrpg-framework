@@ -2,7 +2,7 @@
 <map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="35">
  <properties>
   <property name="edge_level" value="Overworld"/>
-  <property name="map_mode" value="CLAMP"/>
+  <property name="map_mode" value="DEFAULT"/>
  </properties>
  <tileset firstgid="1" source="../tilesets/tileset_terrain.tsx"/>
  <tileset firstgid="17" source="../tilesets/tileset_town.tsx"/>

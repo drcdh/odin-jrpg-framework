@@ -201,6 +201,22 @@ fade_screen :: proc(alpha: f32, duration: f32, easing := Ease.Linear, loc := #ca
 	return wait_tween(curtain_to(alpha, duration, easing), loc)
 }
 
+// Pans the camera onto `id` at `speed` tiles per second and blocks until it
+// arrives; the camera then follows `id`.
+pan_camera_follow :: proc(id: Entity_Id, speed: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	assert(speed > 0, "a pan needs a speed; use camera_follow to snap", loc)
+	camera_follow(id, speed, easing)
+	return wait_until(proc(_: rawptr) -> bool { return !camera_panning() }, loc = loc)
+}
+
+// Pans the camera onto `tile` at `speed` tiles per second and blocks until it
+// arrives; the camera then stays there.
+pan_camera_to_tile :: proc(tile: Tile, speed: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	assert(speed > 0, "a pan needs a speed; use camera_to_tile to snap", loc)
+	camera_to_tile(tile, speed, easing)
+	return wait_until(proc(_: rawptr) -> bool { return !camera_panning() }, loc = loc)
+}
+
 // Walks route[0] → route[1] → … tile by tile. By default it closes the loop
 // back to route[0] (one lap); with `once` it stops on the last vertex, and the
 // route needn't close. Every leg walked must be straight: its two vertices

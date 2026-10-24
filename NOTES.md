@@ -35,7 +35,7 @@ Every target first runs the generators. They need Python 3, the `aseprite` CLI o
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
 
-A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, played whenever Quarry is entered until the `Introduction` flag is set): no player; the screen opens black and fades in once Dude and a stranger are already walking. Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After a pause the screen fades and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
+A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, played whenever Quarry is entered until the `Introduction` flag is set): no player; the screen opens black and fades in once Dude and a stranger are already walking. Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After the talk the camera pans slowly right as the screen fades, and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
 
 ## Packages
 
@@ -53,6 +53,7 @@ A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, p
 |---|---|
 | `src/main.odin` | Window, frame loop, and a tracking allocator in debug builds |
 | `src/game/world.odin` | `World` global state, `init` / `shutdown` / `update` |
+| `src/game/camera.odin` | Camera focus (an entity or a tile), snaps and timed pans, CLAMP clamping (`camera_follow`, `camera_to_tile`, `camera_update`) |
 | `src/game/clock.odin` | Game time: dt clamp (1/20 s), pause, time scale; `raw_dt` for the UI |
 | `src/game/entity.odin` | `Entity`, stored in `core:container/handle_map`; deferred destroy |
 | `src/game/sprite.odin` | Sprite types, sheet loading with palette swaps, `Sprite_State` animation, y- and layer-sorted drawing |
@@ -113,7 +114,7 @@ The game's downstream repos merge this one (for example, a private copy with thi
 ## Key design decisions
 
 ### Tile grid
-- Tiles are 16 px square (`TILE_SIZE`). World units are native pixels, and a `rl.Camera2D` at `ZOOM = 4` scales them up. The screen is a constant 16 x 14 tiles (`VIEW_TILES_W` x `VIEW_TILES_H`), so the window is 1024x896 (`WINDOW_WIDTH` x `WINDOW_HEIGHT`, all in `grid.odin`). The camera follows the player (see Maps and levels).
+- Tiles are 16 px square (`TILE_SIZE`). World units are native pixels, and a `rl.Camera2D` at `ZOOM = 4` scales them up. The screen is a constant 16 x 14 tiles (`VIEW_TILES_W` x `VIEW_TILES_H`), so the window is 1024x896 (`WINDOW_WIDTH` x `WINDOW_HEIGHT`, all in `grid.odin`). The camera follows the player, or whatever a level or script points it at (see Camera under Maps and levels).
 - Each entity has `tile` (its logical cell) and `pos` (its visual position, in pixels). `spawn_entity` places `pos` at `tile_center(tile)`.
 - Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn. Its optional `pause_between` waits between tiles, but not after the last one.
 - `walk_route(id, route, seconds_per_tile, pause_between, once = false)` walks a closed loop of corner tiles once: `route[0]`, `route[1]`, and so on, back to `route[0]`. With `once` it stops on the last corner instead, so the route needn't close (an open path, as in the intro cutscene). Every leg it walks must differ only in x or only in y (this is asserted), so each is a straight `walk_entity`. With `pause_between` it also pauses at each corner, but not after the final tile. The entity should start on `route[0]`; loop the call to patrol forever.
@@ -309,7 +310,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 - **Map properties** (custom properties on each `.tmx`):
   - `edge_level`: where stepping off the map goes. It's `Level` or `Level/room`, with the room defaulting to `main`; empty means the edges are walls.
   - `map_mode`: `DEFAULT`, `CLAMP` or `WRAP`.
-  - Grove, House and Quarry have `Overworld` and `CLAMP`, Overworld has no edge and `WRAP`, and Cave has no edge and `DEFAULT`.
+  - Grove and House have `Overworld` and `CLAMP`, Quarry has `Overworld` and `DEFAULT` (so the intro's camera can pan past the yard), Overworld has no edge and `WRAP`, and Cave has no edge and `DEFAULT`.
 - **Doors** are point objects using the `DOOR.tx` template. `door_idx` pairs an exit in one level with the matching entrance in another.
   - `DOOR` is two-way; `DOOR-OUT` is an exit (egress) only, and `DOOR-IN` is an entrance (ingress) only.
   - `level`/`room` name the other side, defaulting to overworld/main; with only `room` set, the level is this one.
@@ -339,7 +340,12 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - `tile_passable(t)` checks it. In WRAP mode it wraps `t`; otherwise tiles outside the map are passable only if the level has an edge exit (`open_edges`). With no map loaded, every tile is passable.
   - The player's input calls `tile_free` before each step. A blocked step still turns the player.
 - **Routes:** `map_route(i)` returns route `i` of the current map. The generated `<LEVEL>_<NAME>` constants give the indices, for example `GROVE_MAIN_DUDE_ROUTE_0`. In Grove, `pace_dude_route_0` walks the dude from `GROVE_MAIN_DUDE_SPAWN_NOT_MET` to the route's start, then loops `walk_route`. A two-point route paces out and back.
-- **Camera:** `camera_follow(id)` makes `camera_update` center the camera on that entity's tweened `pos` every frame, so it glides with each step.
+- **Camera** (`src/game/camera.odin`): `world.camera_focus` is what the camera centers on: an `Entity_Id` (its tweened `pos`, so it glides with each step) or a fixed `Tile` (its center). `camera_update` runs every frame and applies the CLAMP clamp to the focus.
+  - `camera_follow(id, speed = 0, easing = .Linear)` and `camera_to_tile(tile, speed = 0, easing = .Linear)` set the focus. They're immediate, so usable on the main thread and in scripts. With `speed` 0 the camera snaps; otherwise it pans from where it is at `speed` tiles per second in game time (so pausing and time scale apply), then holds the focus. A new call mid-pan takes over from the current position.
+  - A pan lerps towards the focus as it is each frame, so panning onto a walking entity still lands on it. Its duration is set from the clamped distance on its first frame.
+  - `camera_panning()` is true during a pan; `camera_followed()` returns the followed entity, if any. If the followed entity dies, the camera stays put.
+  - Blocking verbs: `pan_camera_follow(id, speed)` and `pan_camera_to_tile(tile, speed)` start a pan and wait for it to arrive.
+  - `clear_level` clears the focus and any pan.
 - **Curtain:** `curtain_to(alpha, seconds)` tweens `world.curtain` (0 clear, 1 black); scripts use `fade_screen` and `set_curtain`. `draw_screen_effects` draws it over the world and under the dialogue box.
 - **Tilesets:** `Tileset_Id` and `tileset_files` are generated into `src/game/tileset_data.odin` from `assets/tiled/tilesets/*.tsx`. Each tileset's name is title-cased, and its file is the stem of its image's filename. A tileset's column count comes from its texture width. Textures load on first use, on the main thread.
 - **Chests:** each Tiled CHEST object becomes a `Box` entity named `chest:<Level>_<Room>_<n>`, with a `Chest_Datum` of the same name. It shows Closed or Opened from the datum and blocks movement; a `hidden` chest is an invisible ghost. Until it's opened, talking to it runs `items_in_a_box(self, datum, items...)` (`src/game/chests.odin`): it sets the datum, shows Opened, clears its trigger, and gives the items with `get_items` (or says "Ooh, nothing!"). `get_items(items...)` (`script_api.odin`) is a script verb of its own: it adds the items and says "Got Potion x2, Tea!", grouping duplicates; Dude uses it to hand over his tea. `clear_trigger(id)` removes an entity's talk trigger, for one-time things like a chest. Chests with an `encounter` are plain item boxes for now (a TODO marks where `monster_in_a_box` goes).
@@ -371,7 +377,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a following camera, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items with their effects, status and equipment, skills, saving), skill effects (`rules`) with world-menu popups, sound effects and music, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a camera that follows entities or tiles, snapping or panning, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items with their effects, status and equipment, skills, saving), skill effects (`rules`) with world-menu popups, sound effects and music, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
@@ -383,4 +389,4 @@ Known limitations / next steps:
 - `Handle32` has a 16-bit generation counter, so a slot's generation wraps after 65,536 reuses. Switch to `Handle64` if tween churn gets that high.
 - Overlapping properties (`.Pos` vs `.Pos_X`) aren't detected as conflicting. Two scripts tweening the same property cut each other off, and the cut-off script's wait returns `true`.
 - No start menu yet: `start_game` goes straight to `new_game` and the intro cutscene, which can't be skipped yet. Once there is one, `new_game` will run only when the player starts a new game from it.
-- Ideas: timeline/sequence helpers, camera tweens via `tween_f32`. The script backend (minicoro or stackless) could be swapped behind the same verb API if wasm or very large script counts are ever needed.
+- Ideas: timeline/sequence helpers, The script backend (minicoro or stackless) could be swapped behind the same verb API if wasm or very large script counts are ever needed.

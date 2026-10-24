@@ -20,7 +20,8 @@ clear_level :: proc() {
 	unload_map()
 	world.level_map = {}
 	world.player = {}
-	world.camera_follow = {}
+	world.camera_focus = nil
+	world.camera_pan = {}
 }
 
 // --- Level changes ---

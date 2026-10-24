@@ -1015,6 +1015,67 @@ camera_follows_tweened_pos :: proc(t: ^testing.T) {
 }
 
 @(test)
+camera_snaps_to_tile_and_entity :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {20, 20}})
+	camera_to_tile({7, 3})
+	run_for(FRAME)
+	testing.expect_value(t, world.camera.target, tile_center({7, 3}))
+	testing.expect(t, !camera_panning())
+
+	e := spawn_entity({tile = {2, 9}})
+	camera_follow(e)
+	run_for(FRAME)
+	testing.expect_value(t, world.camera.target, tile_center({2, 9}))
+	testing.expect_value(t, camera_followed(), e)
+}
+
+@(test)
+camera_pans_to_tile_at_speed :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {20, 20}})
+	camera_to_tile({2, 2})
+	run_for(FRAME)
+	camera_to_tile({6, 2}, speed = 2) // 4 tiles at 2 tiles/s: 2 s
+	run_for(1)
+	testing.expect(t, camera_panning(), "still panning at 1 s")
+	testing.expectf(t, abs(world.camera.target.x - tile_center({4, 2}).x) < 1, "halfway, got %v", world.camera.target)
+	run_for(1.1)
+	testing.expect(t, !camera_panning(), "pan done at 2 s")
+	testing.expect_value(t, world.camera.target, tile_center({6, 2}))
+}
+
+@(test)
+camera_pans_onto_moving_entity :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {20, 20}})
+	camera_to_tile({0, 0})
+	run_for(FRAME)
+	e := spawn_entity({tile = {4, 4}})
+	tween_to_tile(e, {8, 4}, 4) // still walking when the pan ends
+	camera_follow(e, speed = 4)
+	for frame := 0; camera_panning() && frame < 500; frame += 1 do run_for(FRAME)
+	testing.expect(t, !camera_panning(), "the pan should end")
+	testing.expect_value(t, world.camera.target, entity_get(e).pos)
+	run_for(0.5)
+	testing.expect_value(t, world.camera.target, entity_get(e).pos) // and follows after
+}
+
+@(test)
+pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {20, 20}})
+	camera_to_tile({0, 0})
+	run_for(FRAME)
+	s := spawn(proc(_: Entity_Id) { pan_camera_to_tile({3, 0}, 3) }) // 1 s
+	run_for(0.5)
+	testing.expect(t, script_alive(s), "still panning")
+	run_for(0.6)
+	testing.expect(t, !script_alive(s), "pan_camera_to_tile returns once the pan is done")
+	testing.expect_value(t, world.camera.target, tile_center({3, 0}))
+}
+
+@(test)
 camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	SCREEN :: [2]f32{320, 192} // half view: 40x24 world pixels
@@ -1056,7 +1117,7 @@ clear_level_removes_everything :: proc(t: ^testing.T) {
 	testing.expect(t, !script_alive(s))
 	testing.expect_value(t, world.level_map.size, Tile{})
 	testing.expect_value(t, world.player, Entity_Id{})
-	testing.expect_value(t, world.camera_follow, Entity_Id{})
+	testing.expect(t, world.camera_focus == nil, "the camera still has a focus")
 }
 
 // A 4x3 map whose column x == 2 is impassable.
@@ -1421,7 +1482,7 @@ level_without_player :: proc(t: ^testing.T) {
 	rules.init_new_game()
 	start_level(rules.Level(0), with_player = false)
 	testing.expect(t, !entity_alive(player()), "a player spawned")
-	testing.expect(t, !entity_alive(world.camera_follow), "the camera follows something")
+	testing.expect(t, !entity_alive(camera_followed()), "the camera follows something")
 	run_for(0.1)
 	testing.expect_value(t, current_level(), rules.Level(0))
 }

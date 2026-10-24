@@ -6,6 +6,10 @@ INTRO_STEP :: 0.5 // seconds per tile
 INTRO_DARK :: 0.5 // seconds of black before the fade in starts
 @(private = "file")
 INTRO_FADE :: 1.5
+@(private = "file")
+INTRO_PAN_TO :: Tile{13, 9} // where the camera drifts to as the scene fades out
+@(private = "file")
+INTRO_PAN_SPEED :: 1 // tiles per second
 
 // The yard is tiles 7..12 square; its west wall has a gap at (6, 9).
 @(private = "file", rodata)
@@ -54,6 +58,7 @@ intro_cutscene :: proc(_: Entity_Id) {
 	say("Be nice. And don't offer them any of your terrible coffee.", "Stranger")
 	say("My coffee is excellent.", "Dude")
 
-	pause(3)
+	camera_to_tile(INTRO_PAN_TO, INTRO_PAN_SPEED, .Sine_In_Out) // keeps panning through the fade out
+	pause(2.5)
 	change_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO, fade = 1.5)
 }
