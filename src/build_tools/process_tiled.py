@@ -246,6 +246,7 @@ render_{lr_lower} :: proc() {{
 
 	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile, Direction, bool) {{\n")
 	out_f.write("\tlv := &world.levels\n")
+	out_f.write("\t_ = lv\n") # some levels, like those used just in cutscenes, don't reference other levels
 	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face, true }\n")
 	# ENTRANCES
 	for n, (lfrom, pos, eFace, iFace, iOffset, i) in enumerate(entrances):
