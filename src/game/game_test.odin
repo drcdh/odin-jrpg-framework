@@ -529,6 +529,32 @@ walk_route_loops_back_to_start :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(e).facing, Direction.Up) // last leg goes up
 }
 
+// The closing leg (2,2) → (0,0) is diagonal: fine, since `once` never walks it.
+@(private = "file") test_open_route := [?]Tile{{0, 0}, {2, 0}, {2, 2}}
+@(private = "file") test_open_route_ok: bool
+
+@(test)
+walk_route_once_stops_at_last_vertex :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	test_open_route_ok = false
+	e := spawn_entity({tile = test_open_route[0]})
+	s := spawn(proc(self: Entity_Id) {
+		test_open_route_ok = walk_route(self, test_open_route[:], 0.1, pause_between = 0.05, once = true)
+	}, e)
+
+	visited := make([dynamic]Tile, context.temp_allocator)
+	append(&visited, entity_tile(e))
+	for frame := 0; script_alive(s) && frame < 500; frame += 1 {
+		run_for(FRAME)
+		if tile := entity_tile(e); tile != visited[len(visited) - 1] do append(&visited, tile)
+	}
+	want := []Tile{{0, 0}, {1, 0}, {2, 0}, {2, 1}, {2, 2}}
+	testing.expect(t, !script_alive(s), "walk_route should finish")
+	testing.expect(t, test_open_route_ok, "walk_route should return true")
+	testing.expectf(t, slice.equal(visited[:], want), "visited %v", visited[:])
+	testing.expect_value(t, entity_get(e).facing, Direction.Down) // last leg goes down
+}
+
 // --- Input and dialogue ---
 
 // Presses `k` for one frame, then releases it.
@@ -1185,6 +1211,22 @@ curtain_tweens :: proc(t: ^testing.T) {
 	run_for(0.2)
 	testing.expect(t, tween_done(tw))
 	testing.expect_value(t, world.curtain, 1)
+}
+
+@(test)
+set_curtain_cancels_fade_and_fade_screen_blocks :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	tw := curtain_to(0.5, 1)
+	set_curtain(1)
+	testing.expect(t, tween_done(tw), "set_curtain cancels a running fade")
+	testing.expect_value(t, world.curtain, 1)
+
+	s := spawn(proc(_: Entity_Id) { fade_screen(0, 0.2) })
+	run_for(0.1)
+	testing.expect(t, script_alive(s) && world.curtain > 0.3 && world.curtain < 0.7, "mid fade")
+	run_for(0.2)
+	testing.expect(t, !script_alive(s), "fade_screen returns once the fade is done")
+	testing.expect_value(t, world.curtain, 0)
 }
 
 @(test)

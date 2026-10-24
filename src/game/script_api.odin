@@ -70,6 +70,13 @@ clear_trigger :: proc(id: Entity_Id) {
 	if e, ok := entity_get(id); ok do e.trigger.script = nil
 }
 
+// Sets the screen curtain at once: 1 is black, 0 clear. E.g. a cutscene
+// starting dark, then fading in with fade_screen.
+set_curtain :: proc(alpha: f32) {
+	tween_cancel_target(&world.curtain)
+	world.curtain = alpha
+}
+
 // Sprite playback on an entity. Only switches rows and frames of an already
 // loaded sheet, so these are safe from scripts.
 set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true) {
@@ -188,13 +195,22 @@ flash_screen :: proc(color: rl.Color, duration: f32, easing := Ease.Linear, loc 
 	return wait_tween(tween_flash(color, duration, easing), loc)
 }
 
-// Walks the closed loop route[0] → route[1] → … → route[0] once, tile by tile.
-// Adjacent vertices must differ in only one dimension, so every leg is a
-// straight line. The entity should start on route[0]. `pause_between` waits
-// between tiles and at each corner, but not after the final tile.
-walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+// Tweens the screen curtain to `alpha` (1 black, 0 clear) and blocks until
+// it's there: fade_screen(0, t) fades in, fade_screen(1, t) fades to black.
+fade_screen :: proc(alpha: f32, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
+	return wait_tween(curtain_to(alpha, duration, easing), loc)
+}
+
+// Walks route[0] → route[1] → … tile by tile. By default it closes the loop
+// back to route[0] (one lap); with `once` it stops on the last vertex, and the
+// route needn't close. Every leg walked must be straight: its two vertices
+// differ in only one dimension. The entity should start on route[0].
+// `pause_between` waits between tiles and at each corner, but not after the
+// final tile.
+walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: f32, pause_between: f32 = 0, once := false, loc := #caller_location) -> bool {
 	assert(len(route) >= 2, "a route needs at least two vertices", loc)
-	for i in 0..<len(route) {
+	legs := once ? len(route) - 1 : len(route)
+	for i in 0..<legs {
 		from, to := route[i], route[(i + 1) % len(route)]
 		assert(from.x == to.x || from.y == to.y, "route legs must be straight: adjacent vertices may differ in x or y, not both", loc)
 		if i > 0 && pause_between > 0 && !pause(pause_between, loc) do return false
