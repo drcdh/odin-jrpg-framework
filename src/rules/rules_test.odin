@@ -50,7 +50,7 @@ save_and_load_restore_the_party :: proc(t: ^testing.T) {
 	set_level(pc, 3)
 	pc.hitpoints = 7
 	game_data.money = 123
-	testing.expect(t, save_game({level = .Grove_Main, tile = {4, 5}}, 0, FILE))
+	testing.expect(t, save_game({level = Level(0), tile = {4, 5}}, 0, FILE))
 
 	character_set_equipped_item(pc, .Mainhand, .None)
 	set_level(pc, 1)
@@ -59,7 +59,7 @@ save_and_load_restore_the_party :: proc(t: ^testing.T) {
 
 	sp, ok := load_game(FILE)
 	testing.expect(t, ok)
-	testing.expect_value(t, sp, Save_Point{level = .Grove_Main, tile = {4, 5}})
+	testing.expect_value(t, sp, Save_Point{level = Level(0), tile = {4, 5}})
 	pc = &playable_characters[0]
 	testing.expect_value(t, equipped_item(pc.equipment, Equipment_Slot.Mainhand), Item_Name.Knife)
 	testing.expect_value(t, pc.level, 3)
