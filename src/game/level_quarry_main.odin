@@ -55,6 +55,13 @@ intro_cutscene :: proc(_: Entity_Id) {
 	say("That's what I said! I'm going to go and say hi.", "Dude")
 
 	for w in walkers do wait_script(w)
+
+	spawn(proc(self: Entity_Id) {
+		if !walk_to(self, STRANGER_PATH[2] + {0, -2}, INTRO_STEP) do return
+		set_facing(self, .Down)
+		set_facing(find("Dude"), .Up)
+	}, stranger, "Stranger move up")
+
 	say("Be nice. And don't offer them any of your terrible coffee.", "Stranger")
 	say("My coffee is excellent.", "Dude")
 
