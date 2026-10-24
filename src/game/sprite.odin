@@ -86,6 +86,13 @@ Color_Swap :: struct {
 
 Palette_Swap :: []Color_Swap
 
+// When an entity's sprite animates (with `anim` on).
+Anim_When :: enum u8 {
+	Always, // all the time
+	Moving, // only while the entity moves, one loop per tile (Entity.step_time); still, it holds frame 0 halfway through, so a stride is centered on the tile
+	Never,  // not at all; the frame stays where it is
+}
+
 // Per-entity sprite: which sheet and frame, playback, and draw transforms.
 Sprite_State :: struct {
 	sprite:         Sprite_Handle,
@@ -95,6 +102,7 @@ Sprite_State :: struct {
 	time:           f32,  // seconds into the current frame
 	speed:          f32,  // playback speed factor
 	follow_facing:  bool, // keep `tag` on the Left/Down/Right/Up row for the entity's facing
+	anim_when:      Anim_When,
 
 	tint:           rl.Color,
 	origin:         [2]f32, // pivot, normalized: {0.5, 0.5} is the center
@@ -176,6 +184,7 @@ create_sprite_state :: proc(
 	speed: f32 = 1,
 	follow_facing := false,
 	layer: i32 = 0,
+	anim_when := Anim_When.Always,
 ) -> (s: Sprite_State) {
 	s.tint = tint
 	s.origin = {0.5, 0.5}
@@ -183,6 +192,7 @@ create_sprite_state :: proc(
 	s.anim = play
 	s.speed = speed
 	s.follow_facing = follow_facing
+	s.anim_when = anim_when
 	s.layer = layer
 
 	if !rl.IsWindowReady() {
@@ -309,8 +319,8 @@ sprite_size :: proc {
 	sprite_size_state,
 }
 
-// Advances every entity's animation; facing-following sprites switch rows
-// without restarting playback.
+// Advances every entity's animation (see Anim_When); facing-following
+// sprites switch rows without restarting playback.
 sprites_update :: proc(dt: f32) {
 	it := hm.iterator_make(&world.entities)
 	for e, _ in hm.iterate(&it) {
@@ -324,7 +334,21 @@ sprites_update :: proc(dt: f32) {
 				}
 			}
 		}
-		update_sprite(dt, s)
+		switch s.anim_when {
+		case .Always:
+			update_sprite(dt, s)
+		case .Moving:
+			if e.pos == tile_center(e.tile) {
+				// Frame 0 is the idle pose: start the next move halfway through it.
+				s.frame, s.time = 0, 0
+				if m, ok := state_metadata(s^); ok do s.time = m.frame_t / 1000 / 2
+			} else if e.step_time > 0 {
+				update_sprite(dt * animation_length(s^) / e.step_time, s) // one loop per tile
+			} else {
+				update_sprite(dt, s)
+			}
+		case .Never:
+		}
 	}
 }
 

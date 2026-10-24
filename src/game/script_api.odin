@@ -94,6 +94,16 @@ set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := 
 	set_sprite_tag(&e.sprite, tag, reset)
 }
 
+// When `id`'s sprite animates: always, only while moving, or never.
+set_anim_when :: proc(id: Entity_Id, mode: Anim_When) {
+	if e, ok := entity_get(id); ok do e.sprite.anim_when = mode
+}
+
+// `id`'s walking speed, in seconds per tile; it sticks (see Entity.step_time).
+set_step_time :: proc(id: Entity_Id, seconds_per_tile: f32) {
+	if e, ok := entity_get(id); ok do e.step_time = seconds_per_tile
+}
+
 // Whether `id`'s sprite keeps to the row for its facing (walker sprites do).
 // Turning it back on snaps the row to the facing on the next update.
 set_follow_facing :: proc(id: Entity_Id, follow := true) {
@@ -178,11 +188,14 @@ wait_not_busy :: proc(id: Entity_Id, loc := #caller_location) -> bool {
 }
 
 // Walks one tile at a time, x first and then y, facing each step's direction.
-// The entity's tile always matches the cell it's drawn in. `pause_between`
-// waits that long between tiles (not after the last one).
+// The entity's tile always matches the cell it's drawn in. Each step takes the
+// entity's step_time; a non-nil `seconds_per_tile` overwrites it first (and
+// it sticks). `pause_between` waits that long between tiles (not after the
+// last one).
 // Before each step it waits for the next tile to be clear of solid entities,
 // and while the entity is busy with another script (set_busy).
-walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, loc := #caller_location) -> bool {
+	if s, ok := seconds_per_tile.?; ok do set_step_time(id, s)
 	first := true
 	for axis in 0..<2 {
 		n := delta[axis]
@@ -201,7 +214,7 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_bet
 				// It may have been made busy, or moved, while it waited.
 				if !entity_busy(id) && !tile_occupied(entity_tile(id) + step, id) do break
 			}
-			if !move_entity_to(id, entity_tile(id) + step, seconds_per_tile, loc = loc) do return false
+			if !move_entity_to(id, entity_tile(id) + step, entity_step_time(id), loc = loc) do return false
 		}
 	}
 	return true
@@ -210,9 +223,11 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_bet
 // Walks `id` to `to` by a shortest route round impassable map tiles (see
 // find_path), one tile at a time, and blocks until it's there. Entities in the
 // way are waited for, as in walk_entity, not routed round. `pause_between`
-// waits between tiles (not after the last one). Returns false if the script
-// was cancelled or `to` can't be reached from where `id` stands (logged).
-walk_to :: proc(id: Entity_Id, to: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+// waits between tiles (not after the last one). A non-nil `seconds_per_tile`
+// overwrites the entity's step_time, as in walk_entity. Returns false if the
+// script was cancelled or `to` can't be reached from where `id` stands (logged).
+walk_to :: proc(id: Entity_Id, to: Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, loc := #caller_location) -> bool {
+	if s, ok := seconds_per_tile.?; ok do set_step_time(id, s)
 	from := entity_tile(id)
 	steps, ok := find_path(from, to)
 	defer delete(steps)
@@ -222,7 +237,7 @@ walk_to :: proc(id: Entity_Id, to: Tile, seconds_per_tile: f32, pause_between: f
 	}
 	for step, i in steps {
 		if i > 0 && pause_between > 0 && !pause(pause_between, loc) do return false
-		if !walk_entity(id, step, seconds_per_tile, loc = loc) do return false
+		if !walk_entity(id, step, loc = loc) do return false
 	}
 	return true
 }
@@ -259,15 +274,17 @@ pan_camera_to_tile :: proc(tile: Tile, speed: f32, easing := Ease.Linear, loc :=
 // route needn't close. Every leg walked must be straight: its two vertices
 // differ in only one dimension. The entity should start on route[0].
 // `pause_between` waits between tiles and at each corner, but not after the
-// final tile.
-walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: f32, pause_between: f32 = 0, once := false, loc := #caller_location) -> bool {
+// final tile. A non-nil `seconds_per_tile` overwrites the entity's step_time,
+// as in walk_entity.
+walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, once := false, loc := #caller_location) -> bool {
 	assert(len(route) >= 2, "a route needs at least two vertices", loc)
+	if s, ok := seconds_per_tile.?; ok do set_step_time(id, s)
 	legs := once ? len(route) - 1 : len(route)
 	for i in 0..<legs {
 		from, to := route[i], route[(i + 1) % len(route)]
 		assert(from.x == to.x || from.y == to.y, "route legs must be straight: adjacent vertices may differ in x or y, not both", loc)
 		if i > 0 && pause_between > 0 && !pause(pause_between, loc) do return false
-		if !walk_entity(id, to - entity_tile(id), seconds_per_tile, pause_between, loc) do return false
+		if !walk_entity(id, to - entity_tile(id), pause_between = pause_between, loc = loc) do return false
 	}
 	return true
 }

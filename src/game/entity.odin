@@ -18,6 +18,24 @@ Entity :: struct {
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,
 	trigger: Trigger,
+	// Seconds per tile when walking (walk verbs, player steps). It also sets
+	// how fast a Moving sprite animates: one loop per tile. 0 on spawn means
+	// the default, default_step_time.
+	step_time: f32,
+}
+
+DEFAULT_STEP_TIME :: 0.5 // seconds per tile for an entity without an animated sprite
+
+// "1x" walking: one loop of the sprite's current row per tile at normal
+// playback speed, or DEFAULT_STEP_TIME without an animated row.
+default_step_time :: proc(s: Sprite_State) -> f32 {
+	if l := animation_length(s); l > 0 do return l
+	return DEFAULT_STEP_TIME
+}
+
+entity_step_time :: proc(id: Entity_Id) -> f32 {
+	if e, ok := entity_get(id); ok do return e.step_time
+	return DEFAULT_STEP_TIME
 }
 
 // Handles are the only references to keep around. An ^Entity from entity_get
@@ -25,6 +43,7 @@ Entity :: struct {
 spawn_entity :: proc(e: Entity) -> Entity_Id {
 	e := e
 	e.pos = tile_center(e.tile)
+	if e.step_time == 0 do e.step_time = default_step_time(e.sprite)
 	h, err := hm.add(&world.entities, e)
 	assert(err == nil, "out of memory spawning entity")
 	return h

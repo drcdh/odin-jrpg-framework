@@ -152,11 +152,13 @@ spawn_player :: proc(l: rules.Level, at: Maybe(Tile), at_face: Direction) {
 		log.errorf("%v has no entrance for %v door %d facing %v; spawning the player at the map center %v",
 			l, lv.prev, lv.egress_idx, lv.prev_face, tile)
 	}
+	sprite := walker_sprite(.Player_World, layer = 1)
 	player := spawn_entity({
-		name   = "player",
-		tile   = tile,
-		facing = face,
-		sprite = walker_sprite(.Player_World, layer = 1),
+		name      = "player",
+		tile      = tile,
+		facing    = face,
+		sprite    = sprite,
+		step_time = default_step_time(sprite) / PLAYER_SPEED,
 	})
 	set_player(player)
 	camera_follow(player) // before init_*, so a level can point the camera elsewhere

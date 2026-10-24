@@ -6,7 +6,7 @@ import "../rules"
 
 _ :: rl // only used in debug builds
 
-STEP_TIME :: 0.15 // seconds per tile
+PLAYER_SPEED :: 2 // the player walks at 2x: half its sprite's default_step_time per tile
 
 // In debug builds, F4 saves to and F5 loads from SAVE_DIR/TEST_SAVE.
 TEST_SAVE :: "test.json"
@@ -62,7 +62,7 @@ player_update :: proc() {
 		set_facing(p, dir)
 		to := entity_tile(p) + dir_vec(dir)
 		if tile_free(to, p) {
-			pc.step = tween_to_tile(p, to, STEP_TIME)
+			pc.step = tween_to_tile(p, to, entity_step_time(p))
 			pc.stepping = true
 		}
 	} else if get_input(.ENTER) {

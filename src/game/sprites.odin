@@ -4,9 +4,10 @@ import rl "vendor:raylib"
 
 import "../rules"
 
-// A walking character that bobs in place and faces where it's going.
-walker_sprite :: proc(name: Sprite_Name, palette: Palette_Swap = {}, layer: i32 = 0, tag: Sprite_Tag = .Down) -> Sprite_State {
-	return create_sprite_state(name, tag, palette = palette, play = true, follow_facing = true, layer = layer)
+// A walking character that faces where it's going and, by default, takes one
+// stride per tile only while it moves (Anim_When.Moving).
+walker_sprite :: proc(name: Sprite_Name, palette: Palette_Swap = {}, layer: i32 = 0, tag: Sprite_Tag = .Down, anim_when := Anim_When.Moving) -> Sprite_State {
+	return create_sprite_state(name, tag, palette = palette, play = true, follow_facing = true, layer = layer, anim_when = anim_when)
 }
 
 // Man_Ps and Man_Battle_Ps are greyscale templates that share these colors

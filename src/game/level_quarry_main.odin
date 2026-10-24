@@ -1,8 +1,6 @@
 package game
 
 @(private = "file")
-INTRO_STEP :: 0.5 // seconds per tile
-@(private = "file")
 INTRO_DARK :: 0.5 // seconds of black before the fade in starts
 @(private = "file")
 INTRO_FADE :: 1.5
@@ -44,8 +42,8 @@ intro_cutscene :: proc(_: Entity_Id) {
 	dude, stranger := find("Dude"), find("Stranger")
 
 	walkers := [2]Script_Id {
-		spawn(proc(self: Entity_Id) { walk_route(self, DUDE_PATH, INTRO_STEP, once = true) }, dude, "intro: Dude"),
-		spawn(proc(self: Entity_Id) { walk_route(self, STRANGER_PATH, INTRO_STEP, once = true) }, stranger, "intro: Stranger"),
+		spawn(proc(self: Entity_Id) { walk_route(self, DUDE_PATH, once = true) }, dude, "intro: Dude"),
+		spawn(proc(self: Entity_Id) { walk_route(self, STRANGER_PATH, once = true) }, stranger, "intro: Stranger"),
 	}
 	pause(INTRO_DARK)
 	fade_screen(0, INTRO_FADE)
@@ -57,7 +55,7 @@ intro_cutscene :: proc(_: Entity_Id) {
 	for w in walkers do wait_script(w)
 
 	spawn(proc(self: Entity_Id) {
-		if !walk_to(self, STRANGER_PATH[2] + {0, -2}, INTRO_STEP) do return
+		if !walk_to(self, STRANGER_PATH[2] + {0, -2}) do return
 		set_facing(self, .Down)
 		set_facing(find("Dude"), .Up)
 	}, stranger, "Stranger move up")
@@ -65,7 +63,7 @@ intro_cutscene :: proc(_: Entity_Id) {
 	say("That's cool. I'm going to take a nap.", "Stranger")
 	say("Weirdo. Anyway, tea time!", "Dude")
 
-	spawn(proc(self: Entity_Id) { if !walk_to(self, {0, 9}, INTRO_STEP) do return }, dude, "Dude leave")
+	spawn(proc(self: Entity_Id) { if !walk_to(self, {0, 9}) do return }, dude, "Dude leave")
 	say("Caio.", "Stranger")
 
 	spawn(proc(self: Entity_Id) {

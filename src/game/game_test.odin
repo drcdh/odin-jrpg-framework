@@ -499,6 +499,71 @@ follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
 }
 
 @(test)
+moving_sprite_animates_one_stride_per_tile :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite(hero_meta()) // Left row: 2 frames x 150 ms, a 0.3 s loop
+	s.anim = true
+	s.anim_when = .Moving
+	e := spawn_entity({tile = {0, 0}, sprite = s, step_time = 1})
+
+	run_for(1)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0) // still: holds the start pose
+
+	// One tile in 1 s: the 0.3 s loop stretched to 1 s, starting halfway
+	// through frame 0, so frame 1 fills the middle half of the tile.
+	tween_to_tile(e, {1, 0}, 1)
+	run_for(0.15)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0)
+	run_for(0.35)
+	testing.expect_value(t, entity_get(e).sprite.frame, 1)
+	run_for(0.35)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0)
+	run_for(0.3)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0) // arrived
+	testing.expectf(t, abs(entity_get(e).sprite.time - 0.075) < 1e-6, "holds half of frame 0, got %v", entity_get(e).sprite.time)
+}
+
+@(test)
+anim_when_always_and_never :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite(hero_meta())
+	s.anim = true
+	e := spawn_entity({tile = {0, 0}, sprite = s}) // Always, the default
+	run_for(0.2)
+	testing.expect_value(t, entity_get(e).sprite.frame, 1) // animates while still
+
+	set_anim_when(e, .Never)
+	tween_to_tile(e, {1, 0}, 1)
+	run_for(0.5)
+	testing.expect_value(t, entity_get(e).sprite.frame, 1) // not even while moving
+
+	set_anim_when(e, .Moving)
+	run_for(0.6)
+	testing.expect_value(t, entity_get(e).sprite.frame, 0) // arrived: start pose
+}
+
+@(test)
+walk_speed_belongs_to_the_entity :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	plain := spawn_entity({})
+	testing.expect_value(t, entity_get(plain).step_time, DEFAULT_STEP_TIME)
+	hero := spawn_entity({sprite = fake_sprite(hero_meta())})
+	testing.expectf(t, abs(entity_get(hero).step_time - 0.3) < 1e-6, "1x: one loop per tile, got %v", entity_get(hero).step_time)
+
+	e := spawn_entity({tile = {0, 0}})
+	s := spawn(proc(self: Entity_Id) {
+		walk_entity(self, {1, 0}, 0.2) // overwrites the speed...
+		walk_entity(self, {1, 0})      // ...which sticks
+	}, e)
+	run_for(0.3)
+	testing.expect_value(t, entity_get(e).step_time, 0.2)
+	testing.expect_value(t, entity_tile(e), Tile{2, 0}) // second step under way at 0.2 s
+	run_for(0.2)
+	testing.expect(t, !script_alive(s), "two tiles at 0.2 s each take 0.4 s")
+	testing.expect_value(t, entity_get(e).pos, tile_center({2, 0}))
+}
+
+@(test)
 set_sprite_tag_of_overrides_follow_facing :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	s := fake_sprite(hero_meta())
