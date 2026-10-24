@@ -3,6 +3,7 @@ package game
 import hm "core:container/handle_map"
 import "core:fmt"
 import "core:log"
+import "core:slice"
 import rl "vendor:raylib"
 
 TILESET_DIR :: "assets/tilesets"
@@ -80,6 +81,54 @@ tile_occupied :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
 		if h != mover && !e.ghost && wrap_tile(e.tile) == w do return true
 	}
 	return false
+}
+
+// A shortest walk from `from` to `to` over passable tiles (tile_passable), as
+// unit steps, ignoring entities. Without WRAP it stays inside the map; in
+// WRAP mode it can cross the seam. With no map loaded it's the direct
+// x-then-y walk. `ok` is false if `to` can't be reached. Searching Up, Down,
+// Left, Right in that order makes the path deterministic.
+find_path :: proc(from, to: Tile, allocator := context.allocator) -> (steps: []Tile, ok: bool) {
+	m := &world.level_map
+	if m.size == {} {
+		d := to - from
+		out := make([dynamic]Tile, 0, abs(d.x) + abs(d.y), allocator)
+		for _ in 0..<abs(d.x) do append(&out, Tile{1 if d.x > 0 else -1, 0})
+		for _ in 0..<abs(d.y) do append(&out, Tile{0, 1 if d.y > 0 else -1})
+		return out[:], true
+	}
+	start, goal := wrap_tile(from), wrap_tile(to)
+	if !map_contains(start) || !map_contains(goal) do return nil, false
+	if start == goal do return nil, true
+
+	dirs := [4]Tile{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
+	index :: proc(t: Tile) -> int { return int(t.y * world.level_map.size.x + t.x) }
+	// came[i] is 1 + the dirs index of the step into tile i; 0 = not reached.
+	came := make([]u8, int(m.size.x * m.size.y), context.temp_allocator)
+	queue := make([dynamic]Tile, 0, len(came), context.temp_allocator)
+	came[index(start)] = 255 // reached, as the start
+	append(&queue, start)
+	search: for head := 0; head < len(queue); head += 1 {
+		for d, k in dirs {
+			next := queue[head] + d
+			if m.mode == .WRAP do next = wrap_tile(next)
+			else if !map_contains(next) do continue
+			if came[index(next)] != 0 || !tile_passable(next) do continue
+			came[index(next)] = u8(k + 1)
+			if next == goal do break search
+			append(&queue, next)
+		}
+	}
+	if came[index(goal)] == 0 do return nil, false
+
+	out := make([dynamic]Tile, allocator)
+	for t := goal; t != start; {
+		d := dirs[came[index(t)] - 1]
+		append(&out, d)
+		t = wrap_tile(t - d)
+	}
+	slice.reverse(out[:])
+	return out[:], true
 }
 
 // `t` wrapped into the map in WRAP mode; unchanged otherwise.

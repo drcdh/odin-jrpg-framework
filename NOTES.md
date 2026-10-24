@@ -73,7 +73,7 @@ A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, p
 | `src/game/text.odin`, `panes.odin`, `font.odin`, `ui_icons.odin` | UI drawing in UI tiles: text, bordered panes, the bitmap font, cursor icons |
 | `src/game/font_data.odin` | Generated: the font's glyph table |
 | `src/game/trigger.odin` | Talk triggers: `interact` runs the faced entity's script |
-| `src/game/map.odin` | `Level_Map` (in `World`), `tile_free` / `tile_passable` / `tile_occupied`, `map_route`, map rendering to a render texture, `draw_map`, `Map_Mode` |
+| `src/game/map.odin` | `Level_Map` (in `World`), `tile_free` / `tile_passable` / `tile_occupied`, `find_path`, `map_route`, map rendering to a render texture, `draw_map`, `Map_Mode` |
 | `src/game/tileset_data.odin` | Generated: the `Tileset_Id` enum and `tileset_files` |
 | `src/game/player.odin` | Player control: walking, talking, the F4/F5 save and load test keys (debug builds) |
 | `src/game/save.odin` | `save_game` / `load_game`: the save point and real time around `rules`' save files |
@@ -118,13 +118,15 @@ The game's downstream repos merge this one (for example, a private copy with thi
 - Each entity has `tile` (its logical cell) and `pos` (its visual position, in pixels). `spawn_entity` places `pos` at `tile_center(tile)`.
 - Grid moves (`tween_to_tile`, `move_entity`, `walk_entity`) set `tile` the moment the move starts, and the sprite slides after it. `walk_entity` steps one tile at a time, so a walking NPC's tile always matches where it's drawn. Its optional `pause_between` waits between tiles, but not after the last one.
 - `walk_route(id, route, seconds_per_tile, pause_between, once = false)` walks a closed loop of corner tiles once: `route[0]`, `route[1]`, and so on, back to `route[0]`. With `once` it stops on the last corner instead, so the route needn't close (an open path, as in the intro cutscene). Every leg it walks must differ only in x or only in y (this is asserted), so each is a straight `walk_entity`. With `pause_between` it also pauses at each corner, but not after the final tile. The entity should start on `route[0]`; loop the call to patrol forever.
+- `walk_to(id, to, seconds_per_tile, pause_between)` walks to a map tile by a shortest route round impassable tiles (`find_path`) and blocks until it's there; use it to get somewhere. `walk_entity` goes straight (x then y) and ignores map passability, and `walk_route` follows hand-picked corners, so use those for choreography. `walk_to` plans once and walks each step with `walk_entity`, so it waits for entities in the way rather than routing round them, including one standing on `to`. It returns false, logging a warning, if `to` can't be reached.
+- `find_path(from, to)` (`map.odin`) is a breadth-first search over `tile_passable` tiles that returns unit steps. It ignores entities, stays inside the map except in WRAP mode (where it can cross the seam), and returns the direct x-then-y steps when no map is loaded.
 - Raw `.Pos` tweens are for visual effects only and don't change `tile`.
 - Entities have a `facing` direction. For the player, it's the direction they last tried to move.
 - The player moves in smooth tile steps (`STEP_TIME` 0.15 s). Input is read only between steps.
 - The player can't step onto impassable tiles (see Maps and levels). Scripted moves ignore map passability.
 - **Entities block each other** unless either one has `ghost = true`. `tile_occupied(t, mover)` is true when a solid entity other than `mover` is on `t`. A ghost mover is never blocked, and a ghost never blocks. Because `tile` changes when a move starts, a tile being walked onto is already taken, so two movers can't claim the same tile.
   - The player's input checks `tile_free(to, player)`: passable and not occupied.
-  - `walk_entity`, and so `walk_route`, waits before each step (`wait_tile_clear`) until the next tile is clear, then carries on. A pacing NPC stops in front of the player and resumes once the player moves.
+  - `walk_entity`, and so `walk_route` and `walk_to`, waits before each step (`wait_tile_clear`) until the next tile is clear, then carries on. A pacing NPC stops in front of the player and resumes once the player moves.
   - `move_entity`, `move_entity_to` and `tween_to_tile` don't check occupancy. They're for scripted effects such as the glider's slide.
 
 ### Talk triggers
@@ -339,7 +341,7 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   - The table is row-major `[w * h]u8` (`<LEVEL>_PASSABLE`), and `set_map` takes it as `Level_Map.passable`. It's data, not a callback; an empty slice means everything is passable.
   - `tile_passable(t)` checks it. In WRAP mode it wraps `t`; otherwise tiles outside the map are passable only if the level has an edge exit (`open_edges`). With no map loaded, every tile is passable.
   - The player's input calls `tile_free` before each step. A blocked step still turns the player.
-- **Routes:** `map_route(i)` returns route `i` of the current map. The generated `<LEVEL>_<NAME>` constants give the indices, for example `GROVE_MAIN_DUDE_ROUTE_0`. In Grove, `pace_dude_route_0` walks the dude from `GROVE_MAIN_DUDE_SPAWN_NOT_MET` to the route's start, then loops `walk_route`. A two-point route paces out and back.
+- **Routes:** `map_route(i)` returns route `i` of the current map. The generated `<LEVEL>_<NAME>` constants give the indices, for example `GROVE_MAIN_DUDE_ROUTE_0`. In Grove, `pace_dude_route_0` walks the dude from `GROVE_MAIN_DUDE_SPAWN_NOT_MET` to the route's start (`walk_to`), then loops `walk_route`. A two-point route paces out and back.
 - **Camera** (`src/game/camera.odin`): `world.camera_focus` is what the camera centers on: an `Entity_Id` (its tweened `pos`, so it glides with each step) or a fixed `Tile` (its center). `camera_update` runs every frame and applies the CLAMP clamp to the focus.
   - `camera_follow(id, speed = 0, easing = .Linear)` and `camera_to_tile(tile, speed = 0, easing = .Linear)` set the focus. They're immediate, so usable on the main thread and in scripts. With `speed` 0 the camera snaps; otherwise it pans from where it is at `speed` tiles per second in game time (so pausing and time scale apply), then holds the focus. A new call mid-pan takes over from the current position.
   - A pan lerps towards the focus as it is each frame, so panning onto a walking entity still lands on it. Its duration is set from the clamped distance on its first frame.

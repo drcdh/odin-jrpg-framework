@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -186,6 +187,26 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: f32, pause_bet
 			}
 			if !move_entity_to(id, entity_tile(id) + step, seconds_per_tile, loc = loc) do return false
 		}
+	}
+	return true
+}
+
+// Walks `id` to `to` by a shortest route round impassable map tiles (see
+// find_path), one tile at a time, and blocks until it's there. Entities in the
+// way are waited for, as in walk_entity, not routed round. `pause_between`
+// waits between tiles (not after the last one). Returns false if the script
+// was cancelled or `to` can't be reached from where `id` stands (logged).
+walk_to :: proc(id: Entity_Id, to: Tile, seconds_per_tile: f32, pause_between: f32 = 0, loc := #caller_location) -> bool {
+	from := entity_tile(id)
+	steps, ok := find_path(from, to)
+	defer delete(steps)
+	if !ok {
+		log.warnf("%v can't reach %v from %v", id, to, from, location = loc)
+		return false
+	}
+	for step, i in steps {
+		if i > 0 && pause_between > 0 && !pause(pause_between, loc) do return false
+		if !walk_entity(id, step, seconds_per_tile, loc = loc) do return false
 	}
 	return true
 }

@@ -1128,6 +1128,78 @@ WALL_COLUMN := [12]u8{
 	0, 0, PARTY_IMPASSABLE, 0,
 }
 
+// A 5x3 map walled at x == 2 except for a gap at (2, 2).
+@(private = "file")
+WALL_WITH_GAP := [15]u8{
+	0, 0, PARTY_IMPASSABLE, 0, 0,
+	0, 0, PARTY_IMPASSABLE, 0, 0,
+	0, 0, 0,                0, 0,
+}
+
+@(test)
+find_path_goes_round_walls :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {5, 3}, passable = WALL_WITH_GAP[:]})
+	steps, ok := find_path({0, 0}, {4, 0}, context.temp_allocator)
+	testing.expect(t, ok)
+	testing.expect_value(t, len(steps), 8) // down 2, right 4, up 2
+	at := Tile{0, 0}
+	for s in steps {
+		testing.expectf(t, abs(s.x) + abs(s.y) == 1, "not a unit step: %v", s)
+		at += s
+		testing.expectf(t, tile_passable(at), "walked onto the wall at %v", at)
+	}
+	testing.expect_value(t, at, Tile{4, 0})
+
+	steps, ok = find_path({1, 1}, {1, 1}, context.temp_allocator)
+	testing.expect(t, ok && len(steps) == 0, "already there")
+
+	set_map({size = {4, 3}, passable = WALL_COLUMN[:]})
+	_, ok = find_path({0, 0}, {3, 0}, context.temp_allocator)
+	testing.expect(t, !ok, "the far side of a solid wall is unreachable")
+}
+
+@(test)
+find_path_crosses_the_wrap_seam :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {6, 1}, mode = .WRAP})
+	steps, ok := find_path({0, 0}, {5, 0}, context.temp_allocator)
+	testing.expect(t, ok)
+	testing.expect_value(t, len(steps), 1)
+	testing.expect_value(t, steps[0], Tile{-1, 0})
+}
+
+@(private = "file") walk_to_result: bool
+
+@(test)
+walk_to_goes_through_the_gap :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {5, 3}, passable = WALL_WITH_GAP[:]})
+	walk_to_result = false
+	e := spawn_entity({tile = {0, 0}})
+	s := spawn(proc(self: Entity_Id) { walk_to_result = walk_to(self, {4, 0}, 0.1) }, e)
+	for frame := 0; script_alive(s) && frame < 500; frame += 1 {
+		run_for(FRAME)
+		testing.expectf(t, tile_passable(entity_tile(e)), "on the wall at %v", entity_tile(e))
+	}
+	testing.expect(t, !script_alive(s), "walk_to should finish")
+	testing.expect(t, walk_to_result, "walk_to should return true")
+	testing.expect_value(t, entity_tile(e), Tile{4, 0})
+}
+
+@(test)
+walk_to_unreachable_returns_false :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	set_map({size = {4, 3}, passable = WALL_COLUMN[:]})
+	walk_to_result = true
+	e := spawn_entity({tile = {0, 0}})
+	s := spawn(proc(self: Entity_Id) { walk_to_result = walk_to(self, {3, 0}, 0.1) }, e)
+	run_for(0.5)
+	testing.expect(t, !script_alive(s))
+	testing.expect(t, !walk_to_result, "walk_to should return false")
+	testing.expect_value(t, entity_tile(e), Tile{0, 0})
+}
+
 @(test)
 tile_free_checks_passability :: proc(t: ^testing.T) {
 	init(); defer shutdown()

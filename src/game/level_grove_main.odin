@@ -169,7 +169,7 @@ pace_route :: proc(self: Entity_Id, route_idx: int) {
 	STEP :: 0.4
 	PAUSE :: 0.25
 	route := map_route(route_idx)
-	if !walk_entity(self, route[0] - entity_tile(self), STEP, PAUSE) do return
+	if !walk_to(self, route[0], STEP, PAUSE) do return
 	for {
 		pause(PAUSE) or_break
 		walk_route(self, route, STEP, PAUSE) or_break
