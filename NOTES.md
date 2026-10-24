@@ -35,7 +35,7 @@ Every target first runs the generators. They need Python 3, the `aseprite` CLI o
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
 
-A new game opens with a cutscene (`src/game/level_cutscene_intro.odin`, played in Quarry for now): no player; the screen opens black and fades in once Dude and a stranger are already walking. Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After a pause the screen fades and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
+A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, played whenever Quarry is entered until the `Introduction` flag is set): no player; the screen opens black and fades in once Dude and a stranger are already walking. Dude walks into the quarry's yard and meets a stranger while they talk, the camera following Dude; dialogue waits for Z. After a pause the screen fades and Grove starts with the player and Dude, who paces `dude_route_0`, near boxes holding items and a warp pad. Doors, warp pads and map edges connect Grove, Overworld, Cave, House and Quarry. The earlier demo entities (patrollers, villager, flasher, gliders) no longer spawn, and their sprites are gone, but their scripts are still in `src/game/scripts.odin`.
 
 ## Packages
 
@@ -80,10 +80,9 @@ A new game opens with a cutscene (`src/game/level_cutscene_intro.odin`, played i
 | `src/game/debug.odin` | F1 overlay, and the old game's debug keys (`debug_update`, `debug_draw`); debug builds only |
 | `src/game/world_menu.odin`, `metadata_menu.odin` | The world menu; the save-slot summaries for its future Save screen |
 | `src/game/level.odin` | `start_level` (optionally without a player) and `enter_level`, the player's spawn, `change_level` / `egress` / `warp_to_level`, fades, edge exits, level history (`world.levels`), `clear_level` |
-| `src/game/start.odin` | `GAME_TITLE`, `start_game` (called by `main`), and `new_game` (resets the game data with `init_new_game` and plays the intro cutscene) |
-| `src/game/level_cutscene_intro.odin` | `start_intro`: the opening cutscene in Quarry (no player), which ends by changing to Grove |
+| `src/game/start.odin` | `GAME_TITLE`, `start_game` (called by `main`), and `new_game` (resets the game data with `init_new_game` and starts Quarry without a player, which plays the intro cutscene) |
 | `src/game/rules_aliases.odin` | Unqualified names for `rules` types and procs, for level code and scripts |
-| `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude |
+| `src/game/level_<level>_main.odin` | Hand-written `init_*` per level; Grove spawns the pacing dude, Quarry plays the opening cutscene until `Introduction` is set |
 | `src/game/stubs.odin` | Placeholders for old-project features the generated level code calls (`try_spawn_from_save`) |
 | `src/game/chests.odin` | `items_in_a_box`, the chests' trigger script |
 | `src/game/scripts.odin`, `sprites.odin` | Example scripts; `walker_sprite`, the PCs' sprites (`pc_sprite`, `pc_battle_sprite`, `pc_menu_sprite`, `PC_PALETTES`) |
@@ -327,8 +326,8 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
   3. `enter_level(l, at, face, with_player)`:
      1. runs the generated `tiled_init_level`, which sets the map and its passability table
      2. spawns the player (unless `with_player` is false, as for a cutscene): at `at` facing `face` if given (a new game and loading a save), otherwise by the entrance rules. If no rule matches, it logs an error and uses the map center.
-     3. runs the hand-written `init_<lr>` (Grove adds the dude; the other levels add nothing yet), then the generated `render_level`
-  4. has the camera follow the player (nothing, without one, until a script calls `camera_follow`)
+     3. runs the hand-written `init_<lr>` (Grove adds the dude; Quarry plays the intro cutscene until `Introduction` is set; the other levels add nothing yet), then the generated `render_level`. Spawning the player also points the camera at it, before `init_<lr>`, so a level's init can call `camera_follow` on something else
+  4. without a player the camera follows nothing until `init_<lr>` or a script calls `camera_follow`
 - **Step triggers:** `Entity.on_step(self, by)` runs on the main thread, immediately, when another entity finishes a tile move onto its tile. That covers `tween_to_tile`, so player steps and every `walk_entity` step count. Spawning, `set_tile` and cancelled moves don't trigger it.
 - **Drawing:** the whole map is rendered once into a render texture. `draw_map` (inside `BeginMode2D`) draws only the part the camera sees. Render textures are stored bottom-up, so it flips the source rect at draw time.
 - **Map modes:**

@@ -48,9 +48,10 @@ current_level :: proc() -> rules.Level {
 }
 
 // Leaves the current level and enters `l`: clears the world, then the
-// enter_level builds the new one, and the camera follows the player. Without
-// `with_player` (cutscenes) no player spawns, so nothing takes input and the
-// camera follows nothing until a script calls camera_follow.
+// enter_level builds the new one, and the camera follows the player unless the
+// level's init_* calls camera_follow. Without `with_player` (cutscenes) no
+// player spawns, so nothing takes input and the camera follows nothing until
+// init_* or a script calls camera_follow.
 start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down, with_player := true) {
 	lv := &world.levels
 	if p, ok := entity_get(player()); ok {
@@ -62,7 +63,6 @@ start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Dow
 	lv.edge = nil
 	clear_level()
 	enter_level(l, at, face, with_player)
-	camera_follow(player())
 }
 
 restart_level :: proc() {
@@ -158,4 +158,5 @@ spawn_player :: proc(l: rules.Level, at: Maybe(Tile), at_face: Direction) {
 		sprite = walker_sprite(.Player_World, layer = 1),
 	})
 	set_player(player)
+	camera_follow(player) // before init_*, so a level can point the camera elsewhere
 }
