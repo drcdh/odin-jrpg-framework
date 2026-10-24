@@ -192,7 +192,7 @@ An entity's `sprite` is a `Sprite_State`. It holds which sheet and frame to show
   - Control it with `play_sprite`, `stop_sprite`, `freeze_sprite`, `unfreeze_sprite` and `set_sprite_tag`.
   - Scripts can use the entity-level wrappers `play_anim`, `stop_anim`, `freeze_anim` and `set_sprite_tag_of`.
   - `animation_length` gives the duration of the current row.
-- **Facing:** with `follow_facing`, the tag tracks the entity's facing (the Left/Down/Right/Up rows) without restarting playback.
+- **Facing:** with `follow_facing`, the tag tracks the entity's facing (the Left/Down/Right/Up rows) without restarting playback. `set_sprite_tag_of` turns `follow_facing` off, so a tag like `Downed` sticks on a walker (the entity keeps its `facing`); `set_follow_facing(id)` turns it back on, snapping to the facing row on the next update. Walkers turn with `set_facing`. `set_sprite_tag_of` logs a warning if the sheet has no row for the tag (a missing row draws row 0).
 - **Storage:** images and sprites live in `World` handle maps (`world.images`, `world.sprites`). The unswapped cache is `world.sprite_handles: [Sprite_Name]Sprite_Handle`.
 
 Sprites in `assets/sprites/` (ported from the old game):

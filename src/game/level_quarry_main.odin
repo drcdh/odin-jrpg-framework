@@ -62,8 +62,16 @@ intro_cutscene :: proc(_: Entity_Id) {
 		set_facing(find("Dude"), .Up)
 	}, stranger, "Stranger move up")
 
-	say("Be nice. And don't offer them any of your terrible coffee.", "Stranger")
-	say("My coffee is excellent.", "Dude")
+	say("That's cool. I'm going to take a nap.", "Stranger")
+	say("Weirdo. Anyway, tea time!", "Dude")
+
+	spawn(proc(self: Entity_Id) { if !walk_to(self, {0, 9}, INTRO_STEP) do return }, dude, "Dude leave")
+	say("Caio.", "Stranger")
+
+	spawn(proc(self: Entity_Id) {
+		if !pause(1) do return
+		set_sprite_tag_of(self, .Downed)
+	}, stranger, "Stranger nap")
 
 	camera_to_tile(INTRO_PAN_TO, INTRO_PAN_SPEED, .Sine_In_Out) // keeps panning through the fade out
 	pause(2.5)

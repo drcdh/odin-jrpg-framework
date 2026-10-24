@@ -80,8 +80,24 @@ set_curtain :: proc(alpha: f32) {
 
 // Sprite playback on an entity. Only switches rows and frames of an already
 // loaded sheet, so these are safe from scripts.
-set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true) {
-	if e, ok := entity_get(id); ok do set_sprite_tag(&e.sprite, tag, reset)
+
+// Shows `tag` on `id`'s sprite. Turns off follow_facing, so the tag sticks on
+// a walker (e.g. Downed); set_follow_facing restores it. Warns if the sheet
+// has no such row.
+set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := #caller_location) {
+	e, ok := entity_get(id)
+	if !ok do return
+	if m, has_meta := state_metadata(e.sprite); has_meta && m.type == .Tagged {
+		if _, has := tag_index(m.tags, tag); !has do log.warnf("%v's sprite has no %v tag", e.name, tag, location = loc)
+	}
+	e.sprite.follow_facing = false
+	set_sprite_tag(&e.sprite, tag, reset)
+}
+
+// Whether `id`'s sprite keeps to the row for its facing (walker sprites do).
+// Turning it back on snaps the row to the facing on the next update.
+set_follow_facing :: proc(id: Entity_Id, follow := true) {
+	if e, ok := entity_get(id); ok do e.sprite.follow_facing = follow
 }
 
 play_anim :: proc(id: Entity_Id) {

@@ -499,6 +499,25 @@ follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
 }
 
 @(test)
+set_sprite_tag_of_overrides_follow_facing :: proc(t: ^testing.T) {
+	init(); defer shutdown()
+	s := fake_sprite(hero_meta())
+	s.follow_facing = true
+	e := spawn_entity({facing = .Up, sprite = s})
+
+	set_sprite_tag_of(e, .Cheer)
+	sprites_update(0)
+	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer)
+	set_facing(e, .Left)
+	sprites_update(0)
+	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer) // facing no longer wins
+
+	set_follow_facing(e)
+	sprites_update(0)
+	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Left)
+}
+
+@(test)
 create_sprite_state_without_window :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	s := create_sprite_state(.Man_Ps, tint = rl.GOLD, play = true, speed = 2, follow_facing = true, layer = 3)
