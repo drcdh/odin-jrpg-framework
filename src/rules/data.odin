@@ -12,11 +12,12 @@ SAVE_DIR :: "saves"
 Bool_Datum :: enum {
 	Introduction,
 	Met_Dude,
-	Met_Woman,
 }
 
 Int_Datum :: enum {
   Drink_Choice,
+	Two_Quest,
+	Demo_Quest,
 }
 
 Int_Data_Type :: i32
