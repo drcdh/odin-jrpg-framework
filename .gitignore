@@ -3,5 +3,7 @@ saves/
 *_data.odin
 .~lock.*
 
+.claude/
+
 ### Python ###
 __pycache__/
