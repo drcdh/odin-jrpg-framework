@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="7" nextobjectid="35">
+<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="8" nextobjectid="37">
  <properties>
   <property name="edge_level" value="Overworld"/>
   <property name="map_mode" value="DEFAULT"/>
@@ -63,7 +63,7 @@
     <property name="warp" type="bool" value="true"/>
    </properties>
   </object>
-  <object id="30" template="../DOOR.tx" name="DOOR-IN" x="164" y="76">
+  <object id="30" template="../DOOR.tx" name="DOOR-IN" x="172" y="76">
    <properties>
     <property name="door_idx" type="int" value="1"/>
     <property name="level" value="House"/>
@@ -94,20 +94,22 @@
    </properties>
   </object>
  </objectgroup>
- <objectgroup id="5" name="Stuff" locked="1">
-  <object id="24" name="warp_spawn" x="167" y="73">
-   <point/>
-  </object>
-  <object id="25" name="conga_line" x="25.3551" y="25">
+ <objectgroup id="7" name="Routes">
+  <object id="36" name="conga_line" x="24" y="24">
    <polygon points="0,0 270.645,0.992248 269.527,255.008 -3.3551,256"/>
   </object>
-  <object id="26" name="baddy_spawn" x="199" y="120">
+ </objectgroup>
+ <objectgroup id="5" name="Stuff">
+  <object id="24" name="warp_spawn" x="164" y="72">
    <point/>
   </object>
-  <object id="27" name="trap_spawn" x="104" y="153">
+  <object id="26" name="baddy" x="199" y="120">
    <point/>
   </object>
-  <object id="28" name="save" x="199" y="184">
+  <object id="27" name="trap" x="120" y="152">
+   <point/>
+  </object>
+  <object id="35" name="fella" x="100" y="148">
    <point/>
   </object>
  </objectgroup>
