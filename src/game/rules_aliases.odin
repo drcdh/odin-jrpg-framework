@@ -2,8 +2,6 @@ package game
 
 import "../rules"
 
-// Unqualified names for the rules package's data, for level code, scripts and
-// the generated level code (process_tiled.py).
 Level       :: rules.Level
 Chest_Datum :: rules.Chest_Datum
 Bool_Datum  :: rules.Bool_Datum
@@ -20,3 +18,5 @@ quest_stage_between :: rules.quest_stage_between
 quest_stage_current :: rules.quest_stage_current
 quest_stage_passed  :: rules.quest_stage_passed
 quest_stage_reached :: rules.quest_stage_reached
+
+heal_party :: rules.heal_party

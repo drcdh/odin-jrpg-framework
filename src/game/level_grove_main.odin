@@ -132,15 +132,15 @@ init_grove_main :: proc() {
 							if true || have_money(3) {
 								dec_money(3)
 								music_fade_down()
-								// fade screen out
-								// heal_party()
-								pause(.75)
+								fade_screen(1, .5)
+								pause(1.25)
+								heal_party()
 								play_sound(.Warp)
 								pause(.75)
-								// fade screen in
+								fade_screen(0, .5)
 								music_fade_up()
-								say("You feel great!")
 								pause(.5)
+								say("You feel great!")
 								say("|but you're still hungry.")
 							} else {
 								say("You can't afford it!")
