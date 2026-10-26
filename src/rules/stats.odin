@@ -40,13 +40,13 @@ get_stat_Character :: proc(character: Character, stat_name: Stat_Name) -> Stat {
 	return get_stat_Stats(character.stats, stat_name)
 }
 
-// get_stat_Combatant :: proc(combatant: Combatant, stat_name: Stat_Name) -> Stat {
-// 	return get_stat_Character(combatant.character^, stat_name)
-// }
+get_stat_Combatant :: proc(combatant: Combatant, stat_name: Stat_Name) -> Stat {
+	return get_stat_Character(combatant.character^, stat_name)
+}
 
 get_stat :: proc {
 	get_stat_Character,
-	// get_stat_Combatant,
+	get_stat_Combatant,
 	get_stat_Stats,
 }
 

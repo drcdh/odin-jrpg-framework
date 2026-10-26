@@ -25,7 +25,6 @@ debug_text: bool
 // TODO: battle-only flags, unused until battles are ported.
 force_drops: bool
 moogle_charm: bool
-sudden_death: bool
 
 throttle := true // vsync and SetTargetFPS(THROTTLED_FPS), as main sets up
 
@@ -238,8 +237,8 @@ debug_update :: proc() {
 	}
 
 	if rl.IsKeyPressed(.PERIOD) {
-		sudden_death = !sudden_death
-		fmt.printfln("Baddy sudden death mode %s", sudden_death ? "ACTIVE" : "INACTIVE")
+		rules.sudden_death = !rules.sudden_death
+		fmt.printfln("Baddy sudden death mode %s", rules.sudden_death ? "ACTIVE" : "INACTIVE")
 	}
 
 	// if rl.IsKeyPressed(.SLASH) {

@@ -1,0 +1,6 @@
+name,exp,m1,p1,m2,p2,m3,p3,m4,p4,m5,p5,m6,p6
+Rat,1,Mouse_Sized_Rat,"0,0",,,,,,,,,,
+Rats_2,2,Mouse_Sized_Rat,"0,0",Mouse_Sized_Rat,"0,1",,,,,,,,
+Mouse_Boss,5,Mouse_Sized_Rat,"0,0",Rat_Sized_Mouse,"1,1",Mouse_Sized_Rat,"0,2",,,,,,
+Mserpent,200,Magic_Serpent,"0,0",,,,,,,,,,
+Mserpent_2,450,Magic_Serpent,"0,-1",Magic_Serpent,"0,1",,,,,,,,

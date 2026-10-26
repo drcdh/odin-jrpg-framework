@@ -19,6 +19,14 @@ Character :: struct {
 	skills:        Charged_Skills,
 }
 
+alive :: proc(c: Character) -> bool {
+	return c.hitpoints > 0
+}
+
+downed :: proc(c: Character) -> bool {
+	return c.hitpoints <= 0
+}
+
 exp_to_next :: proc(level: int) -> Maybe(int) {
 	if level >= MAX_LEVEL {
 		return nil

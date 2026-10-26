@@ -162,10 +162,12 @@ suicide_downs_the_target :: proc(t: ^testing.T) {
 @(test)
 only_combatants_are_staggered :: proc(t: ^testing.T) {
 	effect := Effect_Data{hit_acc = 100, stg_acc = 100, stagger = 5, int_acc = 100}
-	actor := Combatant{c = {name = "Actor"}}
-	target := Combatant{c = {name = "Target", hitpoints = 10}, ticks = 20, windup = true}
+	actor_character := Character{name = "Actor"}
+	target_character := Character{name = "Target", hitpoints = 10}
+	actor := Combatant{character = &actor_character}
+	target := Combatant{character = &target_character, ticks = 20, windup = true}
 
-	r := do_effect(&actor.c, &target.c, effect, .Attack)
+	r := do_effect(actor.character, target.character, effect, .Attack)
 	testing.expect_value(t, r.hit, Hit_Result.Hit)
 	testing.expect(t, !r.stagger && !r.interrupted, "a Character was staggered")
 	testing.expect_value(t, target.ticks, 20)
@@ -176,6 +178,52 @@ only_combatants_are_staggered :: proc(t: ^testing.T) {
 	testing.expect_value(t, target.ticks, 15)
 	testing.expect(t, !target.windup, "windup not broken")
 	testing.expect_value(t, target.hitpoints, 10)
+}
+
+// The Rat encounter: the baddy is combatant 0 and PC 0 is combatant 1.
+@(private = "file")
+setup_rat_battle :: proc() -> (baddy, ally: ^Combatant) {
+	init_new_game()
+	game_data.party_membership = {true, false, false, false, false, false}
+	start_encounter(.Rat)
+	baddy, ally = &battle.combatants[battle.baddies[0]], &battle.combatants[battle.allies[0]]
+	ally.stats[Stat_Name.Evasion] = 0
+	return
+}
+
+@(test)
+pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
+	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy()
+	testing.expect(t, ally.character == &playable_characters[0], "the ally isn't PC 0")
+	max_hp := playable_characters[0].hitpoints
+
+	effect := Effect_Data{hit_acc = 100, power = 100, sts_acc = 100, status = .Poison}
+	r := do_effect(baddy, ally, effect, .Attack)
+	testing.expect_value(t, r.hit, Hit_Result.Hit)
+	battle_cleanup() // frees the baddy
+
+	testing.expect_value(t, playable_characters[0].hitpoints, max_hp + r.hp_change)
+	testing.expect(t, playable_characters[0].hitpoints < max_hp, "no damage taken")
+	testing.expect(t, playable_characters[0].poison, "poison didn't stay")
+}
+
+@(test)
+skill_plays_stagger_the_real_combatant :: proc(t: ^testing.T) {
+	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+	ally.ticks = 100
+	ally.windup = true
+
+	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Small_Smoke_Bomb})
+	testing.expect_value(t, ally.ticks, 50)
+	testing.expect(t, !baddy.windup, "the actor is still winding up")
+}
+
+@(test)
+battles_reset_pc_skill_charges :: proc(t: ^testing.T) {
+	init_new_game(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+	for &cs in playable_characters[0].skills do cs.charge = CHARGE_MAX
+	start_encounter(.Rat)
+	for cs in playable_characters[0].skills do testing.expect_value(t, cs.charge, 0)
 }
 
 @(test)

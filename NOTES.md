@@ -25,12 +25,14 @@ A general tween system (position, scale, rotation, tint, alpha, raw `^f32`) supp
 ./build.sh build    # debug build  -> build/odin-jrpg
 ./build.sh release  # optimized build
 ./build.sh test     # checks src/rules is headless, then the rules and game tests (ODIN_TEST_THREADS=1, because state is global)
+odin run src/autobattler -debug -vet -out:build/autobattler -- -seed:7  # a headless battle, both teams on autopilot (run ./data_build.sh first; -seed defaults to 1959)
 ```
 
 Every target first runs the generators. They need Python 3, the `aseprite` CLI on `PATH`, and `pytiled_parser`. All of their outputs are gitignored.
 - `src/build_tools/process_sprites.py` exports each `assets/sprites/*.ase` to a PNG sheet next to it, and generates `src/game/sprite_data.odin`.
 - `src/build_tools/process_audio.py` turns the files in `assets/audio/sounds/` and `assets/audio/music/` into `src/game/sound_data.odin` (`Sound_Name`, `sound_files`) and `music_data.odin` (`Music_Name`, starting with `None`, and `music_files`). Each file's name becomes its enum value: `door_knock.wav` is `Door_Knock`.
 - `src/build_tools/process_items.py` and `process_skills.py` turn `content/consumables.csv`, `equippables.csv` and `skills.csv` into `src/rules/item_data.odin` (`Item_Name`, `items`) and `skill_data.odin` (`Skill_Name`, `skills`). `process_skills.py` also writes each skill's sound (the `sound` column) to `src/game/skill_sound_data.odin` (`skill_sounds`), since sounds are presentation.
+- `src/build_tools/process_baddies.py` and `process_encounters.py` turn `content/baddies.csv` and `encounters.csv` into `src/rules/baddy_data.odin` (`Baddy_Id`, `baddy_templates`) and `encounter_data.odin` (`Encounter_Name`, `encounters`). Repeated baddy names are numbered (`Tentacle_1`, `Tentacle_2`, …). Empty spoils and empty encounter spots are `nil`. The `downed` and `texture` columns aren't read yet.
 - `src/build_tools/process_tiled.py` exports each `assets/tilesets/*.ase` to a PNG, and turns each `assets/tiled/<Level>/<room>.tmx` into `src/game/level_<level>_<room>_data.odin`. It also writes `src/game/level_data.odin`, `encounter_region_data.odin` and `tileset_data.odin`, and `src/rules/levels_data.odin` (the `Level` enum) and `chest_data.odin`.
 
 Controls are the old game's: the arrow keys move the player one tile at a time, and Z talks to whatever the player is facing. Z also turns dialogue pages and picks choices, and Up/Down move through choices; while a box is showing, the player can't move or talk. S opens the world menu, and X closes it (see World menu). A gamepad works too (see Input). Debug builds only: F1 toggles the debug overlay (grid lines, trigger outlines, the faced tile, and each live script's wait state), F4 saves to `saves/test.json` and F5 loads it, and the old game's debug keys work (see `debug.odin`): C prints the PCs, F/G/T toggle the framerate bar, a UI-tile grid and a font sample, 1–6 add or remove party members, and backtick toggles the FPS cap (vsync and `THROTTLED_FPS`, or neither).
@@ -41,9 +43,10 @@ A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, p
 
 | Package | Holds | Imports |
 |---|---|---|
-| `src/rules` | Headless state and mechanics: anything that can matter to battle state. `Game_Data` (flags, money, chests, inventory, party membership), the playable characters with their stats, equipment, status and charged skills, items, skills and targeting types, save files and their metadata, the `Level` and `Chest_Datum` enums; later enemies, and battle state and resolution. Its globals are freed with `rules.destroy()`, which `game.shutdown` calls. No clocks, no real time, no raylib, so battles can run programmatically | `core:` only |
+| `src/rules` | Headless state and mechanics: anything that can matter to battle state. `Game_Data` (flags, money, chests, inventory, party membership), the playable characters with their stats, equipment, status and charged skills, items, skills and targeting types, save files and their metadata, the `Level` and `Chest_Datum` enums, baddies, encounters, and battle state and resolution. Its globals are freed with `rules.destroy()`, which `game.shutdown` calls. No clocks, no real time, no raylib, so battles can run programmatically | `core:` only |
 | `src/game` | Everything real-time and audiovisual: the world, entities, scripts, tweens, tiles and the screen size, maps, input, player control, level changes and fades, UI and menus, the levels and their NPC scripts, sprites, the generated level code, `save_game` / `load_game` around `rules`' save files, sound and music; later battle presentation | `rules` |
 | `src/main.odin` | The window and the frame loop | `game` |
+| `src/autobattler` | A headless battle runner: starts an encounter with `autobattle` on, ticks it to a win or loss, and prints the PCs afterwards | `rules` |
 
 `game` calls `rules`, and `rules` calls nothing: there are no hooks or callbacks between them. Content splits along the same line: item, skill and enemy tables go in `rules`, while their sprites, the levels and the NPC scripts go in `game`. `./build.sh test` checks that `src/rules` builds alone (`odin check`) and imports neither `../game`, `vendor:raylib` nor `core:time`.
 
@@ -93,12 +96,14 @@ A new game opens with a cutscene in Quarry (`src/game/level_quarry_main.odin`, p
 | `src/rules/character.odin`, `party.odin` | `Character` (stats, level, equipment, status, skills), experience and levels; the six PCs (`playable_characters`), party membership, skill sets from equipment, step effects |
 | `src/rules/stats.odin`, `equipment.odin`, `inventory.odin`, `item.odin`, `skill.odin`, `targeting.odin` | Stats and their modifiers, equipment slots, the inventory (counts capped at `MAX_ITEM_COUNT`, 99) and its display orders, items (consumables and equippables), charged skills, target types |
 | `src/rules/skill_effects.odin` | Effect data and types, the damage formula, and the effect procs, which change the characters and return an `Effect_Result` |
-| `src/rules/combatant.odin` | A temporary `Combatant` stub (a `Character` plus `ticks` and `windup`) until battles are ported |
-| `src/rules/item_data.odin`, `skill_data.odin` | Generated from `content/*.csv` |
-| `src/rules/rules_test.odin` | Headless tests: equipping, a save and load round trip, stat floors, item effects and stagger, item count limits. Tests set up their own state rather than relying on how a new game starts |
+| `src/rules/battle.odin`, `battle_turns.odin` | `Combatant`, `Battle` and the `battle` global, `battle_tick`, skill plays and windups, `check_win`, cleanup; `default_turn`, the autopilot's random skill and target |
+| `src/rules/encounter.odin`, `baddy_template.odin` | `Encounter`, `start_encounter`; `Baddy_Template` and `new_baddy` |
+| `src/rules/item_data.odin`, `skill_data.odin`, `baddy_data.odin`, `encounter_data.odin` | Generated from `content/*.csv` |
+| `src/rules/rules_test.odin` | Headless tests: equipping, a save and load round trip, stat floors, item effects and stagger, item count limits, PCs keeping battle damage and status, skill plays staggering the real combatant, charges reset at battle start. Tests set up their own state rather than relying on how a new game starts |
 | `src/rules/metadata.odin` | Save-file summaries for the menu's Save screen |
 | `src/rules/levels_data.odin`, `chest_data.odin` | Generated by `process_tiled.py`: the `Level` and `Chest_Datum` enums |
-| `src/build_tools/` | `process_sprites.py`, `process_tiled.py` (with `passable.py`), `generate_font.py`, `processing.py` |
+| `src/build_tools/` | `process_sprites.py`, `process_tiled.py` (with `passable.py`), `process_audio.py`, `process_items.py`, `process_skills.py`, `process_baddies.py`, `process_encounters.py`, `generate_font.py`, `processing.py` |
+| `src/autobattler/main.odin` | The headless battle runner |
 | `assets/sprites/` | Aseprite sources for the sprites |
 | `assets/tiled/` | The Tiled project: one folder per level, one `.tmx` per room, object templates |
 | `assets/tilesets/` | Aseprite sources for the tilesets |
@@ -264,9 +269,19 @@ The player's menu outside of battle (`world_menu.odin`). MENU (S) opens it with 
 ### Skill effects
 `rules` works an effect out and `game` shows it:
 - `rules.do_skill(actor, target, skill)` (`src/rules/skill_effects.odin`) rolls, changes the target and returns an `Effect_Result`: hit, miss or evade, the HP change, whether the target went down, the status outcome, levels gained, and for Combatants whether they were staggered or interrupted. What would have been text on screen in the old game is logged instead. `actor` is nil for an item.
-- `do_skill`, `do_effect` and `effect_attack` are proc groups with a `Character` and a `Combatant` version. Only the Combatant version staggers (takes `ticks`, may break the `windup`) and rolls for a counter (still a stub); the world menu passes Characters. `Combatant` (`combatant.odin`) is a stub until battles are ported; its `using c: Character` comes first, so a `^Combatant` passes as a `^Character`.
+- `do_skill`, `do_effect` and `effect_attack` are proc groups with a `Character` and a `Combatant` version. Only the Combatant version staggers (takes `ticks`, may break the `windup`) and rolls for a counter (still a stub); the world menu passes Characters. `Combatant` (`battle.odin`) has `using character: ^Character`, so a `^Combatant` passes as a `^Character`.
 - `game.do_skill(actor, target_party_idx, skill, ctx)` (`src/game/skill_effects.odin`) calls `rules.do_skill`, plays `skill_sounds[skill]` and animates the result by `Skill_Context`. In the world menu that's popups over the target's sprite in the targeting strip (`world_menu_popup`), 0.4 s apart: Miss/Evade in gray, damage in white, healing in green, "+N LV" and Ineff!/Resist!/Miss in purple, an added status in red, "Cured" in green. They rise and fade over a second on `raw_dt`, and the strip stays up until they're done. Battle presentation is a TODO.
 - `VERBOSE` (`-define:VERBOSE=true`) logs the damage formula.
+
+### Battles
+Mechanics only so far (`src/rules/battle.odin`, `battle_turns.odin`, `encounter.odin`); there's no battle presentation, input or UI yet.
+- **Combatants point at Characters.** `Combatant` is `using character: ^Character` plus `team`, `ticks` and `windup`. An ally points into `playable_characters`, so damage and status taken in battle stay with the PC afterwards. A baddy's Character comes from `new_baddy` (heap), and `battle_cleanup` frees it and its `skills`; PCs are never freed. In `battle.odin`, `c` usually means a Combatant, so use `.character` for the Character.
+- **Take Combatants by pointer.** Copying a `Combatant` still shares its Character, so HP changes go through, but `ticks` and `windup` (stagger, interrupts) land on the copy and are lost. Use `&battle.combatants[i]`.
+- **`start_encounter(name)`** appends the encounter's baddies, then each party member (`battle.baddies` / `battle.allies` hold indices into `battle.combatants`), and resets every PC's skill charges to 0. HP and status carry over between battles; charges don't.
+- **Ticks:** each `battle_tick` takes turns, then adds `Speed` ticks to each standing combatant that isn't winding up (capped at `READY_TICKS`, 100) and charges their skills. A combatant is ready (`combatant_ready`) at 100 ticks, alive and not winding up. A turn queues a `Battle_Skill_Play`: it costs the skill's `cost` in ticks and winds up for `windup`, counting down by the actor's Speed. Plays whose actor was interrupted or downed are dropped. At most one play resolves per tick (`process_skill_play`, through the Combatant `do_skill`).
+- **Control:** with `autobattle` (debug) both teams use `default_turn`: a random fully charged skill at a random valid target (`random_target`, `targeting.odin`). Without it, baddies still use `default_turn`, and the PCs wait for player input that doesn't exist yet. `confuse` and `control` change sides; `random_target` panics for confused combatants (no opponent team yet).
+- **Debug flags:** `rules.sudden_death` gives new baddies 1 HP (`.` in debug builds of the game). `force_drops` and `moogle_charm` in `debug.odin` wait for spoils and running.
+- **The autobattler** (`src/autobattler`) sets up a console logger (so `rules`' `log.*` lines print, to stderr), seeds the RNG with `-seed:N` (`core:flags`; default 1959, `-help` lists the flags), starts `.Rat`, runs until `check_win` returns, cleans up and prints each PC's HP and status. Debug builds report leaks. Its `fmt` prints go to stdout, so they can interleave out of order with the log; redirect with `2>&1` to read them together.
 
 ### Sound and music
 `play_sound(name, delay = 0)` (`src/game/sound.odin`) queues a sound effect in `world.audio.pending`.
@@ -381,12 +396,13 @@ Each `assets/tiled/<Level>/<room>.tmx` becomes one member of the generated `Leve
 
 ## Status
 
-Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a camera that follows entities or tiles, snapping or panning, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items with their effects, status and equipment, skills, saving), skill effects (`rules`) with world-menu popups, sound effects and music, deferred destroy with cancellation, watchdog, debug overlay, tests.
+Done: entity handle map, sprites, tile grid with 4x camera, smooth tile-step player movement with facing, tween system, script runtime, blocking verbs, talk triggers, busy entities, sprite sheets with tags, animation and palette swaps, screen flash, dialogue (`say`, `choose`) with the old game's top pane, typing and paging, old input bindings with gamepad support, Tiled maps with a camera that follows entities or tiles, snapping or panning, levels connected by doors, warps and map edges with a fade, game data with JSON saving and loading (F4/F5 test keys), the party, items and skills from the old game (`rules`), the world menu (items with their effects, status and equipment, skills, saving), skill effects (`rules`) with world-menu popups, battle mechanics with encounters and a headless autobattler (`rules`), sound effects and music, deferred destroy with cancellation, watchdog, debug overlay, tests.
 
 Known limitations / next steps:
 - `PATROL_ROUTE` is a package-level array read by one script, so entities can't each have their own route yet.
 - Map passability only stops the player; scripted moves ignore it. Single-tween moves (`move_entity`, `tween_to_tile`) ignore other entities too.
-- Encounters aren't ported, so chests with an encounter just give their items. Loading has no menu yet, only the F5 test key in debug builds. Battles (and so battle presentation of skill effects, stagger and counters) and play time aren't ported yet.
+- Battles exist only in `rules`: nothing in `game` starts one, so chests with an encounter just give their items. There's no battle presentation (skill effects, stagger), player input or UI. Counters (`roll_for_counter`), baddies' `Downed_Proc` callbacks, spoils (`get_encounter_spoils`), battle exp, running and confused targeting aren't ported.
+- Loading has no menu yet, only the F5 test key in debug builds. Play time isn't ported yet.
 - In WRAP mode, entities near the seam pop across when one of them steps over it, since only the stepping entity is moved.
 - Holding a direction can pause for one frame between steps.
 - No thread reuse pool yet: each spawned script creates an OS thread.
