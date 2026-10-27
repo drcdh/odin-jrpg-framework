@@ -116,7 +116,7 @@ draw :: proc() {
 	debug_draw()
 }
 
-draw_entities :: proc() {
+draw_entities :: proc(battle := false) {
 	Draw_Item :: struct {
 		layer: i32,
 		y:     f32,
@@ -125,7 +125,7 @@ draw_entities :: proc() {
 	items := make([dynamic]Draw_Item, 0, hm.len(game.entities), context.temp_allocator)
 	it := hm.iterator_make(&game.entities)
 	for e, _ in hm.iterate(&it) {
-		if e.sprite.hidden do continue
+		if e.sprite.hidden || e.battle != battle do continue
 		append(&items, Draw_Item{e.sprite.layer, e.pos.y, e})
 	}
 	slice.sort_by(items[:], proc(a, b: Draw_Item) -> bool {

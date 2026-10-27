@@ -15,6 +15,7 @@ Entity :: struct {
 	busy:    bool,      // other scripts than busy_by can't move or turn it; see set_busy
 	busy_by: Script_Id, // the script that set busy; {} = the main thread
 	ghost:   bool,      // neither blocks nor is blocked by other entities
+	battle:  bool,      // a combatant or skill animation; drawn by draw_battle, not draw_world
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,
 	trigger: Trigger,

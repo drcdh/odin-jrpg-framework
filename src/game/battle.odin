@@ -23,7 +23,6 @@ MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + rules.NUM_PC
 // The battle field in world tiles;
 // baddies stand in their encounter formation from BADDY_ORIGIN, the party in
 // a column from ALLY_ORIGIN.
-BATTLE_CENTER :: Tile{VIEW_TILES_W / 2, VIEW_TILES_H / 2}
 BADDY_ORIGIN  :: Tile{2, 3}
 ALLY_ORIGIN   :: Tile{12, 3}
 
@@ -42,17 +41,17 @@ Battle_Staging :: struct {
 }
 
 Battle :: struct {
-	camera:          Camera,
-	state:					Battle_State,
-	staging:				Battle_Staging,
 	// background: Maybe(Battle_Background),
+	camera:          Camera,
 	combatants:     [dynamic]Entity_Id, // one per rules.battle.combatants, same order
 	paused:         bool, // true while running audiovisual stuff
-	ui_disabled:    bool, // don't draw the menu or accept input while true
-	results:        [dynamic]rules.Battle_Effect_Result, // the skill play being shown; see process_skill_results
-	results_script: Script_Id,
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(rules.Battle_Result), // set once a team has won and the last skill play has been shown
+	results:        [dynamic]rules.Battle_Effect_Result, // the skill play being shown; see process_skill_results
+	results_script: Script_Id,
+	staging:				Battle_Staging,
+	state:					Battle_State,
+	ui_disabled:    bool, // don't draw the menu or accept input while true
 }
 
 // Text that rises from a combatant and fades out, e.g. damage. See battle_popup.
@@ -162,7 +161,7 @@ spawn_combatants :: proc(name: Encounter_Name) {
 	log.infof("spawning combatants for %v", name)
 	spawn_combatant :: proc(name: string, tile: Tile, sprite: Sprite_State) {
 		log.infof("spawning combatant %s at %v", name, tile)
-		append(&game.battle.combatants, spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true}))
+		append(&game.battle.combatants, spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true, battle = true}))
 	}
 
 	for spot in rules.encounters[name].baddies {
@@ -191,6 +190,7 @@ draw_battle :: proc() {
 	// TODO: draw background
 	rl.BeginMode2D(game.battle.camera)
 	{
+		draw_entities(battle = true)
 		draw_battle_combatants()
 		draw_debug_battle()
 	}
@@ -235,10 +235,10 @@ draw_battle_combatants :: proc() {
 		}
 
 		// Under the combatant's tile.
-		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * UI_TILE}
+		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * TILE_SIZE}
 		draw_gauge(gauge_origin, c.ticks, rules.READY_TICKS, rl.WHITE, rl.GRAY, rl.YELLOW)
 		if skill_play_idx, ok := rules.get_combatant_skill_play(c_idx).?; ok {
-			gauge_origin += {0, 0.35 * UI_TILE}
+			gauge_origin += {0, 0.35 * TILE_SIZE}
 			v := rules.battle.skill_plays[skill_play_idx].windup
 			draw_gauge(gauge_origin, v, rules.READY_TICKS, rl.LIME, rl.GRAY, rl.GREEN)
 		}
@@ -386,7 +386,7 @@ skill_result_for :: proc(target: Entity_Id) -> (rules.Battle_Effect_Result, bool
 @(private = "file")
 play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name) -> bool {
 	s := create_sprite_state(sprite, play = true, layer = SKILL_ANIM_LAYER)
-	fx := spawn_entity(Entity{name = "skill animation", tile = entity_tile(target), sprite = s, ghost = true})
+	fx := spawn_entity(Entity{name = "skill animation", tile = entity_tile(target), sprite = s, ghost = true, battle = true})
 	defer destroy_entity(fx)
 	return pause(max(animation_length(s), .25)) // a static sprite still shows a moment
 }
