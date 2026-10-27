@@ -20,7 +20,7 @@ MAX_BATTLE_POPUPS :: 32
 
 MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + rules.NUM_PC
 
-// The battle field in world tiles. The camera centers on BATTLE_CENTER;
+// The battle field in world tiles;
 // baddies stand in their encounter formation from BADDY_ORIGIN, the party in
 // a column from ALLY_ORIGIN.
 BATTLE_CENTER :: Tile{VIEW_TILES_W / 2, VIEW_TILES_H / 2}
@@ -99,7 +99,6 @@ encounter_init :: proc() {
 	log.infof("battle is Staged with %v", game.battle.staging)
 	rules.start_encounter(game.battle.staging.encounter_name)
 	spawn_combatants(game.battle.staging.encounter_name)
-	camera_to_tile(BATTLE_CENTER)
 	battle_init()
 	game.battle.state = .Active
 	game.battle.paused = true
@@ -190,7 +189,12 @@ spawn_combatants :: proc(name: Encounter_Name) {
 
 draw_battle :: proc() {
 	// TODO: draw background
-	draw_battle_combatants()
+	rl.BeginMode2D(game.battle.camera)
+	{
+		draw_battle_combatants()
+		draw_debug_battle()
+	}
+	rl.EndMode2D()
 	battle_menu_draw()
 	draw_battle_popups()
 
@@ -204,14 +208,14 @@ draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxe
 	roundness := f32(1)
 	segments := i32(1)
 	x, y := origin.x, origin.y
-	w, h := f32(16 * ZOOM), f32(4 * ZOOM)
+	w, h := f32(16), f32(4)
 	if v < full {
 		rl.DrawRectangleRounded({x, y, w, h}, roundness, segments, empty_color)
 		rl.DrawRectangleRounded({x, y, w * v / full, h}, roundness, segments, filled_color)
 	} else {
 		rl.DrawRectangleRounded({x, y, w, h}, roundness, segments, maxed_color)
 	}
-	rl.DrawRectangleRoundedLinesEx({x, y, w, h}, roundness, segments, ZOOM, rl.BLACK) // border
+	rl.DrawRectangleRoundedLinesEx({x, y, w, h}, roundness, segments, 1, rl.BLACK) // border
 }
 
 @(private = "file")
@@ -231,7 +235,7 @@ draw_battle_combatants :: proc() {
 		}
 
 		// Under the combatant's tile.
-		gauge_origin := rl.GetWorldToScreen2D(tile_to_pixel(tile), game.world.camera) + {0, 1.05 * UI_TILE}
+		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * UI_TILE}
 		draw_gauge(gauge_origin, c.ticks, rules.READY_TICKS, rl.WHITE, rl.GRAY, rl.YELLOW)
 		if skill_play_idx, ok := rules.get_combatant_skill_play(c_idx).?; ok {
 			gauge_origin += {0, 0.35 * UI_TILE}
@@ -266,7 +270,7 @@ draw_battle_popups :: proc() {
 		k := p.t / BATTLE_POPUP_TIME
 		color := p.color
 		color.a = u8(255 * (1 - k))
-		at := rl.GetWorldToScreen2D(p.pos, game.world.camera) / UI_TILE
+		at := p.pos / UI_TILE
 		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color)
 	}
 }

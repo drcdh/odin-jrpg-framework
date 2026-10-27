@@ -78,6 +78,15 @@ draw_debug_world_hud :: proc() {
 	}
 }
 
+draw_debug_battle :: proc() {
+	if !debug_overlay do return
+
+	for h in game.battle.combatants {
+		e := hm.get(&game.entities, h)
+		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, rl.GREEN)
+	}
+}
+
 @(private)
 tile_rect :: proc(t: Tile) -> rl.Rectangle {
 	return {f32(t.x) * TILE_SIZE, f32(t.y) * TILE_SIZE, TILE_SIZE, TILE_SIZE}

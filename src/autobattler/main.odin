@@ -70,16 +70,13 @@ main :: proc() {
 			game.clock_advance(rl.GetFrameTime())
 			game.input_update(rl.GetFrameTime())
 			game.update()
+			game.debug_update()
 
 			rl.BeginDrawing()
 			rl.ClearBackground({30, 30, 40, 255})
-			rl.BeginMode2D(game.camera())
-			game.draw_world()
-			rl.EndMode2D()
 			game.draw_battle()
 			game.draw_screen_effects()
 			game.draw_dialogue()
-			game.draw_debug_hud()
 			game.debug_draw()
 			rl.EndDrawing()
 
