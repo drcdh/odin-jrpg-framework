@@ -8,10 +8,14 @@ import "core:math/rand"
 import "core:mem"
 import "core:os"
 
+import rl "vendor:raylib"
+
+import "../game"
 import "../rules"
 
 Options :: struct {
 	seed: u64 `usage:"Random seed (default 1959)."`,
+	visual: bool `usage:"Audiovisual mode (default false)."`
 }
 
 main :: proc() {
@@ -34,38 +38,62 @@ main :: proc() {
 		}
 	}
 
-	using rules
-
 	opt := Options{seed = 1959}
 	flags.parse_or_exit(&opt, os.args)
-
 	log.infof("Setting random seed to %d", opt.seed)
 	rand.reset(opt.seed)
 
-	init_new_game() // initializes party
-	defer destroy()
+	if opt.visual {
+		game.init(); defer game.shutdown()
 
-	autobattle = true
-	start_encounter(.Rat)
-	defer battle_destroy()
+		game.set_autobattle(true)
+		game.start_encounter(rules.Encounter_Name.Rat)
 
-	battle: for {
-		battle_tick()
-		if result, ok := check_win().?; ok {
-			switch result {
-			case .Lose:
-				fmt.println("BADDY TEAM WON")
-			case .Win:
-				fmt.println("PLAYER TEAM WON")
-			}
-			break battle
+		for !rl.WindowShouldClose() {
+			game.clock_advance(rl.GetFrameTime())
+			game.input_update(rl.GetFrameTime())
+			game.update()
+
+			rl.BeginDrawing()
+			rl.ClearBackground({30, 30, 40, 255})
+			game.draw_battle()
+			game.draw_screen_effects()
+			game.draw_dialogue()
+			game.draw_debug_hud()
+			game.debug_draw()
+			rl.EndDrawing()
+
+			free_all(context.temp_allocator)
 		}
+	} else {
+		using rules
+
+		init_new_game() // initializes party
+		defer destroy()
+
+		autobattle = true
+		start_encounter(rules.Encounter_Name.Rat)
+		defer battle_destroy()
+
+		battle: for {
+			battle_tick()
+			if result, ok := check_win().?; ok {
+				switch result {
+				case .Lose:
+					fmt.println("BADDY TEAM WON")
+				case .Win:
+					fmt.println("PLAYER TEAM WON")
+				}
+				break battle
+			}
+		}
+
+		battle_cleanup()
 	}
-	battle_cleanup()
 
 	// The PCs keep what happened to them in battle.
-	for pc_idx in 0 ..< party_size() {
-		pc := get_party_member(pc_idx)
-		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, get_stat(pc^, .Hitpoints), pc.status)
+	for pc_idx in 0 ..< rules.party_size() {
+		pc := rules.get_party_member(pc_idx)
+		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, rules.get_stat(pc^, .Hitpoints), pc.status)
 	}
 }

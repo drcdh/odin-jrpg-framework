@@ -21,6 +21,12 @@ Battle_Skill_Play :: struct {
 	windup:     Ticks,
 }
 
+Battle_Effect_Result :: struct {
+	actor_idx: int,
+	target_idx: int,
+	result: Effect_Result,
+}
+
 // Battle_Proc :: proc(start := false, result: Maybe(Battle_Result) = nil) -> bool // return true to do default init/win/lose stuff
 // Turn_Proc :: proc(actor_idx: int)
 
@@ -30,11 +36,12 @@ Battle_Result :: enum {
 }
 
 Battle :: struct {
-	allies:      [dynamic]int,
-	baddies:     [dynamic]int,
-	combatants:  [dynamic]Combatant,
-	encounter:   ^Encounter,
-	skill_plays: [dynamic]Battle_Skill_Play,
+	allies:       [dynamic]int,
+	baddies:      [dynamic]int,
+	combatants:   [dynamic]Combatant,
+	encounter:    ^Encounter,
+	skill_plays:  [dynamic]Battle_Skill_Play,
+	skill_result: [dynamic]Battle_Effect_Result, // used by game.battle for visualization; cleared after every tick
 }
 
 autobattle: bool // debug mode
@@ -51,6 +58,7 @@ battle_cleanup :: proc() {
 	clear(&battle.baddies)
 	clear(&battle.combatants)
 	clear(&battle.skill_plays)
+	clear(&battle.skill_result)
 	battle.encounter = nil
 }
 
@@ -59,6 +67,7 @@ battle_destroy :: proc() {
 	delete(battle.baddies)
 	delete(battle.combatants)
 	delete(battle.skill_plays)
+	delete(battle.skill_result)
 }
 
 check_win :: proc() -> Maybe(Battle_Result) {
@@ -96,6 +105,15 @@ combatant_ready :: proc(c: Combatant) -> bool {
 
 combatant_winding_up :: proc(c: Combatant) -> bool {
 	return c.windup
+}
+
+get_combatant_skill_play :: proc(c_idx: int) -> Maybe(int) {
+	for sp, i in battle.skill_plays {
+		if sp.actor_idx == c_idx {
+			return i
+		}
+	}
+	return nil
 }
 
 battle_tick :: proc() {
@@ -193,23 +211,43 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	switch targets in skill_play.targets {
 	case Target_One_Ally:
 		target := &battle.combatants[battle.allies[targets.i]]
-		do_skill(actor, target, skill)
+	  append(&battle.skill_result, Battle_Effect_Result{
+		  skill_play.actor_idx,
+		  targets.i,
+		  do_skill(actor, target, skill),
+		})
 	case Target_One_Baddy:
 		target := &battle.combatants[battle.baddies[targets.i]]
-		do_skill(actor, target, skill)
+	  append(&battle.skill_result, Battle_Effect_Result{
+		  skill_play.actor_idx,
+		  targets.i,
+		  do_skill(actor, target, skill),
+		})
 	case Target_All_Allies:
 		for target_idx in battle.allies {
 			target := &battle.combatants[target_idx]
-			do_skill(actor, target, skill)
+			append(&battle.skill_result, Battle_Effect_Result{
+			  skill_play.actor_idx,
+			  target_idx,
+			  do_skill(actor, target, skill),
+			})
 		}
 	case Target_All_Baddies:
 		for target_idx in battle.baddies {
 			target := &battle.combatants[target_idx]
-			do_skill(actor, target, skill)
+			append(&battle.skill_result, Battle_Effect_Result{
+			  skill_play.actor_idx,
+			  target_idx,
+				do_skill(actor, target, skill),
+			})
 		}
 	case Target_All_Combatants:
-		for &target in battle.combatants {
-			do_skill(actor, &target, skill)
+		for &target, target_idx in battle.combatants {
+			append(&battle.skill_result, Battle_Effect_Result{
+			  skill_play.actor_idx,
+			  target_idx,
+			  do_skill(actor, &target, skill),
+			})
 		}
 	}
 }

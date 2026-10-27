@@ -45,7 +45,7 @@ def odin_skill(row):
 		"windup": row["windup"] or 0,
 		"cost": row["cost"] or 100,
 		"cooldown": row["cooldown"] or 0,
-		# "animation": ("." + row["animation"]) if row["animation"] else "nil",
+		"animation": ("." + row["animation"]) if row["animation"] else "nil",
 		"sound": ("." + row["sound"]) if row["sound"] else "nil",
 		"description": process_text(row.get("description", "")),
 	}
@@ -78,13 +78,18 @@ out_f.write("}\n")
 out_f.close()
 
 
-# A skill's sound is presentation, so its table lives in the game package.
-out_f = open(f"{GAME_DEST}/skill_sound_data.odin", "w")
+out_f = open(f"{GAME_DEST}/skill_av_data.odin", "w")
 out_f.write("package game\n\n")
 out_f.write("import \"../rules\"\n\n")
+out_f.write("Skill_Name :: rules.Skill_Name\n\n")
 out_f.write("@(rodata)\n")
-out_f.write("skill_sounds := [rules.Skill_Name]Maybe(Sound_Name) {\n")
+out_f.write("skill_sounds := [Skill_Name]Maybe(Sound_Name) {\n")
 for skill in skills:
 	out_f.write(f"\t.{name_to_enum(skill['name'])} = {skill['sound']},\n")
-out_f.write("}\n")
+out_f.write("}\n\n")
+out_f.write("@(rodata)\n")
+out_f.write("skill_sprites := [Skill_Name]Maybe(Sprite_Name) {\n")
+for skill in skills:
+	out_f.write(f"\t.{name_to_enum(skill['name'])} = {skill['animation']},\n")
+out_f.write("}")
 out_f.close()

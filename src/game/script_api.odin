@@ -46,7 +46,7 @@ set_facing_player :: proc(id: Entity_Id) {
 	set_facing(id, dir_opposite(entity_get(player()).facing))
 }
 
-set_tint :: proc(id: Entity_Id, tint: rl.Color) {
+set_tint :: proc(id: Entity_Id, tint:= rl.WHITE) {
 	tween_cancel_target(Entity_Prop{id, .Tint})
 	if e, ok := entity_get(id); ok do e.sprite.tint = tint
 }

@@ -3,6 +3,8 @@ package game
 import "core:math/rand"
 import rl "vendor:raylib"
 
+import "../rules"
+
 // Flash the player red, slide away, wait, then restore the player's tint.
 glide_away :: proc(self: Entity_Id) {
 	player := player()
@@ -93,4 +95,17 @@ vanish :: proc(self: Entity_Id) {
 	if !scale_to(self, {1.8, 1.8}, 0.25, .Back_Out) do return
 	if !fade_to(self, 0, 0.6) do return
 	destroy_entity(self)
+}
+
+start_encounter :: proc(name: rules.Encounter_Name) {
+	set_curtain(1)
+	rules.start_encounter(name)
+	battle_init()
+	battle.active = true
+	battle.paused = true
+	spawn(proc(_: Entity_Id) {
+		if !fade_screen(0, .5) do return
+		if !pause(.5) do return
+		battle.pause = false
+	})
 }
