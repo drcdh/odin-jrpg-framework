@@ -84,6 +84,7 @@ update :: proc() {
 	player_update()
 	tweens_update(world.clock.dt)
 	scripts_update()
+	if battle.active do update_battle(world.clock.dt)
 	dialogue_update(world.clock.dt)
 	sounds_update(world.clock.dt)
 	world_menu_update()

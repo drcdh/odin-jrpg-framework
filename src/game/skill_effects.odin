@@ -1,5 +1,6 @@
 package game
 
+import sa "core:container/small_array"
 import "core:fmt"
 import rl "vendor:raylib"
 
@@ -27,35 +28,50 @@ do_skill :: proc(actor: ^rules.Character, target_party_idx: int, skill: rules.Sk
 }
 
 // Seconds between one result's popups.
-@(private = "file")
 POPUP_GAP :: f32(0.4)
 
-// Popups over the target in the Targeting pane: the hit or HP change, then
-// levels, then status.
-@(private = "file")
-show_effect_in_world_menu :: proc(slot: int, r: rules.Effect_Result) {
-	delay: f32
-	popup :: proc(slot: int, color: rl.Color, delay: ^f32, format: string, args: ..any) {
-		world_menu_popup(slot, color, delay^, fmt.tprintf(format, ..args))
-		delay^ += POPUP_GAP
+// One line of text that shows part of an Effect_Result. It allocates
+// nothing, so scripts can make them too.
+Effect_Popup :: struct {
+	text:  [16]u8, // NUL-terminated
+	color: rl.Color,
+}
+
+Effect_Popups :: sa.Small_Array(4, Effect_Popup)
+
+// The popups for `r`, in order: the hit or HP change, then levels, then
+// status (unless `status` is false).
+effect_popups :: proc(r: rules.Effect_Result, status := true) -> (popups: Effect_Popups) {
+	popup :: proc(popups: ^Effect_Popups, color: rl.Color, format: string, args: ..any) {
+		p := Effect_Popup{color = color}
+		fmt.bprintf(p.text[:len(p.text) - 1], format, ..args)
+		sa.push(popups, p)
 	}
 
 	switch r.hit {
-	case .Miss:  popup(slot, rl.GRAY, &delay, "Miss!")
-	case .Evade: popup(slot, rl.GRAY, &delay, "Evade!")
+	case .Miss:  popup(&popups, rl.GRAY, "Miss!")
+	case .Evade: popup(&popups, rl.GRAY, "Evade!")
 	case .Hit:
 	}
-	if r.hp_change < 0 do popup(slot, rl.WHITE, &delay, "%d", -r.hp_change)
-	if r.hp_change > 0 do popup(slot, rl.GREEN, &delay, "%d", r.hp_change)
-	if r.levels > 0 do popup(slot, rl.PURPLE, &delay, "+%d LV", r.levels)
-	if s, ok := r.status.?; ok {
+	if r.hp_change < 0 do popup(&popups, rl.WHITE, "%d", -r.hp_change)
+	if r.hp_change > 0 do popup(&popups, rl.GREEN, "%d", r.hp_change)
+	if r.levels > 0 do popup(&popups, rl.PURPLE, "+%d LV", r.levels)
+	if s, ok := r.status.?; ok && status {
 		switch r.status_result {
 		case .None:
-		case .Added:         popup(slot, rl.RED, &delay, "%v", s)
-		case .Ineffective:   popup(slot, rl.PURPLE, &delay, "Ineff!")
-		case .Resisted:      popup(slot, rl.PURPLE, &delay, "Resist!")
-		case .Removed:       popup(slot, rl.GREEN, &delay, "Cured")
-		case .Remove_Missed: popup(slot, rl.PURPLE, &delay, "Miss")
+		case .Added:         popup(&popups, rl.RED, "%v", s)
+		case .Ineffective:   popup(&popups, rl.PURPLE, "Ineff!")
+		case .Resisted:      popup(&popups, rl.PURPLE, "Resist!")
+		case .Removed:       popup(&popups, rl.GREEN, "Cured")
+		case .Remove_Missed: popup(&popups, rl.PURPLE, "Miss")
 		}
 	}
+	return
+}
+
+// Popups over the target in the Targeting pane, POPUP_GAP apart.
+@(private = "file")
+show_effect_in_world_menu :: proc(slot: int, r: rules.Effect_Result) {
+	popups := effect_popups(r)
+	for &p, i in sa.slice(&popups) do world_menu_popup(slot, p.color, f32(i) * POPUP_GAP, string(cstring(&p.text[0])))
 }

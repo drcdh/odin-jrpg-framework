@@ -53,13 +53,13 @@ BATTLE_PANE_ORIGIN := [BATTLE_MENU_NUM_TEXTURES]Tile {
 	{0, VIEW_TILES_H - 4}, // Inventory
 }
 
-BATTLE_PANE_DIM := [BATTLE_MENU_NUM_TEXTURES][2]int {
+BATTLE_PANE_DIM := [BATTLE_MENU_NUM_TEXTURES]Tile {
 	{VIEW_TILES_W, 2}, // Text
 	{7, 4}, // Baddies
 	{VIEW_TILES_W - 7, 4}, // Party
 	{4, 4}, // Top
-	{10, int(BATTLE_MENU_SKILLS_ROWS / 2) + 1}, // Skills
-	{10, int(BATTLE_MENU_INVENTORY_ROWS / 2) + 1}, // Inventory
+	{10, BATTLE_MENU_SKILLS_ROWS / 2 + 1}, // Skills
+	{10, BATTLE_MENU_INVENTORY_ROWS / 2 + 1}, // Inventory
 }
 
 BATTLE_MENU_NUM_TEXTURES :: len(Battle_Pane)
@@ -79,7 +79,7 @@ battle_menu: Battle_Menu
 battle_menu_load :: proc() {
 	for pane in Battle_Pane {
 		dim := BATTLE_PANE_DIM[pane]
-		battle_menu.textures[pane] = rl.LoadRenderTexture(i32(dim.x) * i32(tile_size), i32(dim.y) * i32(tile_size))
+		battle_menu.textures[pane] = rl.LoadRenderTexture(i32(f32(dim.x) * UI_TILE), i32(f32(dim.y) * UI_TILE))
 	}
 }
 
@@ -159,7 +159,7 @@ battle_redraw_top_pane :: proc() {
 
 battle_draw_top_icons :: proc() {
 	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + tile_to_pixel(.5, .5 + .5 * f32(battle_menu.top)),
+		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + ui_to_screen(.5, .5 + .5 * f32(battle_menu.top)),
 	)
 }
 
@@ -229,8 +229,8 @@ battle_redraw_skills_pane :: proc() {
 
 battle_draw_skills_icons :: proc() {
 	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
-		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
+		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
+		ui_to_screen(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
 	)
 }
 
@@ -251,8 +251,8 @@ battle_redraw_inventory_pane :: proc() {
 
 battle_draw_inventory_icons :: proc() {
 	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
-		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
+		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
+		ui_to_screen(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
 	)
 }
 
@@ -280,7 +280,7 @@ battle_redraw_pane :: proc(pane: Battle_Pane) {
 
 battle_draw_pane :: proc(pane: Battle_Pane) {
 	origin_tile := BATTLE_PANE_ORIGIN[pane]
-	origin := tile_to_pixel(origin_tile)
+	origin := ui_tile_to_screen(origin_tile)
 	texture := battle_menu.textures[pane].texture
 	w := f32(texture.width)
 	h := f32(texture.height)

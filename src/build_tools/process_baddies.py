@@ -1,14 +1,28 @@
 import csv
+import os
 
 from processing import name_to_enum
 
 ROOT = "./content"
 DEST = "./src/rules"
+GAME_DEST = "./src/game"
+SPRITE_ROOT = "./assets/sprites"
 
-# TODO: the downed and texture columns are presentation/scripting, not ported yet.
+# TODO: the downed column is scripting, not ported yet.
 
 baddy_ids = []
 templates = []
+sprites = []
+
+sprite_names = {name_to_enum(os.path.splitext(f)[0]) for f in os.listdir(SPRITE_ROOT) if f.endswith(".ase")}
+
+# The texture column names the battle sprite; empty means a sprite named like
+# the baddy, if there is one.
+def baddy_sprite(row):
+	if row["texture"]:
+		return "." + name_to_enum(row["texture"])
+	sprite = name_to_enum(row["name"])
+	return "." + sprite if sprite in sprite_names else "nil"
 
 def spoil(item, p):
 	return "{{ {}, {} }}".format("." + item if item else "nil", p or "0")
@@ -38,6 +52,7 @@ for row in reader:
 		n = 1
 	baddy_ids.append(baddy_id)
 	templates.append(odin_template(row))
+	sprites.append(baddy_sprite(row))
 in_f.close()
 
 out_f = open(f"{DEST}/baddy_data.odin", "w")
@@ -54,4 +69,16 @@ for baddy_id, template in zip(baddy_ids, templates):
 	out_f.write(f"\t.{baddy_id} = {{ {template} }},\n")
 out_f.write("}\n")
 
+out_f.close()
+
+
+out_f = open(f"{GAME_DEST}/baddy_av_data.odin", "w")
+out_f.write("package game\n\n")
+out_f.write("import \"../rules\"\n\n")
+out_f.write("Baddy_Id :: rules.Baddy_Id\n\n")
+out_f.write("@(rodata)\n")
+out_f.write("baddy_sprites := [Baddy_Id]Maybe(Sprite_Name) {\n")
+for baddy_id, sprite in zip(baddy_ids, sprites):
+	out_f.write(f"\t.{baddy_id} = {sprite},\n")
+out_f.write("}\n")
 out_f.close()

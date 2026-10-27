@@ -21,10 +21,12 @@ Battle_Skill_Play :: struct {
 	windup:     Ticks,
 }
 
+// What a skill play did to one target. target_idx is a combatant index.
 Battle_Effect_Result :: struct {
-	actor_idx: int,
+	actor_idx:  int,
 	target_idx: int,
-	result: Effect_Result,
+	skill_name: Skill_Name,
+	result:     Effect_Result,
 }
 
 // Battle_Proc :: proc(start := false, result: Maybe(Battle_Result) = nil) -> bool // return true to do default init/win/lose stuff
@@ -117,6 +119,7 @@ get_combatant_skill_play :: proc(c_idx: int) -> Maybe(int) {
 }
 
 battle_tick :: proc() {
+	clear(&battle.skill_result)
 	take_turns()
 
 	TICK :: 1 // FIXME
@@ -208,47 +211,22 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	actor := &battle.combatants[skill_play.actor_idx]
 	actor.windup = false
 
+	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
+		r := do_skill(actor, &battle.combatants[target_idx], skill)
+		append(&battle.skill_result, Battle_Effect_Result{skill_play.actor_idx, target_idx, skill_play.skill_name, r})
+	}
+
 	switch targets in skill_play.targets {
 	case Target_One_Ally:
-		target := &battle.combatants[battle.allies[targets.i]]
-	  append(&battle.skill_result, Battle_Effect_Result{
-		  skill_play.actor_idx,
-		  targets.i,
-		  do_skill(actor, target, skill),
-		})
+		affect(skill_play, actor, battle.allies[targets.i], skill)
 	case Target_One_Baddy:
-		target := &battle.combatants[battle.baddies[targets.i]]
-	  append(&battle.skill_result, Battle_Effect_Result{
-		  skill_play.actor_idx,
-		  targets.i,
-		  do_skill(actor, target, skill),
-		})
+		affect(skill_play, actor, battle.baddies[targets.i], skill)
 	case Target_All_Allies:
-		for target_idx in battle.allies {
-			target := &battle.combatants[target_idx]
-			append(&battle.skill_result, Battle_Effect_Result{
-			  skill_play.actor_idx,
-			  target_idx,
-			  do_skill(actor, target, skill),
-			})
-		}
+		for target_idx in battle.allies do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Baddies:
-		for target_idx in battle.baddies {
-			target := &battle.combatants[target_idx]
-			append(&battle.skill_result, Battle_Effect_Result{
-			  skill_play.actor_idx,
-			  target_idx,
-				do_skill(actor, target, skill),
-			})
-		}
+		for target_idx in battle.baddies do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Combatants:
-		for &target, target_idx in battle.combatants {
-			append(&battle.skill_result, Battle_Effect_Result{
-			  skill_play.actor_idx,
-			  target_idx,
-			  do_skill(actor, &target, skill),
-			})
-		}
+		for _, target_idx in battle.combatants do affect(skill_play, actor, target_idx, skill)
 	}
 }
 

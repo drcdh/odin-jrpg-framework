@@ -13,9 +13,12 @@ import rl "vendor:raylib"
 import "../game"
 import "../rules"
 
+_ :: mem // only used in debug builds
+
 Options :: struct {
+	auto: bool `usage:"Autobattle mode, must be true if visual is false (default true)."`,
 	seed: u64 `usage:"Random seed (default 1959)."`,
-	visual: bool `usage:"Audiovisual mode (default false)."`
+	visual: bool `usage:"Audiovisual mode (default false)."`,
 }
 
 main :: proc() {
@@ -38,24 +41,41 @@ main :: proc() {
 		}
 	}
 
-	opt := Options{seed = 1959}
+	opt := Options{auto = true, seed = 1959}
 	flags.parse_or_exit(&opt, os.args)
 	log.infof("Setting random seed to %d", opt.seed)
 	rand.reset(opt.seed)
 
 	if opt.visual {
-		game.init(); defer game.shutdown()
+		rl.SetConfigFlags({.VSYNC_HINT})
+		rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, "Autobattler")
+		defer rl.CloseWindow()
+		rl.SetTargetFPS(game.THROTTLED_FPS)
+		rl.InitAudioDevice()
+		defer rl.CloseAudioDevice() // after game.shutdown: it unloads sounds
 
-		game.set_autobattle(true)
+		game.init()
+		defer game.shutdown() // before CloseWindow: it unloads textures
+
+		rules.init_new_game() // initializes party
+		if opt.auto do game.set_autobattle(true)
 		game.start_encounter(rules.Encounter_Name.Rat)
 
 		for !rl.WindowShouldClose() {
+			if result, ok := game.battle_result().?; ok {
+				print_result(result)
+				break
+			}
+
 			game.clock_advance(rl.GetFrameTime())
 			game.input_update(rl.GetFrameTime())
 			game.update()
 
 			rl.BeginDrawing()
 			rl.ClearBackground({30, 30, 40, 255})
+			rl.BeginMode2D(game.camera())
+			game.draw_world()
+			rl.EndMode2D()
 			game.draw_battle()
 			game.draw_screen_effects()
 			game.draw_dialogue()
@@ -65,6 +85,11 @@ main :: proc() {
 
 			free_all(context.temp_allocator)
 		}
+
+		game.battle_deactivate()
+		game.battle_destroy()
+	} else if !opt.auto {
+		fmt.println("auto must be true if visual is false")
 	} else {
 		using rules
 
@@ -78,12 +103,7 @@ main :: proc() {
 		battle: for {
 			battle_tick()
 			if result, ok := check_win().?; ok {
-				switch result {
-				case .Lose:
-					fmt.println("BADDY TEAM WON")
-				case .Win:
-					fmt.println("PLAYER TEAM WON")
-				}
+				print_result(result)
 				break battle
 			}
 		}
@@ -95,5 +115,14 @@ main :: proc() {
 	for pc_idx in 0 ..< rules.party_size() {
 		pc := rules.get_party_member(pc_idx)
 		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, rules.get_stat(pc^, .Hitpoints), pc.status)
+	}
+}
+
+print_result :: proc(result: rules.Battle_Result) {
+	switch result {
+	case .Lose:
+		fmt.println("BADDY TEAM WON")
+	case .Win:
+		fmt.println("PLAYER TEAM WON")
 	}
 }

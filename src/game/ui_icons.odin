@@ -23,11 +23,13 @@ ui_init :: proc() {
 	world.ui.select_tile_down = ui_icon_state(.Select_Tile_Down)
 	world.ui.menu_icon        = ui_icon_state(.Select_Icon_Small)
 	world_menu_load()
+	battle_menu_load()
 }
 
 @(private)
 ui_destroy :: proc() {
 	world_menu_unload()
+	battle_menu_unload()
 	font_destroy()
 	panes_destroy()
 }
