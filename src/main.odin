@@ -23,6 +23,8 @@ main :: proc() {
 		}
 	}
 
+	rl.SetTraceLogLevel(rl.TraceLogLevel.WARNING)
+
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, game.GAME_TITLE)
 	defer rl.CloseWindow()

@@ -1,7 +1,10 @@
 package game
 
+import "core:log"
 import "core:math/rand"
 import rl "vendor:raylib"
+
+import "../rules"
 
 // Flash the player red, slide away, wait, then restore the player's tint.
 glide_away :: proc(self: Entity_Id) {
@@ -94,3 +97,45 @@ vanish :: proc(self: Entity_Id) {
 	if !fade_to(self, 0, 0.6) do return
 	destroy_entity(self)
 }
+
+// A chest's trigger script: opens the box, gives `items` and says so. The box
+// can't be opened again: its trigger is cleared and the datum is set, so the
+// level spawns it opened from then on.
+items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..rules.Item_Name) {
+	set_game_data(datum, true)
+	clear_trigger(self)
+	set_sprite_tag_of(self, .Opened)
+	if len(items) == 0 {
+		say("Ooh, nothing!")
+	} else {
+		get_items(..items)
+	}
+}
+
+monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: rules.Encounter_Name, items: ..rules.Item_Name) {
+	set_game_data(datum, true)
+	clear_trigger(self)
+	set_sprite_tag_of(self, .Opened)
+	say("Monster in a box!")
+	start_encounter(encounter)
+	if !battle_done() do return
+	// say nothing if no items in this case
+	if len(items) > 0 do get_items(..items)
+}
+
+start_encounter :: proc(name: rules.Encounter_Name) {
+	log.infof("starting encounter %v", name)
+	battle_stage(name) // tell battle to initialize from encounter. Must happen on main thread to load baddy sprites
+		// fade_screen(0, .5)
+		// pause(.5)
+		// battle.paused = false
+	spawn(proc(_: Entity_Id) {
+		if !fade_screen(1, .5) do return
+		if !battle_active() do return // wait until initialization is done
+		play_music(.Battle)
+		if !fade_screen(0, .5) do return
+		if !pause(.5) do return
+		battle.paused = false
+	}, name = "battle start")
+}
+

@@ -16,6 +16,7 @@ Target_All_Allies :: rules.Target_All_Allies
 Target_All_Baddies :: rules.Target_All_Baddies
 Target_All_Combatants :: rules.Target_All_Combatants
 Consumable :: rules.Consumable
+Encounter_Name :: rules.Encounter_Name
 
 // helpers
 get_game_data  :: rules.get_game_data

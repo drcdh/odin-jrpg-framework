@@ -30,8 +30,20 @@ ALLY_ORIGIN   :: Tile{12, 3}
 COMBATANT_LAYER  :: 0
 SKILL_ANIM_LAYER :: 1 // skill animations draw over the combatants
 
+Battle_State :: enum {
+	None,
+	Staged, // battle.staging is set, but encounter_init has not run
+	Active, // encounter_init has run and battle is being played
+}
+
+Battle_Staging :: struct {
+	encounter_name: Encounter_Name,
+	// TODO background, music
+}
+
 Battle :: struct {
-	active:         bool, // true when in battle mode (and not world mode)
+	state:					Battle_State,
+	staging:				Battle_Staging,
 	// background: Maybe(Battle_Background),
 	combatants:     [dynamic]Entity_Id, // one per rules.battle.combatants, same order
 	paused:         bool, // true while running audiovisual stuff
@@ -78,20 +90,21 @@ REACTION_TINTS := [Reaction]rl.Color {
 	.Missed = rl.GRAY,
 }
 
-start_encounter :: proc(name: rules.Encounter_Name) {
-	set_curtain(1)
-	rules.start_encounter(name)
-	spawn_combatants(name)
+battle_stage :: proc(name: Encounter_Name) {
+	battle.staging = {name}
+	battle.state = .Staged
+}
+
+encounter_init :: proc() {
+	assert(battle.state == .Staged)
+	log.infof("battle is Staged with %v", battle.staging)
+	rules.start_encounter(battle.staging.encounter_name)
+	spawn_combatants(battle.staging.encounter_name)
 	camera_to_tile(BATTLE_CENTER)
 	battle_init()
-	battle.active = true
+	battle.state = .Active
 	battle.paused = true
-	play_music(.Battle)
-	spawn(proc(_: Entity_Id) {
-		if !fade_screen(0, .5) do return
-		if !pause(.5) do return
-		battle.paused = false
-	}, name = "battle start")
+	log.info("battle is Active")
 }
 
 battle_cleanup :: proc() {
@@ -103,10 +116,11 @@ battle_cleanup :: proc() {
 	sa.clear(&battle.popups)
 	battle.result = nil
 	battle_menu_end()
+	battle.staging = {}
 }
 
 battle_deactivate :: proc() {
-	battle.active = false
+	battle.state = .None
 	battle_cleanup()
 }
 
@@ -125,6 +139,18 @@ battle_init :: proc() {
 	battle_menu_start()
 }
 
+battle_staged :: proc() -> bool {
+	return battle.state == .Staged
+}
+
+battle_active :: proc() -> bool {
+	return battle.state == .Active
+}
+
+battle_done :: proc() -> bool {
+	return battle.state == .None
+}
+
 // The winning team, once the battle is over and its last skill play has been shown.
 battle_result :: proc() -> Maybe(rules.Battle_Result) {
 	return battle.result
@@ -134,8 +160,10 @@ battle_result :: proc() -> Maybe(rules.Battle_Result) {
 // rules.battle.combatants[c_idx]. rules.start_encounter adds the baddies in
 // formation order, then the party in PC order.
 @(private = "file")
-spawn_combatants :: proc(name: rules.Encounter_Name) {
+spawn_combatants :: proc(name: Encounter_Name) {
+	log.infof("spawning combatants for %v", name)
 	spawn_combatant :: proc(name: string, tile: Tile, sprite: Sprite_State) {
+		log.infof("spawning combatant %s at %v", name, tile)
 		append(&battle.combatants, spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true}))
 	}
 

@@ -213,9 +213,7 @@ render_{lr_lower} :: proc() {{
 		items = item_entity.properties["items"]
 		items = ", " + ", ".join(["."+_s for _s in items.split(",")]) if items else ""
 		# A Box entity; a hidden chest is an invisible ghost on its tile.
-		script = f"items_in_a_box(self, .{datum}{items})"
-		if encounter:
-			script += f" // TODO: monster_in_a_box (encounter {encounter})"
+		script = f"monster_in_a_box (self, .{datum}, .{encounter}{items})" if encounter else f"items_in_a_box(self, .{datum}{items})"
 		opened = f"get_game_data(Chest_Datum.{datum})"
 		sprite = "" if hidden else f"\n\t\tsprite = create_sprite_state(.Box, {opened} ? .Opened : .Closed),"
 		ghost = "true" if hidden else "false"
