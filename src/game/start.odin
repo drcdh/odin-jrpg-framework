@@ -2,6 +2,8 @@ package game
 
 GAME_TITLE :: "Odin JRPG"
 
+SKIP_INTRO :: #config(SKIP_INTRO, false)
+
 // Called by main after init.
 start_game :: proc() {
 	// TODO: enter the start menu
@@ -13,5 +15,9 @@ start_game :: proc() {
 new_game :: proc() {
 	// Eventually, this procedure should be called from the start menu when starting a new game
 	init_new_game()
-	start_level(.Quarry_Main, with_player = false)
+	when SKIP_INTRO {
+		start_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO)
+	} else {
+		start_level(.Quarry_Main, with_player = false)
+	}
 }
