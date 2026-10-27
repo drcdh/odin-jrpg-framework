@@ -415,7 +415,7 @@ change_baddy_selection :: proc(t, d: int) -> int {
 		if target < 0 {target = len(rules.battle.baddies) - 1}
 		if target >= len(rules.battle.baddies) {target = 0}
 		if target == initial_target {break}
-		// if rules.battle.combatants[rules.battle.baddies[target]].enabled {break}
+		if rules.combatant_alive(rules.battle.combatants[rules.battle.baddies[target]]) {break}
 		target += d
 	}
 	return target
