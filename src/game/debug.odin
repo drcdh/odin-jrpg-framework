@@ -20,6 +20,7 @@ debug_framerate_count: int
 debug_framerate_sum: f32
 
 debug_grid: bool
+debug_overlay: bool
 debug_text: bool
 
 // TODO: battle-only flags, unused until battles are ported.
@@ -30,7 +31,7 @@ throttle := true // vsync and SetTargetFPS(THROTTLED_FPS), as main sets up
 
 // World space (inside BeginMode2D): grid lines, trigger outlines, and the tile the player faces.
 draw_debug_world :: proc() {
-	if !game.world.debug_overlay do return
+	if !debug_overlay do return
 
 	view := visible_world_rect()
 	x0 := math.floor(view.x / TILE_SIZE) * TILE_SIZE
@@ -53,8 +54,8 @@ draw_debug_world :: proc() {
 }
 
 // Screen space (after EndMode2D): counters, the player's tile, and each live script's wait.
-draw_world_debug_hud :: proc() {
-	if !game.world.debug_overlay do return
+draw_debug_world_hud :: proc() {
+	if !debug_overlay do return
 
 	FONT :: 16
 	x, y: i32 = 10, 10

@@ -6,7 +6,6 @@ import rl "vendor:raylib"
 // game state specific to world mode: walking around a map, interacting with NPCs, etc.
 World :: struct {
 	camera:          Camera,
-	debug_overlay:   bool,
 	level_map:       Level_Map,
 	levels:          Levels, // the current level and level changes
 	player:          Entity_Id,
@@ -34,12 +33,13 @@ draw_world :: proc() {
 	rl.BeginMode2D(game.world.camera)
 	draw_map()
 	draw_entities()
-	draw_world_menu()
 	draw_debug_world()
 	rl.EndMode2D()
+	draw_debug_world_hud()
+	draw_world_menu()
 }
 
 player     :: proc() -> Entity_Id { return game.world.player }
 set_player :: proc(id: Entity_Id) { game.world.player = id }
 
-toggle_debug :: proc() { game.world.debug_overlay = !game.world.debug_overlay }
+toggle_debug :: proc() { debug_overlay = !debug_overlay }

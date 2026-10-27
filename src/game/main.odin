@@ -110,7 +110,6 @@ draw :: proc() {
 		draw_battle()
 	} else {
 		draw_world()
-		draw_world_debug_hud()
 	}
 	draw_screen_effects()
 	draw_dialogue()
