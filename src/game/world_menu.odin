@@ -118,7 +118,7 @@ world_menu_enter :: proc() {
 	menu.ui_data = World_Menu_UI_Data{}
 	menu.ui_state = .Top
 	menu.stale = true
-	menu.was_paused = world.clock.paused
+	menu.was_paused = game.clock.paused
 	set_paused(true)
 }
 
@@ -207,7 +207,7 @@ draw_world_menu :: proc() {
 // Reads the menu's input. Call after dialogue_update.
 @(private)
 world_menu_update :: proc() {
-	popups_update(world.clock.raw_dt)
+	popups_update(game.clock.raw_dt)
 	#partial switch menu.ui_state {
 	case .Inactive:
 

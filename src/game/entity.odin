@@ -44,24 +44,24 @@ spawn_entity :: proc(e: Entity) -> Entity_Id {
 	e := e
 	e.pos = tile_center(e.tile)
 	if e.step_time == 0 do e.step_time = default_step_time(e.sprite)
-	h, err := hm.add(&world.entities, e)
+	h, err := hm.add(&game.entities, e)
 	assert(err == nil, "out of memory spawning entity")
 	return h
 }
 
 entity_get :: proc(id: Entity_Id) -> (^Entity, bool) #optional_ok {
-	return hm.get(&world.entities, id)
+	return hm.get(&game.entities, id)
 }
 
 entity_alive :: proc(id: Entity_Id) -> bool {
-	return hm.is_valid(&world.entities, id)
+	return hm.is_valid(&game.entities, id)
 }
 
 // Linear scan, so resolve once at the top of a script and keep the handle.
 // Returns `Entity_Id{}` and logs a warning if no entity has that name; with
 // duplicate names, the first in handle-map order wins.
 find :: proc(name: string, loc := #caller_location) -> Entity_Id {
-	it := hm.iterator_make(&world.entities)
+	it := hm.iterator_make(&game.entities)
 	for e, h in hm.iterate(&it) {
 		if e.name == name do return h
 	}
@@ -106,12 +106,12 @@ entity_tile :: proc(id: Entity_Id) -> Tile {
 entity_arrived :: proc(id: Entity_Id) {
 	// In WRAP mode, an entity that walked off the edge comes back in on the
 	// other side; the map repeats, so nothing visibly jumps.
-	if world.level_map.mode == .WRAP && !map_contains(entity_tile(id)) {
+	if game.world.level_map.mode == .WRAP && !map_contains(entity_tile(id)) {
 		set_tile(id, wrap_tile(entity_tile(id)))
 	}
 	tile := entity_tile(id)
 	triggers := make([dynamic]Entity_Id, context.temp_allocator)
-	it := hm.iterator_make(&world.entities)
+	it := hm.iterator_make(&game.entities)
 	for e, h in hm.iterate(&it) {
 		if h != id && e.on_step != nil && e.tile == tile do append(&triggers, h)
 	}
@@ -124,15 +124,15 @@ entity_arrived :: proc(id: Entity_Id) {
 // the rest of the frame. Its tweens and the scripts running on it are cancelled.
 destroy_entity :: proc(id: Entity_Id) {
 	if !entity_alive(id) do return
-	for pending in world.pending_destroy do if pending == id do return
-	append(&world.pending_destroy, id)
+	for pending in game.pending_destroy do if pending == id do return
+	append(&game.pending_destroy, id)
 }
 
 entities_flush_destroyed :: proc() {
-	for id in world.pending_destroy {
+	for id in game.pending_destroy {
 		tweens_cancel_for_entity(id)
 		scripts_cancel_for_entity(id)
-		hm.remove(&world.entities, id)
+		hm.remove(&game.entities, id)
 	}
-	clear(&world.pending_destroy)
+	clear(&game.pending_destroy)
 }

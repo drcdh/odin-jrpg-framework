@@ -49,7 +49,7 @@ tween_once_reaches_end_and_is_removed :: proc(t: ^testing.T) {
 	run_for(0.6)
 	expect_near(t, entity_pos(e).x, 10)
 	testing.expect(t, tween_done(tw))
-	testing.expect_value(t, hm.len(world.tweens), 0)
+	testing.expect_value(t, hm.len(game.tweens), 0)
 }
 
 @(test)
@@ -106,7 +106,7 @@ tween_on_same_target_replaces :: proc(t: ^testing.T) {
 	b := tween_to(e, .Pos_X, {-100, 0, 0, 0}, 1)
 	testing.expect(t, tween_done(a))
 	testing.expect(t, !tween_done(b))
-	testing.expect_value(t, hm.len(world.tweens), 1)
+	testing.expect_value(t, hm.len(game.tweens), 1)
 }
 
 @(test)
@@ -152,15 +152,15 @@ find_by_name :: proc(t: ^testing.T) {
 script_pause_resumes_on_time :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	spawn(proc(_: Entity_Id) {
-		started := world.clock.time
+		started := game.clock.time
 		pause(0.5)
-		resumed_at = world.clock.time - started
+		resumed_at = game.clock.time - started
 	})
 	run_for(1)
 	// At most one frame late (f32 dt accumulation can land just short of the deadline).
 	testing.expectf(t, resumed_at >= 0.5 - 0.0001 && resumed_at <= 0.5 + f64(FRAME) + 0.0001, "paused for %v", resumed_at)
-	testing.expect_value(t, len(world.script_order), 0)
-	testing.expect_value(t, hm.len(world.scripts), 0)
+	testing.expect_value(t, len(game.script_order), 0)
+	testing.expect_value(t, hm.len(game.scripts), 0)
 }
 
 @(test)
@@ -185,7 +185,7 @@ wait_all_waits_for_slowest :: proc(t: ^testing.T) {
 		a := tween_by(self, .Pos_X, {10, 0, 0, 0}, 0.2)
 		b := tween_by(self, .Rotation, {90, 0, 0, 0}, 0.6)
 		wait_all(a, b)
-		resumed_at = world.clock.time
+		resumed_at = game.clock.time
 	}, wait_all_entity)
 	run_for(0.4)
 	testing.expect(t, script_alive(s))
@@ -209,7 +209,7 @@ move_entity_sets_tile_then_slides :: proc(t: ^testing.T) {
 	e := spawn_entity({tile = {0, 0}})
 	spawn(proc(self: Entity_Id) {
 		move_entity(self, {2, 3}, 0.5)
-		resumed_at = world.clock.time
+		resumed_at = game.clock.time
 	}, e)
 	run_for(FRAME)
 	testing.expect_value(t, entity_tile(e), Tile{2, 3})
@@ -249,7 +249,7 @@ cancel_stops_looping_script :: proc(t: ^testing.T) {
 	script_cancel(s)
 	run_for(FRAME)
 	testing.expect(t, !script_alive(s))
-	testing.expect_value(t, len(world.script_order), 0)
+	testing.expect_value(t, len(game.script_order), 0)
 }
 
 @(test)
@@ -274,12 +274,12 @@ ignoring_cancel_does_not_hang :: proc(t: ^testing.T) {
 		for _ in 0..<20 do pause(10)
 	})
 	run_for(0.1)
-	for len(world.script_order) > 0 && frames < 100 {
-		for h in world.script_order do script_cancel(h)
+	for len(game.script_order) > 0 && frames < 100 {
+		for h in game.script_order do script_cancel(h)
 		run_for(FRAME)
 		frames += 1
 	}
-	testing.expect_value(t, len(world.script_order), 0)
+	testing.expect_value(t, len(game.script_order), 0)
 }
 
 @(test)
@@ -288,7 +288,7 @@ script_spawned_by_script_and_waited_on :: proc(t: ^testing.T) {
 	spawn(proc(_: Entity_Id) {
 		child := spawn(proc(_: Entity_Id) { pause(0.3) })
 		wait_script(child)
-		resumed_at = world.clock.time
+		resumed_at = game.clock.time
 	})
 	run_for(0.6)
 	testing.expectf(t, resumed_at >= 0.3 && resumed_at < 0.4, "resumed at %v", resumed_at)
@@ -315,15 +315,15 @@ flash_screen_fades_out :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	spawn(proc(_: Entity_Id) {
 		flash_screen({255, 0, 0, 200}, 0.25)
-		resumed_at = world.clock.time
+		resumed_at = game.clock.time
 	})
 	run_for(FRAME)
-	testing.expect_value(t, world.flash.color, rl.Color{255, 0, 0, 200})
-	expect_near(t, world.flash.alpha, 200)
+	testing.expect_value(t, game.flash.color, rl.Color{255, 0, 0, 200})
+	expect_near(t, game.flash.alpha, 200)
 	run_for(0.1)
-	testing.expect(t, world.flash.alpha > 0 && world.flash.alpha < 200)
+	testing.expect(t, game.flash.alpha > 0 && game.flash.alpha < 200)
 	run_for(0.25)
-	expect_near(t, world.flash.alpha, 0)
+	expect_near(t, game.flash.alpha, 0)
 	testing.expectf(t, resumed_at >= 0.25, "resumed at %v", resumed_at)
 }
 
@@ -334,11 +334,11 @@ new_flash_replaces_old :: proc(t: ^testing.T) {
 	run_for(0.5)
 	b := tween_flash(rl.BLUE, 0.25)
 	testing.expect(t, tween_done(a))
-	testing.expect_value(t, world.flash.color, rl.BLUE)
-	expect_near(t, world.flash.alpha, 255)
+	testing.expect_value(t, game.flash.color, rl.BLUE)
+	expect_near(t, game.flash.alpha, 255)
 	run_for(0.3)
 	testing.expect(t, tween_done(b))
-	expect_near(t, world.flash.alpha, 0)
+	expect_near(t, game.flash.alpha, 0)
 }
 
 @(test)
@@ -379,7 +379,7 @@ blink_meta :: proc() -> Sprite_Metadata {
 // Made-up sheets, so the tests don't depend on what's in assets/sprites.
 @(private = "file")
 fake_sprite :: proc(m: Sprite_Metadata) -> Sprite_State {
-	h, _ := hm.add(&world.sprites, Sprite{meta = m})
+	h, _ := hm.add(&game.sprites, Sprite{meta = m})
 	s := Sprite_State{sprite = h, tint = rl.WHITE, origin = {0.5, 0.5}, scale = {1, 1}, speed = 1}
 	if m.type == .Tagged do s.tag = m.tags[0]
 	return s
@@ -644,15 +644,15 @@ walk_route_once_stops_at_last_vertex :: proc(t: ^testing.T) {
 // Presses `k` for one frame, then releases it.
 @(private = "file")
 tap :: proc(k: Game_Input) {
-	world.input.state[k] = Input_Pressed{}
+	game.input.state[k] = Input_Pressed{}
 	run_for(FRAME)
-	world.input.state[k] = Input_Up{}
+	game.input.state[k] = Input_Up{}
 }
 
 // The dialogue page as typed out so far, lines joined with "\n".
 @(private = "file")
 dialogue_text :: proc() -> string {
-	d := &world.dialogue
+	d := &game.dialogue
 	b := strings.builder_make(context.temp_allocator)
 	text := strings.to_string(d.buffer)
 	remaining := d.shown
@@ -667,7 +667,7 @@ dialogue_text :: proc() -> string {
 
 @(private = "file")
 dialogue_is :: proc($T: typeid) -> bool {
-	_, ok := world.dialogue.state.(T)
+	_, ok := game.dialogue.state.(T)
 	return ok
 }
 
@@ -687,20 +687,20 @@ input_states_press_hold_release :: proc(t: ^testing.T) {
 @(test)
 get_input_repeats_after_hold_time :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	world.input.state[.ENTER] = Input_Pressed{}
+	game.input.state[.ENTER] = Input_Pressed{}
 	testing.expect(t, get_input(.ENTER))
-	world.input.state[.ENTER] = Input_Held{t = 0.5}
+	game.input.state[.ENTER] = Input_Held{t = 0.5}
 	testing.expect(t, !get_input(.ENTER))
 	testing.expect(t, get_input(.ENTER, down = true))
-	world.input.state[.ENTER] = Input_Held{t = HOLD_TIME}
+	game.input.state[.ENTER] = Input_Held{t = HOLD_TIME}
 	testing.expect(t, get_input(.ENTER))
 	consume_input(.ENTER)
 	testing.expect(t, !get_input(.ENTER))
 	consume_input(.UP) // up stays up
-	testing.expect_value(t, world.input.state[.UP], Single_Input_State(Input_Up{}))
+	testing.expect_value(t, game.input.state[.UP], Single_Input_State(Input_Up{}))
 
-	world.input.state[.UP] = Input_Pressed{}
-	world.input.state[.RIGHT] = Input_Held{t = 2}
+	game.input.state[.UP] = Input_Pressed{}
+	game.input.state[.RIGHT] = Input_Held{t = 2}
 	testing.expect_value(t, get_menu_input(), [2]int{1, -1})
 	testing.expect_value(t, get_y_input(), Maybe(int)(-1))
 }
@@ -750,7 +750,7 @@ say_types_then_waits_for_enter :: proc(t: ^testing.T) {
 	run_for(0.5)
 	testing.expect(t, dialogue_is(Dialogue_Wait))
 	testing.expect_value(t, dialogue_text(), "first")
-	testing.expect_value(t, strings.to_string(world.dialogue.speaker), "Tester")
+	testing.expect_value(t, strings.to_string(game.dialogue.speaker), "Tester")
 	testing.expect_value(t, trigger_count, 0)
 
 	tap(.ENTER)
@@ -759,7 +759,7 @@ say_types_then_waits_for_enter :: proc(t: ^testing.T) {
 	testing.expect(t, dialogue_active(), "the conversation carries on")
 	run_for(0.5)
 	testing.expect_value(t, dialogue_text(), "second")
-	testing.expect_value(t, strings.builder_len(world.dialogue.speaker), 0)
+	testing.expect_value(t, strings.builder_len(game.dialogue.speaker), 0)
 
 	tap(.ENTER)
 	run_for(FRAME)
@@ -784,7 +784,7 @@ enter_skips_typing :: proc(t: ^testing.T) {
 @(test)
 opening_press_does_not_skip :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	world.input.state[.ENTER] = Input_Pressed{} // the press that talked to someone
+	game.input.state[.ENTER] = Input_Pressed{} // the press that talked to someone
 	spawn(proc(_: Entity_Id) { say("hello there") })
 	run_for(FRAME)
 	testing.expect(t, dialogue_is(Dialogue_Marquee))
@@ -856,17 +856,17 @@ choose_wraps_and_returns_the_pick :: proc(t: ^testing.T) {
 	})
 	run_for(0.5)
 	testing.expect(t, dialogue_is(Dialogue_Choose))
-	testing.expect_value(t, len(world.dialogue.choices), 3)
+	testing.expect_value(t, len(game.dialogue.choices), 3)
 	tap(.UP)
-	testing.expect_value(t, world.dialogue.choice, 2)
+	testing.expect_value(t, game.dialogue.choice, 2)
 	tap(.DOWN)
 	tap(.DOWN)
-	testing.expect_value(t, world.dialogue.choice, 1)
+	testing.expect_value(t, game.dialogue.choice, 1)
 	tap(.ENTER)
 	run_for(FRAME)
 	testing.expect_value(t, chosen, 1)
 	testing.expect(t, !dialogue_active())
-	testing.expect_value(t, len(world.dialogue.choices), 0)
+	testing.expect_value(t, len(game.dialogue.choices), 0)
 }
 
 @(test)
@@ -894,7 +894,7 @@ cancelled_speaker_closes_its_dialogue :: proc(t: ^testing.T) {
 	destroy_entity(npc)
 	run_for(FRAME * 2)
 	testing.expect(t, !dialogue_active())
-	testing.expect_value(t, len(world.script_order), 0)
+	testing.expect_value(t, len(game.script_order), 0)
 }
 
 @(private = "file") trigger_count: int
@@ -1072,7 +1072,7 @@ map_render_headless_is_noop :: proc(t: ^testing.T) {
 	begin_map_render()
 	draw_map_tile(1, 0, 0)
 	end_map_render()
-	testing.expect_value(t, world.level_map.rt.id, 0)
+	testing.expect_value(t, game.world.level_map.rt.id, 0)
 }
 
 @(test)
@@ -1082,20 +1082,20 @@ camera_follows_tweened_pos :: proc(t: ^testing.T) {
 	p := spawn_entity({tile = {5, 5}})
 	camera_follow(p)
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, tile_center({5, 5}))
-	testing.expect_value(t, world.camera.offset, SCREEN / 2)
+	testing.expect_value(t, game.world.camera.target, tile_center({5, 5}))
+	testing.expect_value(t, game.world.camera.offset, SCREEN / 2)
 
 	tween_to_tile(p, {6, 5}, 1)
 	run_for(0.5)
 	camera_update(SCREEN)
-	testing.expect(t, world.camera.target.x > tile_center({5, 5}).x && world.camera.target.x < tile_center({6, 5}).x,
+	testing.expect(t, game.world.camera.target.x > tile_center({5, 5}).x && game.world.camera.target.x < tile_center({6, 5}).x,
 		"camera between tiles mid-step")
 
 	// DEFAULT mode: no clamping past the map edge.
 	set_map({size = {20, 20}})
 	set_tile(p, {0, 0})
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, tile_center({0, 0}))
+	testing.expect_value(t, game.world.camera.target, tile_center({0, 0}))
 }
 
 @(test)
@@ -1104,13 +1104,13 @@ camera_snaps_to_tile_and_entity :: proc(t: ^testing.T) {
 	set_map({size = {20, 20}})
 	camera_to_tile({7, 3})
 	run_for(FRAME)
-	testing.expect_value(t, world.camera.target, tile_center({7, 3}))
+	testing.expect_value(t, game.world.camera.target, tile_center({7, 3}))
 	testing.expect(t, !camera_panning())
 
 	e := spawn_entity({tile = {2, 9}})
 	camera_follow(e)
 	run_for(FRAME)
-	testing.expect_value(t, world.camera.target, tile_center({2, 9}))
+	testing.expect_value(t, game.world.camera.target, tile_center({2, 9}))
 	testing.expect_value(t, camera_followed(), e)
 }
 
@@ -1123,10 +1123,10 @@ camera_pans_to_tile_at_speed :: proc(t: ^testing.T) {
 	camera_to_tile({6, 2}, speed = 2) // 4 tiles at 2 tiles/s: 2 s
 	run_for(1)
 	testing.expect(t, camera_panning(), "still panning at 1 s")
-	testing.expectf(t, abs(world.camera.target.x - tile_center({4, 2}).x) < 1, "halfway, got %v", world.camera.target)
+	testing.expectf(t, abs(game.world.camera.target.x - tile_center({4, 2}).x) < 1, "halfway, got %v", game.world.camera.target)
 	run_for(1.1)
 	testing.expect(t, !camera_panning(), "pan done at 2 s")
-	testing.expect_value(t, world.camera.target, tile_center({6, 2}))
+	testing.expect_value(t, game.world.camera.target, tile_center({6, 2}))
 }
 
 @(test)
@@ -1140,9 +1140,9 @@ camera_pans_onto_moving_entity :: proc(t: ^testing.T) {
 	camera_follow(e, speed = 4)
 	for frame := 0; camera_panning() && frame < 500; frame += 1 do run_for(FRAME)
 	testing.expect(t, !camera_panning(), "the pan should end")
-	testing.expect_value(t, world.camera.target, entity_get(e).pos)
+	testing.expect_value(t, game.world.camera.target, entity_get(e).pos)
 	run_for(0.5)
-	testing.expect_value(t, world.camera.target, entity_get(e).pos) // and follows after
+	testing.expect_value(t, game.world.camera.target, entity_get(e).pos) // and follows after
 }
 
 @(test)
@@ -1156,7 +1156,7 @@ pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
 	testing.expect(t, script_alive(s), "still panning")
 	run_for(0.6)
 	testing.expect(t, !script_alive(s), "pan_camera_to_tile returns once the pan is done")
-	testing.expect_value(t, world.camera.target, tile_center({3, 0}))
+	testing.expect_value(t, game.world.camera.target, tile_center({3, 0}))
 }
 
 @(test)
@@ -1169,18 +1169,18 @@ camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	set_map_mode(.CLAMP)
 
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, [2]f32{40, 24})
+	testing.expect_value(t, game.world.camera.target, [2]f32{40, 24})
 	set_tile(p, {19, 19})
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, [2]f32{280, 296})
+	testing.expect_value(t, game.world.camera.target, [2]f32{280, 296})
 	set_tile(p, {10, 10})
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, tile_center({10, 10}))
+	testing.expect_value(t, game.world.camera.target, tile_center({10, 10}))
 
 	// A map narrower than the view is centered on that axis.
 	set_map({size = {4, 20}, mode = .CLAMP})
 	camera_update(SCREEN)
-	testing.expect_value(t, world.camera.target, [2]f32{32, tile_center({10, 10}).y})
+	testing.expect_value(t, game.world.camera.target, [2]f32{32, tile_center({10, 10}).y})
 }
 
 @(test)
@@ -1195,13 +1195,13 @@ clear_level_removes_everything :: proc(t: ^testing.T) {
 	run_for(FRAME)
 
 	clear_level()
-	testing.expect_value(t, hm.len(world.entities), 0)
+	testing.expect_value(t, hm.len(game.entities), 0)
 	testing.expect(t, tween_done(tw))
 	run_for(FRAME) // cancelled scripts finish on their next resume
 	testing.expect(t, !script_alive(s))
-	testing.expect_value(t, world.level_map.size, Tile{})
-	testing.expect_value(t, world.player, Entity_Id{})
-	testing.expect(t, world.camera_focus == nil, "the camera still has a focus")
+	testing.expect_value(t, game.world.level_map.size, Tile{})
+	testing.expect_value(t, game.world.player, Entity_Id{})
+	testing.expect(t, game.world.camera.focus == nil, "the camera still has a focus")
 }
 
 // A 4x3 map whose column x == 2 is impassable.
@@ -1424,10 +1424,10 @@ curtain_tweens :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	tw := curtain_to(1, 0.2)
 	run_for(0.1)
-	testing.expect(t, world.curtain > 0.3 && world.curtain < 0.7, "halfway")
+	testing.expect(t, game.curtain > 0.3 && game.curtain < 0.7, "halfway")
 	run_for(0.2)
 	testing.expect(t, tween_done(tw))
-	testing.expect_value(t, world.curtain, 1)
+	testing.expect_value(t, game.curtain, 1)
 }
 
 @(test)
@@ -1436,14 +1436,14 @@ set_curtain_cancels_fade_and_fade_screen_blocks :: proc(t: ^testing.T) {
 	tw := curtain_to(0.5, 1)
 	set_curtain(1)
 	testing.expect(t, tween_done(tw), "set_curtain cancels a running fade")
-	testing.expect_value(t, world.curtain, 1)
+	testing.expect_value(t, game.curtain, 1)
 
 	s := spawn(proc(_: Entity_Id) { fade_screen(0, 0.2) })
 	run_for(0.1)
-	testing.expect(t, script_alive(s) && world.curtain > 0.3 && world.curtain < 0.7, "mid fade")
+	testing.expect(t, script_alive(s) && game.curtain > 0.3 && game.curtain < 0.7, "mid fade")
 	run_for(0.2)
 	testing.expect(t, !script_alive(s), "fade_screen returns once the fade is done")
-	testing.expect_value(t, world.curtain, 0)
+	testing.expect_value(t, game.curtain, 0)
 }
 
 @(test)
@@ -1456,7 +1456,7 @@ palette_swaps_are_cached :: proc(t: ^testing.T) {
 	testing.expect_value(t, get_sprite_h(.Man_Ps, lime_again), a)
 	testing.expect(t, get_sprite_h(.Man_Ps, pink) != a)
 	testing.expect(t, get_sprite_h(.Man_Ps) != a, "unswapped is cached separately")
-	testing.expect_value(t, hm.len(world.sprites), 3)
+	testing.expect_value(t, hm.len(game.sprites), 3)
 }
 
 @(test)
@@ -1472,7 +1472,7 @@ world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	world_menu_enter()
 	testing.expect(t, world_menu_active(), "the menu should open")
-	testing.expect(t, world.clock.paused, "the menu should pause the world")
+	testing.expect(t, game.clock.paused, "the menu should pause the world")
 	before := time()
 	run_for(0.5)
 	testing.expect_value(t, time(), before)
@@ -1480,13 +1480,13 @@ world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
 	testing.expect(t, world_menu_active(), "DOWN shouldn't close the menu")
 	tap(.CANCEL)
 	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
-	testing.expect(t, !world.clock.paused, "closing should unpause")
+	testing.expect(t, !game.clock.paused, "closing should unpause")
 
 	// A world paused before the menu opened stays paused after it closes.
 	set_paused(true)
 	world_menu_enter()
 	world_menu_exit()
-	testing.expect(t, world.clock.paused, "closing should restore the earlier pause")
+	testing.expect(t, game.clock.paused, "closing should restore the earlier pause")
 }
 
 @(test)
@@ -1497,9 +1497,9 @@ menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
 
 	tap(.MENU)
 	testing.expect(t, world_menu_active(), "MENU should open the menu when idle")
-	world.input.state[.RIGHT] = Input_Held{t = 0.1}
+	game.input.state[.RIGHT] = Input_Held{t = 0.1}
 	run_for(0.5)
-	world.input.state[.RIGHT] = Input_Up{}
+	game.input.state[.RIGHT] = Input_Up{}
 	testing.expect_value(t, entity_tile(p), Tile{0, 0}) // no walking while it's open
 	tap(.CANCEL)
 	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
@@ -1523,9 +1523,9 @@ delayed_sound_waits_on_game_time :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	play_sound(.Warp, delay = 0.5)
 	run_for(0.4)
-	testing.expect_value(t, len(world.audio.pending), 1)
+	testing.expect_value(t, len(game.audio.pending), 1)
 	run_for(0.2)
-	testing.expect_value(t, len(world.audio.pending), 0) // no audio device: dropped, not played
+	testing.expect_value(t, len(game.audio.pending), 0) // no audio device: dropped, not played
 }
 
 @(test)
@@ -1534,10 +1534,10 @@ paused_clock_holds_sounds :: proc(t: ^testing.T) {
 	play_sound(.Warp, delay = 0.1)
 	set_paused(true)
 	run_for(1)
-	testing.expect_value(t, len(world.audio.pending), 1)
+	testing.expect_value(t, len(game.audio.pending), 1)
 	set_paused(false)
 	run_for(0.2)
-	testing.expect_value(t, len(world.audio.pending), 0)
+	testing.expect_value(t, len(game.audio.pending), 0)
 }
 
 @(test)
@@ -1547,33 +1547,33 @@ script_queues_sound :: proc(t: ^testing.T) {
 		play_sound(.Whack, delay = 1)
 	})
 	run_for(FRAME * 2)
-	testing.expect_value(t, len(world.audio.pending), 1)
-	testing.expect_value(t, world.audio.pending[0].sound, Sound_Name.Whack)
+	testing.expect_value(t, len(game.audio.pending), 1)
+	testing.expect_value(t, game.audio.pending[0].sound, Sound_Name.Whack)
 }
 
 @(test)
 play_music_remembers_the_previous_track :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	testing.expect(t, world.audio.music.thread == nil, "no audio device, so no music thread")
+	testing.expect(t, game.audio.music.thread == nil, "no audio device, so no music thread")
 	play_music(.Town)
 	play_music(.Cave)
 	play_music(.Cave) // the same track again keeps .Town as previous
-	testing.expect_value(t, world.audio.music.requested, Music_Name.Cave)
-	testing.expect_value(t, world.audio.music.prev, Music_Name.Town)
+	testing.expect_value(t, game.audio.music.requested, Music_Name.Cave)
+	testing.expect_value(t, game.audio.music.prev, Music_Name.Town)
 	play_prev_music()
-	testing.expect_value(t, world.audio.music.requested, Music_Name.Town)
-	testing.expect_value(t, world.audio.music.prev, Music_Name.Cave)
+	testing.expect_value(t, game.audio.music.requested, Music_Name.Town)
+	testing.expect_value(t, game.audio.music.prev, Music_Name.Cave)
 }
 
 @(test)
 music_fades_are_requests :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	music_fade_down()
-	testing.expect(t, world.audio.music.faded)
+	testing.expect(t, game.audio.music.faded)
 	play_music(.Town) // a track change doesn't undo the fade
-	testing.expect(t, world.audio.music.faded)
+	testing.expect(t, game.audio.music.faded)
 	music_fade_up()
-	testing.expect(t, !world.audio.music.faded)
+	testing.expect(t, !game.audio.music.faded)
 }
 
 @(test)
@@ -1627,7 +1627,7 @@ get_items_groups_duplicates :: proc(t: ^testing.T) {
 	rules.game_data.inventory[rules.Item_Name.Tea] = 0
 	spawn(proc(_: Entity_Id) { get_items(.Potion, .Tea, .Potion) })
 	run_for(0.1)
-	testing.expect_value(t, strings.to_string(world.dialogue.buffer), "Got Potion x2, Tea!")
+	testing.expect_value(t, strings.to_string(game.dialogue.buffer), "Got Potion x2, Tea!")
 	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 2)
 	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Tea], 1)
 }
@@ -1653,7 +1653,7 @@ script_changes_level :: proc(t: ^testing.T) {
 	testing.expect_value(t, current_level(), rules.Level(0))
 	testing.expect_value(t, entity_tile(player()), Tile{3, 4})
 	testing.expect_value(t, entity_get(player()).facing, Direction.Left)
-	testing.expect(t, world.curtain > 0, "already faded in")
+	testing.expect(t, game.curtain > 0, "already faded in")
 	run_for(0.3)
-	testing.expect_value(t, world.curtain, 0)
+	testing.expect_value(t, game.curtain, 0)
 }

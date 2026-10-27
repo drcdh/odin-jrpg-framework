@@ -62,19 +62,19 @@ Input :: struct {
 
 @(private)
 input_init :: proc() {
-	if rl.IsWindowReady() && rl.IsGamepadAvailable(world.input.gamepad) {
-		log.infof("gamepad %d available: %s", world.input.gamepad, rl.GetGamepadName(world.input.gamepad))
+	if rl.IsWindowReady() && rl.IsGamepadAvailable(game.input.gamepad) {
+		log.infof("gamepad %d available: %s", game.input.gamepad, rl.GetGamepadName(game.input.gamepad))
 	}
 }
 
 // Reads the keyboard and gamepad. Call once per frame, before the game's
 // update, with the real frame time (holds keep counting while the game is paused).
 input_update :: proc(dt: f32) {
-	gp := world.input.gamepad
+	gp := game.input.gamepad
 	pad := rl.IsGamepadAvailable(gp)
 	for k in Game_Input {
 		down := rl.IsKeyDown(KB_INPUT_MAP[k]) || (pad && rl.IsGamepadButtonDown(gp, GP_INPUT_MAP[k]))
-		world.input.state[k] = next_input_state(world.input.state[k], down, dt)
+		game.input.state[k] = next_input_state(game.input.state[k], down, dt)
 	}
 }
 
@@ -91,7 +91,7 @@ next_input_state :: proc(s: Single_Input_State, down: bool, dt: f32) -> Single_I
 // True on the frame `k` is pressed and, once it has been held for HOLD_TIME,
 // on every frame after that. With `down`, true on every frame it's held.
 get_input :: proc(k: Game_Input, down := false, silent := false) -> (v: bool) {
-	switch s in world.input.state[k] {
+	switch s in game.input.state[k] {
 	case Input_Up:      v = false
 	case Input_Pressed: v = true
 	case Input_Held:    v = down || s.t >= HOLD_TIME
@@ -104,7 +104,7 @@ get_input :: proc(k: Game_Input, down := false, silent := false) -> (v: bool) {
 // reads input next (the press that opens a dialogue box mustn't skip its text).
 // The button counts again once released and pressed, or after HOLD_TIME.
 consume_input :: proc(k: Game_Input) {
-	if _, up := world.input.state[k].(Input_Up); !up do world.input.state[k] = Input_Held{}
+	if _, up := game.input.state[k].(Input_Up); !up do game.input.state[k] = Input_Held{}
 }
 
 // Held directions, as a tile offset; both axes can be set at once.

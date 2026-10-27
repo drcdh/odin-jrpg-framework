@@ -13,7 +13,7 @@ Clock :: struct {
 MAX_DT :: f32(1.0 / 20.0)
 
 clock_advance :: proc(raw_dt: f32) {
-	c := &world.clock
+	c := &game.clock
 	dt := min(raw_dt, MAX_DT)
 	c.raw_dt = dt
 	if c.paused do dt = 0
@@ -22,8 +22,8 @@ clock_advance :: proc(raw_dt: f32) {
 	c.frame += 1
 }
 
-dt   :: proc() -> f32 { return world.clock.dt }
-time :: proc() -> f64 { return world.clock.time }
+dt   :: proc() -> f32 { return game.clock.dt }
+time :: proc() -> f64 { return game.clock.time }
 
-set_paused     :: proc(paused: bool) { world.clock.paused = paused }
-set_time_scale :: proc(scale: f32)   { world.clock.time_scale = max(scale, 0) }
+set_paused     :: proc(paused: bool) { game.clock.paused = paused }
+set_time_scale :: proc(scale: f32)   { game.clock.time_scale = max(scale, 0) }

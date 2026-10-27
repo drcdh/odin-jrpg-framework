@@ -26,7 +26,7 @@ interact :: proc(actor: Entity_Id) -> bool {
 	if !ok do return false
 	target := a.tile + dir_vec(a.facing)
 
-	it := hm.iterator_make(&world.entities)
+	it := hm.iterator_make(&game.entities)
 	for e, h in hm.iterate(&it) {
 		tr := &e.trigger
 		if h == actor || e.tile != target || tr.script == nil do continue

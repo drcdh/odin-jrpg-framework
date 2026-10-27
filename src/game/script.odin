@@ -63,9 +63,9 @@ current_script: ^Script
 // Starts `procedure(self)` as a script. It first runs during the next
 // scripts_update (or later in the current one, if spawned from a script).
 spawn :: proc(procedure: Script_Proc, self: Entity_Id = {}, name := "") -> Script_Id {
-	h, err := hm.add(&world.scripts, Script{name = name, procedure = procedure, self = self})
+	h, err := hm.add(&game.scripts, Script{name = name, procedure = procedure, self = self})
 	assert(err == nil, "out of memory spawning script")
-	s := hm.get(&world.scripts, h)
+	s := hm.get(&game.scripts, h)
 
 	s.thread = thread.create(script_thread_proc)
 	assert(s.thread != nil, "failed to create script thread")
@@ -73,21 +73,21 @@ spawn :: proc(procedure: Script_Proc, self: Entity_Id = {}, name := "") -> Scrip
 	s.thread.init_context = context
 	thread.start(s.thread)
 
-	append(&world.script_order, h)
+	append(&game.script_order, h)
 	return h
 }
 
 script_alive :: proc(h: Script_Id) -> bool {
-	s, ok := hm.get(&world.scripts, h)
+	s, ok := hm.get(&game.scripts, h)
 	return ok && !s.done
 }
 
 script_cancel :: proc(h: Script_Id) {
-	if s, ok := hm.get(&world.scripts, h); ok do s.cancel_requested = true
+	if s, ok := hm.get(&game.scripts, h); ok do s.cancel_requested = true
 }
 
 scripts_cancel_for_entity :: proc(id: Entity_Id) {
-	it := hm.iterator_make(&world.scripts)
+	it := hm.iterator_make(&game.scripts)
 	for s, _ in hm.iterate(&it) {
 		if s.self == id do s.cancel_requested = true
 	}
@@ -109,8 +109,8 @@ scripts_update :: proc() {
 	assert(current_script == nil, "scripts_update called from a script")
 
 	// Indexed loop: scripts spawned by scripts are appended and run this frame too.
-	for i := 0; i < len(world.script_order); i += 1 {
-		s, ok := hm.get(&world.scripts, world.script_order[i])
+	for i := 0; i < len(game.script_order); i += 1 {
+		s, ok := hm.get(&game.scripts, game.script_order[i])
 		if !ok || s.done do continue
 		if s.cancel_requested || wait_satisfied(s.wait) {
 			s.wait = nil
@@ -119,8 +119,8 @@ scripts_update :: proc() {
 	}
 
 	n := 0
-	for h in world.script_order {
-		s, ok := hm.get(&world.scripts, h)
+	for h in game.script_order {
+		s, ok := hm.get(&game.scripts, h)
 		if !ok do continue
 		if s.done {
 			// A finished trigger script frees its entity, whoever made it busy.
@@ -129,25 +129,25 @@ scripts_update :: proc() {
 				e.busy_by = {}
 			}
 			thread.destroy(s.thread) // joins
-			hm.remove(&world.scripts, h)
+			hm.remove(&game.scripts, h)
 		} else {
-			world.script_order[n] = h
+			game.script_order[n] = h
 			n += 1
 		}
 	}
-	resize(&world.script_order, n)
+	resize(&game.script_order, n)
 }
 
 // Cancels everything and pumps until the scripts return. Scripts that ignore
 // cancellation are reported and left blocked; the process exit takes them.
 scripts_shutdown :: proc() {
-	for h in world.script_order do script_cancel(h)
+	for h in game.script_order do script_cancel(h)
 	for _ in 0..<1000 {
-		if len(world.script_order) == 0 do return
+		if len(game.script_order) == 0 do return
 		scripts_update()
 	}
-	for h in world.script_order {
-		s := hm.get(&world.scripts, h)
+	for h in game.script_order {
+		s := hm.get(&game.scripts, h)
 		log.errorf("script %q ignored cancellation; abandoning its thread", s.name)
 	}
 }
@@ -155,7 +155,7 @@ scripts_shutdown :: proc() {
 @(private)
 wait_satisfied :: proc(w: Wait) -> bool {
 	switch v in w {
-	case Wait_Time:   return world.clock.time >= v.until
+	case Wait_Time:   return game.clock.time >= v.until
 	case Wait_Frame:  return true
 	case Wait_Tween:  return tween_done(v.tween)
 	case Wait_Script: return !script_alive(v.script)

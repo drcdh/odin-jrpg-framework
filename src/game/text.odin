@@ -26,7 +26,7 @@ ui_tile_to_screen :: proc(t: Tile) -> [2]f32 {
 }
 
 draw_text_f32 :: proc(l, t: f32, text: cstring, tint := rl.WHITE) {
-	rl.DrawTextEx(world.ui.font, text, ui_to_screen(l, t), UI_TILE / 2, 0, tint)
+	rl.DrawTextEx(game.ui.font, text, ui_to_screen(l, t), UI_TILE / 2, 0, tint)
 }
 
 draw_text_V :: proc(lt: [2]f32, text: cstring, tint := rl.WHITE) {

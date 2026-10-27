@@ -40,7 +40,7 @@ Music_State :: struct {
 // Switches to `m` (.None for silence). Asking for the track already playing
 // changes nothing, so levels can request their music every time they start.
 play_music :: proc(m: Music_Name) {
-	s := &world.audio.music
+	s := &game.audio.music
 	cur := sync.atomic_load(&s.requested)
 	if m == cur do return
 	s.prev = cur
@@ -49,26 +49,26 @@ play_music :: proc(m: Music_Name) {
 
 // Goes back to the track that played before the current one.
 play_prev_music :: proc() {
-	play_music(world.audio.music.prev)
+	play_music(game.audio.music.prev)
 }
 
 // Fades the music out over a second; it stays silent, even across track
 // changes, until music_fade_up.
 music_fade_down :: proc() {
-	sync.atomic_store(&world.audio.music.faded, true)
+	sync.atomic_store(&game.audio.music.faded, true)
 }
 
 music_fade_up :: proc() {
-	sync.atomic_store(&world.audio.music.faded, false)
+	sync.atomic_store(&game.audio.music.faded, false)
 }
 
 set_music_volume :: proc(v: int) {
-	sync.atomic_store(&world.audio.music.volume, clamp(v, 0, SOUND_MAX_VOLUME))
+	sync.atomic_store(&game.audio.music.volume, clamp(v, 0, SOUND_MAX_VOLUME))
 }
 
 @(private)
 music_init :: proc() {
-	s := &world.audio.music
+	s := &game.audio.music
 	s.volume = DEFAULT_MUSIC_VOLUME
 	s.level = 1
 	s.applied = -1
@@ -83,7 +83,7 @@ music_init :: proc() {
 
 @(private)
 music_shutdown :: proc() {
-	s := &world.audio.music
+	s := &game.audio.music
 	if s.thread == nil do return
 	sync.atomic_store(&s.running, false)
 	thread.join(s.thread)

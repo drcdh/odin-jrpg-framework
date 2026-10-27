@@ -28,26 +28,26 @@ Audio :: struct {
 
 // Plays `n` after `delay` seconds of game time (so a paused world holds it).
 play_sound :: proc(n: Sound_Name, delay: f32 = 0) {
-	append(&world.audio.pending, Pending_Sound{n, delay})
+	append(&game.audio.pending, Pending_Sound{n, delay})
 }
 
 @(private)
 sounds_init :: proc(allocator := context.allocator) {
-	world.audio.pending = make([dynamic]Pending_Sound, allocator)
-	world.audio.effects_volume = DEFAULT_EFFECTS_VOLUME
+	game.audio.pending = make([dynamic]Pending_Sound, allocator)
+	game.audio.effects_volume = DEFAULT_EFFECTS_VOLUME
 }
 
 @(private)
 sounds_destroy :: proc() {
-	for s in world.audio.sounds do if s.frameCount != 0 do rl.UnloadSound(s)
-	delete(world.audio.pending)
-	world.audio.sounds = {}
-	world.audio.pending = nil
+	for s in game.audio.sounds do if s.frameCount != 0 do rl.UnloadSound(s)
+	delete(game.audio.pending)
+	game.audio.sounds = {}
+	game.audio.pending = nil
 }
 
 @(private)
 sounds_update :: proc(dt: f32) {
-	a := &world.audio
+	a := &game.audio
 	for i := 0; i < len(a.pending); {
 		p := &a.pending[i]
 		p.delay -= dt
@@ -66,7 +66,7 @@ sounds_update :: proc(dt: f32) {
 
 @(private = "file")
 get_sound :: proc(n: Sound_Name) -> rl.Sound {
-	s := &world.audio.sounds[n]
+	s := &game.audio.sounds[n]
 	if s.frameCount == 0 {
 		path := fmt.tprintf("%s/%s", SOUND_DIR, sound_files[n])
 		s^ = rl.LoadSound(strings.clone_to_cstring(path, context.temp_allocator))

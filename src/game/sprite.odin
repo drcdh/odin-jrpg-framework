@@ -127,15 +127,15 @@ Swap_Key :: struct {
 // upload a texture.
 get_sprite_h :: proc(name: Sprite_Name, palette: Palette_Swap = {}) -> Sprite_Handle {
 	if len(palette) == 0 {
-		if h := world.sprite_handles[name]; hm.is_valid(&world.sprites, h) do return h
+		if h := game.sprite_handles[name]; hm.is_valid(&game.sprites, h) do return h
 		h := load_sprite(name, palette)
-		world.sprite_handles[name] = h
+		game.sprite_handles[name] = h
 		return h
 	}
 	key := Swap_Key{name, hash.fnv64a(slice.to_bytes(palette))}
-	if h, ok := world.swapped_sprites[key]; ok && hm.is_valid(&world.sprites, h) do return h
+	if h, ok := game.swapped_sprites[key]; ok && hm.is_valid(&game.sprites, h) do return h
 	h := load_sprite(name, palette)
-	world.swapped_sprites[key] = h
+	game.swapped_sprites[key] = h
 	return h
 }
 
@@ -152,7 +152,7 @@ load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 
 	// Headless (tests, tools): a sprite record with no image, which draws nothing.
 	if !rl.IsWindowReady() {
-		h, err := hm.add(&world.sprites, sprite)
+		h, err := hm.add(&game.sprites, sprite)
 		assert(err == nil, "out of memory loading sprite")
 		return h
 	}
@@ -163,10 +163,10 @@ load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 		log.errorf("could not load %s/%s.png for sprite %v (run process_sprites.py?)", SPRITE_DIR, m.filename, name)
 	} else {
 		for cs in palette do rl.ImageColorReplace(&img, cs.from, cs.to)
-		sprite.img_h, _ = hm.add(&world.images, Image{texture = rl.LoadTextureFromImage(img)})
+		sprite.img_h, _ = hm.add(&game.images, Image{texture = rl.LoadTextureFromImage(img)})
 	}
 
-	h, err := hm.add(&world.sprites, sprite)
+	h, err := hm.add(&game.sprites, sprite)
 	assert(err == nil, "out of memory loading sprite")
 	return h
 }
@@ -322,7 +322,7 @@ sprite_size :: proc {
 // Advances every entity's animation (see Anim_When); facing-following
 // sprites switch rows without restarting playback.
 sprites_update :: proc(dt: f32) {
-	it := hm.iterator_make(&world.entities)
+	it := hm.iterator_make(&game.entities)
 	for e, _ in hm.iterate(&it) {
 		s := &e.sprite
 		if s.follow_facing {
@@ -355,9 +355,9 @@ sprites_update :: proc(dt: f32) {
 // --- Drawing ---
 
 draw_sprite :: proc(state: Sprite_State, pos: [2]f32, tint := rl.WHITE) {
-	sprite := hm.get(&world.sprites, state.sprite) or_else nil
+	sprite := hm.get(&game.sprites, state.sprite) or_else nil
 	if sprite == nil do return
-	image := hm.get(&world.images, sprite.img_h) or_else nil
+	image := hm.get(&game.images, sprite.img_h) or_else nil
 	if image == nil || image.texture.id == 0 do return
 
 	src := sprite_src(state)
@@ -370,30 +370,11 @@ draw_sprite :: proc(state: Sprite_State, pos: [2]f32, tint := rl.WHITE) {
 	rl.DrawTexturePro(image.texture, src, dest, origin, state.rotation, rl.ColorTint(state.tint, tint))
 }
 
-draw_world :: proc() {
-	Draw_Item :: struct {
-		layer: i32,
-		y:     f32,
-		e:     ^Entity,
-	}
-	items := make([dynamic]Draw_Item, 0, hm.len(world.entities), context.temp_allocator)
-	it := hm.iterator_make(&world.entities)
-	for e, _ in hm.iterate(&it) {
-		if e.sprite.hidden do continue
-		append(&items, Draw_Item{e.sprite.layer, e.pos.y, e})
-	}
-	slice.sort_by(items[:], proc(a, b: Draw_Item) -> bool {
-		if a.layer != b.layer do return a.layer < b.layer
-		return a.y < b.y
-	})
-	for item in items do draw_sprite(item.e.sprite, item.e.pos)
-}
-
 // --- Helpers ---
 
 @(private)
 state_metadata :: proc(state: Sprite_State) -> (Sprite_Metadata, bool) {
-	sprite, ok := hm.get(&world.sprites, state.sprite)
+	sprite, ok := hm.get(&game.sprites, state.sprite)
 	if !ok do return {}, false
 	return sprite.meta, true
 }

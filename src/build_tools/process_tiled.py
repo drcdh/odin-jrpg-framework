@@ -202,7 +202,7 @@ render_{lr_lower} :: proc() {{
 		mode = .{map_mode},
 		open_edges = {"true" if edge_level else "false"},
 	}})
-	world.levels.edge = {"." + edge_level if edge_level else "nil"}
+	game.world.levels.edge = {"." + edge_level if edge_level else "nil"}
 	""")
 	for n, item_entity in enumerate(item_entities):
 		datum = f"{lr_title}_{n}"
@@ -243,7 +243,7 @@ render_{lr_lower} :: proc() {{
 	out_f.write("}\n")
 
 	out_f.write(f"\n{lr_lower}_player_spawn :: proc() -> (Tile, Direction, bool) {{\n")
-	out_f.write("\tlv := &world.levels\n")
+	out_f.write("\tlv := &game.world.levels\n")
 	out_f.write("\t_ = lv\n") # some levels, like those used just in cutscenes, don't reference other levels
 	out_f.write("\tif tile, face, ok := try_spawn_from_save(); ok { return tile, face, true }\n")
 	# ENTRANCES

@@ -30,7 +30,7 @@ throttle := true // vsync and SetTargetFPS(THROTTLED_FPS), as main sets up
 
 // World space (inside BeginMode2D): grid lines, trigger outlines, and the tile the player faces.
 draw_debug_world :: proc() {
-	if !world.debug_overlay do return
+	if !game.world.debug_overlay do return
 
 	view := visible_world_rect()
 	x0 := math.floor(view.x / TILE_SIZE) * TILE_SIZE
@@ -40,21 +40,21 @@ draw_debug_world :: proc() {
 	for x := x0; x <= x1; x += TILE_SIZE do rl.DrawLineV({x, y0}, {x, y1}, grid)
 	for y := y0; y <= y1; y += TILE_SIZE do rl.DrawLineV({x0, y}, {x1, y}, grid)
 
-	it := hm.iterator_make(&world.entities)
+	it := hm.iterator_make(&game.entities)
 	for e, _ in hm.iterate(&it) {
 		if e.trigger.script == nil do continue
 		color := rl.GREEN if script_alive(e.trigger.running) else rl.GRAY
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, color)
 	}
 
-	if p, ok := entity_get(world.player); ok {
+	if p, ok := entity_get(game.world.player); ok {
 		rl.DrawRectangleRec(tile_rect(p.tile + dir_vec(p.facing)), {255, 255, 0, 60})
 	}
 }
 
 // Screen space (after EndMode2D): counters, the player's tile, and each live script's wait.
-draw_debug_hud :: proc() {
-	if !world.debug_overlay do return
+draw_world_debug_hud :: proc() {
+	if !game.world.debug_overlay do return
 
 	FONT :: 16
 	x, y: i32 = 10, 10
@@ -62,14 +62,14 @@ draw_debug_hud :: proc() {
 		rl.DrawText(text, x, y^, FONT, color)
 		y^ += FONT + 2
 	}
-	line(x, &y, fmt.ctprintf("fps %d   time %.2f   frame %d", rl.GetFPS(), world.clock.time, world.clock.frame))
+	line(x, &y, fmt.ctprintf("fps %d   time %.2f   frame %d", rl.GetFPS(), game.clock.time, game.clock.frame))
 	line(x, &y, fmt.ctprintf("entities %d   tweens %d   scripts %d",
-		hm.len(world.entities), hm.len(world.tweens), len(world.script_order)))
-	if p, ok := entity_get(world.player); ok {
+		hm.len(game.entities), hm.len(game.tweens), len(game.script_order)))
+	if p, ok := entity_get(game.world.player); ok {
 		line(x, &y, fmt.ctprintf("player tile %v   facing %v", p.tile, p.facing))
 	}
-	for h in world.script_order {
-		s, ok := hm.get(&world.scripts, h)
+	for h in game.script_order {
+		s, ok := hm.get(&game.scripts, h)
 		if !ok do continue
 		name := s.name if s.name != "" else "<unnamed>"
 		color := rl.ORANGE if s.cancel_requested else rl.LIGHTGRAY
@@ -85,7 +85,7 @@ tile_rect :: proc(t: Tile) -> rl.Rectangle {
 @(private)
 wait_describe :: proc(w: Wait) -> string {
 	switch v in w {
-	case Wait_Time:   return fmt.tprintf("pause, %.2fs left", max(v.until - world.clock.time, 0))
+	case Wait_Time:   return fmt.tprintf("pause, %.2fs left", max(v.until - game.clock.time, 0))
 	case Wait_Frame:  return "next frame"
 	case Wait_Tween:  return fmt.tprintf("tween [%d:%d]", v.tween.idx, v.tween.gen)
 	case Wait_Script: return fmt.tprintf("script [%d:%d]", v.script.idx, v.script.gen)
@@ -100,7 +100,7 @@ debug_draw :: proc() {
 	when !ODIN_DEBUG do return // debug builds only
 
 	view := [2]f32{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
-	font := world.ui.font
+	font := game.ui.font
 
 	if debug_framerate {
 		h: f32 = 20

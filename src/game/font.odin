@@ -28,7 +28,7 @@ font_init :: proc() {
 		}
 	}
 
-	world.ui.font = {
+	game.ui.font = {
 		baseSize     = 8,
 		glyphCount   = i32(num_glyphs),
 		glyphPadding = 0,
@@ -40,7 +40,7 @@ font_init :: proc() {
 
 @(private)
 font_destroy :: proc() {
-	f := &world.ui.font
+	f := &game.ui.font
 	if f.texture.id == 0 do return
 	rl.UnloadTexture(f.texture)
 	delete(slice.from_ptr(f.glyphs, int(f.glyphCount)))

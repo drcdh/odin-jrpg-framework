@@ -55,7 +55,7 @@ Dialogue :: struct {
 
 @(private)
 dialogue_init :: proc(allocator := context.allocator) {
-	d := &world.dialogue
+	d := &game.dialogue
 	d.state = Dialogue_Hidden{}
 	d.lines = DEFAULT_DIALOGUE_LINES
 	// The old game's width: the screen less a tile of border.
@@ -67,7 +67,7 @@ dialogue_init :: proc(allocator := context.allocator) {
 
 @(private)
 dialogue_destroy :: proc() {
-	d := &world.dialogue
+	d := &game.dialogue
 	dialogue_clear_choices()
 	delete(d.choices)
 	strings.builder_destroy(&d.speaker)
@@ -75,7 +75,7 @@ dialogue_destroy :: proc() {
 }
 
 dialogue_active :: proc() -> bool {
-	_, hidden := world.dialogue.state.(Dialogue_Hidden)
+	_, hidden := game.dialogue.state.(Dialogue_Hidden)
 	return !hidden
 }
 
@@ -98,7 +98,7 @@ say :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear :
 choose :: proc(text: string, choices: []string, speaker := "", loc := #caller_location) -> (choice: int, ok: bool) {
 	assert(len(choices) > 0, "choose needs at least one choice", loc)
 	ok = dialogue_show(text, speaker, choices, false, 0, true, loc)
-	return world.dialogue.choice, ok
+	return game.dialogue.choice, ok
 }
 
 @(private)
@@ -108,11 +108,11 @@ dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pau
 
 	// Wait for the box unless it's free or this script is mid-conversation.
 	free := wait_until(proc(data: rawptr) -> bool {
-		return !dialogue_active() || world.dialogue.owner == (^Script)(data).handle
+		return !dialogue_active() || game.dialogue.owner == (^Script)(data).handle
 	}, s, loc)
 	if !free do return false
 
-	d := &world.dialogue
+	d := &game.dialogue
 	carry_on := !clear && dialogue_active()
 	if !carry_on {
 		strings.builder_reset(&d.buffer)
@@ -138,8 +138,8 @@ dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pau
 	consume_input(.ENTER)
 
 	ok := wait_until(proc(data: rawptr) -> bool {
-		_, done := world.dialogue.state.(Dialogue_Done)
-		return done || world.dialogue.owner != (^Script)(data).handle
+		_, done := game.dialogue.state.(Dialogue_Done)
+		return done || game.dialogue.owner != (^Script)(data).handle
 	}, s, loc)
 	if !ok && d.owner == s.handle do dialogue_close()
 	return ok
@@ -150,7 +150,7 @@ dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pau
 // the box open.
 @(private)
 dialogue_update :: proc(dt: f32) {
-	d := &world.dialogue
+	d := &game.dialogue
 	switch &s in d.state {
 	case Dialogue_Hidden:
 	case Dialogue_Marquee:
@@ -190,8 +190,8 @@ dialogue_update :: proc(dt: f32) {
 
 // Screen space: the dialogue pane, then the choice pane under it.
 draw_dialogue :: proc() {
-	d := &world.dialogue
-	if !dialogue_active() || world.ui.font.texture.id == 0 do return
+	d := &game.dialogue
+	if !dialogue_active() || game.ui.font.texture.id == 0 do return
 	o := DIALOGUE_ORIGIN
 	w := view_tiles().x
 	draw_pane(o.x, o.y, w, f32(d.lines + 2) / 2)
@@ -213,7 +213,7 @@ draw_dialogue :: proc() {
 
 	#partial switch _ in d.state {
 	case Dialogue_Wait:
-		draw_sprite(world.ui.dialogue_icon, ui_to_screen(o.x + w - 1, o.y + f32(d.lines / 2)))
+		draw_sprite(game.ui.dialogue_icon, ui_to_screen(o.x + w - 1, o.y + f32(d.lines / 2)))
 	case Dialogue_Choose:
 		draw_pane(o.x, o.y + f32(d.lines + 2) / 2, w, f32(len(d.choices) + 2) / 2)
 		for c, i in d.choices {
@@ -253,13 +253,13 @@ wrap_page :: proc(text: string, start, lines, width: int, out: []Dialogue_Line) 
 
 @(private = "file")
 dialogue_text_lines :: proc() -> int {
-	d := &world.dialogue
+	d := &game.dialogue
 	return d.lines - 1 if strings.builder_len(d.speaker) > 0 else d.lines
 }
 
 @(private = "file")
 dialogue_next_page :: proc(keep_shown := false) {
-	d := &world.dialogue
+	d := &game.dialogue
 	d.page_start = d.buffer_end
 	d.page_len, d.buffer_end = wrap_page(strings.to_string(d.buffer), d.buffer_end, dialogue_text_lines(), d.line_width, d.page[:])
 	if !keep_shown do d.shown = 0
@@ -269,13 +269,13 @@ dialogue_next_page :: proc(keep_shown := false) {
 
 @(private = "file")
 dialogue_more_pages :: proc() -> bool {
-	d := &world.dialogue
+	d := &game.dialogue
 	return d.buffer_end < strings.builder_len(d.buffer)
 }
 
 @(private = "file")
 dialogue_page_chars :: proc() -> (total: int) {
-	d := &world.dialogue
+	d := &game.dialogue
 	for l in d.page[:d.page_len] do total += l.end - l.start
 	return
 }
@@ -283,7 +283,7 @@ dialogue_page_chars :: proc() -> (total: int) {
 // The page is fully typed: hold it for `pause`, or move on.
 @(private = "file")
 dialogue_page_typed :: proc() {
-	d := &world.dialogue
+	d := &game.dialogue
 	if d.pause > 0 && !dialogue_more_pages() {
 		d.state = Dialogue_Pause{t = d.pause}
 		d.pause = 0
@@ -296,7 +296,7 @@ dialogue_page_typed :: proc() {
 // unless there are choices to make or the text is in a hurry.
 @(private = "file")
 dialogue_page_out :: proc() {
-	d := &world.dialogue
+	d := &game.dialogue
 	switch {
 	case dialogue_more_pages(): d.state = Dialogue_Wait{}
 	case len(d.choices) > 0:    d.state = Dialogue_Choose{}
@@ -307,7 +307,7 @@ dialogue_page_out :: proc() {
 
 @(private = "file")
 dialogue_close :: proc() {
-	d := &world.dialogue
+	d := &game.dialogue
 	strings.builder_reset(&d.buffer)
 	strings.builder_reset(&d.speaker)
 	dialogue_clear_choices()
@@ -321,7 +321,7 @@ dialogue_close :: proc() {
 
 @(private = "file")
 dialogue_clear_choices :: proc() {
-	d := &world.dialogue
+	d := &game.dialogue
 	for c in d.choices do delete(c, d.buffer.buf.allocator)
 	clear(&d.choices)
 }

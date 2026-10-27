@@ -68,7 +68,7 @@ tween_start :: proc(
 ) -> Tween_Id {
 	if _, ok := target_get(target); !ok do return {}
 	tween_cancel_target(target)
-	h, err := hm.add(&world.tweens, Tween{
+	h, err := hm.add(&game.tweens, Tween{
 		target   = target,
 		to       = to,
 		duration = max(duration, 0),
@@ -99,7 +99,7 @@ tween_to_tile :: proc(id: Entity_Id, tile: Tile, duration: f32, easing := Ease.L
 	if !ok do return {}
 	e.tile = tile
 	h := tween_pos(id, tile_center(tile), duration, easing)
-	if t, has := hm.get(&world.tweens, h); has do t.arrive = true
+	if t, has := hm.get(&game.tweens, h); has do t.arrive = true
 	return h
 }
 
@@ -125,24 +125,24 @@ tween_f32 :: proc(ptr: ^f32, to: f32, duration: f32, easing := Ease.Linear, mode
 
 // A tween is "done" once it finished, was cancelled or replaced, or lost its target.
 tween_done :: proc(t: Tween_Id) -> bool {
-	return !hm.is_valid(&world.tweens, t)
+	return !hm.is_valid(&game.tweens, t)
 }
 
 tween_cancel :: proc(t: Tween_Id) {
-	hm.remove(&world.tweens, t)
+	hm.remove(&game.tweens, t)
 }
 
 tween_cancel_target :: proc(target: Tween_Target) {
-	it := hm.iterator_make(&world.tweens)
+	it := hm.iterator_make(&game.tweens)
 	for t, h in hm.iterate(&it) {
-		if target_equal(t.target, target) do hm.remove(&world.tweens, h)
+		if target_equal(t.target, target) do hm.remove(&game.tweens, h)
 	}
 }
 
 tweens_cancel_for_entity :: proc(id: Entity_Id) {
-	it := hm.iterator_make(&world.tweens)
+	it := hm.iterator_make(&game.tweens)
 	for t, h in hm.iterate(&it) {
-		if p, ok := t.target.(Entity_Prop); ok && p.entity == id do hm.remove(&world.tweens, h)
+		if p, ok := t.target.(Entity_Prop); ok && p.entity == id do hm.remove(&game.tweens, h)
 	}
 }
 
@@ -150,13 +150,13 @@ tweens_cancel_for_entity :: proc(id: Entity_Id) {
 // triggers may start tweens of their own.
 tweens_update :: proc(dt: f32) {
 	arrived := make([dynamic]Entity_Id, context.temp_allocator)
-	it := hm.iterator_make(&world.tweens)
+	it := hm.iterator_make(&game.tweens)
 	for t, h in hm.iterate(&it) {
 		if tween_step(t, dt) do continue
 		if _, alive := target_get(t.target); alive && t.arrive {
 			append(&arrived, t.target.(Entity_Prop).entity)
 		}
-		hm.remove(&world.tweens, h)
+		hm.remove(&game.tweens, h)
 	}
 	for id in arrived do entity_arrived(id)
 }

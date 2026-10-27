@@ -22,7 +22,13 @@ Camera_Pan :: struct {
 	duration: f32, // set on the pan's first update, from the clamped distance; 0 until then
 }
 
-camera :: proc() -> rl.Camera2D { return world.camera }
+Camera :: struct {
+	using camera: rl.Camera2D,
+	focus:  Camera_Focus,
+	pan:    Camera_Pan,
+}
+
+camera :: proc() -> rl.Camera2D { return game.world.camera.camera }
 
 // Follows `id`. With `speed` 0 the camera snaps to it; otherwise it pans
 // there at `speed` tiles per second (game time), then follows. Immediate:
@@ -37,54 +43,54 @@ camera_to_tile :: proc(tile: Tile, speed: f32 = 0, easing := Ease.Linear) {
 	camera_focus_on(tile, speed, easing)
 }
 
-camera_panning :: proc() -> bool { return world.camera_pan.speed > 0 }
+camera_panning :: proc() -> bool { return game.world.camera.pan.speed > 0 }
 
 // The entity the camera follows (or is panning to), if any.
 camera_followed :: proc() -> Entity_Id {
-	id, _ := world.camera_focus.(Entity_Id)
+	id, _ := game.world.camera.focus.(Entity_Id)
 	return id
 }
 
 @(private = "file")
 camera_focus_on :: proc(focus: Camera_Focus, speed: f32, easing: Ease) {
-	world.camera_focus = focus
-	world.camera_pan = {}
-	if speed > 0 do world.camera_pan = {from = world.camera.target, speed = speed, easing = easing}
+	game.world.camera.focus = focus
+	game.world.camera.pan = {}
+	if speed > 0 do game.world.camera.pan = {from = game.world.camera.target, speed = speed, easing = easing}
 }
 
 // Centers the focus on a screen of `screen` pixels, panning if a pan is under
 // way. In CLAMP mode the view stays inside the map, and a map smaller than the
 // view is centered.
 camera_update :: proc(screen: [2]f32) {
-	world.camera.offset = screen / 2
+	game.world.camera.offset = screen / 2
 	focus, ok := camera_focus_point()
 	if !ok {
-		world.camera_pan = {}
+		game.world.camera.pan = {}
 		return
 	}
 	focus = camera_clamp(focus, screen)
 
-	pan := &world.camera_pan
+	pan := &game.world.camera.pan
 	if pan.speed <= 0 {
-		world.camera.target = focus
+		game.world.camera.target = focus
 		return
 	}
 	if pan.duration == 0 {
 		pan.duration = linalg.distance(pan.from, focus) / (pan.speed * TILE_SIZE)
 	}
-	pan.elapsed += world.clock.dt
+	pan.elapsed += game.clock.dt
 	if pan.elapsed >= pan.duration {
-		world.camera.target = focus
-		world.camera_pan = {}
+		game.world.camera.target = focus
+		game.world.camera.pan = {}
 		return
 	}
 	k := ease.ease(pan.easing, pan.elapsed / pan.duration)
-	world.camera.target = linalg.lerp(pan.from, focus, k)
+	game.world.camera.target = linalg.lerp(pan.from, focus, k)
 }
 
 @(private = "file")
 camera_focus_point :: proc() -> ([2]f32, bool) {
-	switch f in world.camera_focus {
+	switch f in game.world.camera.focus {
 	case Entity_Id:
 		if e, ok := entity_get(f); ok do return e.pos, true
 	case Tile:
@@ -95,9 +101,9 @@ camera_focus_point :: proc() -> ([2]f32, bool) {
 
 @(private = "file")
 camera_clamp :: proc(p: [2]f32, screen: [2]f32) -> [2]f32 {
-	if world.level_map.mode != .CLAMP do return p
+	if game.world.level_map.mode != .CLAMP do return p
 	p := p
-	half := screen / world.camera.zoom / 2
+	half := screen / game.world.camera.zoom / 2
 	size := map_pixel_size()
 	for i in 0..<2 {
 		if size[i] <= 2 * half[i] {

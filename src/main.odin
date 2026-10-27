@@ -37,22 +37,11 @@ main :: proc() {
 	game.start_game()
 
 	for !rl.WindowShouldClose() {
-		game.clock_advance(rl.GetFrameTime())
-		game.input_update(rl.GetFrameTime())
 		game.update()
 
 		rl.BeginDrawing()
 		rl.ClearBackground({30, 30, 40, 255})
-		rl.BeginMode2D(game.camera())
-		game.draw_map()
-		game.draw_world()
-		game.draw_debug_world()
-		rl.EndMode2D()
-		game.draw_screen_effects()
-		game.draw_dialogue()
-		game.draw_world_menu()
-		game.draw_debug_hud()
-		game.debug_draw()
+		game.draw()
 		rl.EndDrawing()
 
 		free_all(context.temp_allocator)

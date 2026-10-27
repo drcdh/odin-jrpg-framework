@@ -74,8 +74,8 @@ clear_trigger :: proc(id: Entity_Id) {
 // Sets the screen curtain at once: 1 is black, 0 clear. E.g. a cutscene
 // starting dark, then fading in with fade_screen.
 set_curtain :: proc(alpha: f32) {
-	tween_cancel_target(&world.curtain)
-	world.curtain = alpha
+	tween_cancel_target(&game.curtain)
+	game.curtain = alpha
 }
 
 // Sprite playback on an entity. Only switches rows and frames of an already
@@ -126,7 +126,7 @@ freeze_anim :: proc(id: Entity_Id, frame: u16) {
 
 // Waits in game time, so it respects set_paused and set_time_scale.
 pause :: proc(seconds: f32, loc := #caller_location) -> bool {
-	return yield_until(Wait_Time{world.clock.time + f64(seconds)}, loc)
+	return yield_until(Wait_Time{game.clock.time + f64(seconds)}, loc)
 }
 
 next_frame :: proc(loc := #caller_location) -> bool {
