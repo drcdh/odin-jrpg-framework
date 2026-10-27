@@ -70,6 +70,7 @@ battle_destroy :: proc() {
 	delete(battle.combatants)
 	delete(battle.skill_plays)
 	delete(battle.skill_result)
+	battle = {}
 }
 
 check_win :: proc() -> Maybe(Battle_Result) {
@@ -109,13 +110,27 @@ combatant_winding_up :: proc(c: Combatant) -> bool {
 	return c.windup
 }
 
-get_combatant_skill_play :: proc(c_idx: int) -> Maybe(int) {
+get_combatant_skill_play_idx :: proc(c_idx: int) -> Maybe(int) {
 	for sp, i in battle.skill_plays {
 		if sp.actor_idx == c_idx {
 			return i
 		}
 	}
 	return nil
+}
+
+get_combatant_skill_play_ptr :: proc(c: ^Combatant) -> Maybe(int) {
+	for sp, i in battle.skill_plays {
+		if &battle.combatants[sp.actor_idx] == c {
+			return i
+		}
+	}
+	return nil
+}
+
+get_combatant_skill_play :: proc {
+	get_combatant_skill_play_idx,
+	get_combatant_skill_play_ptr,
 }
 
 battle_tick :: proc() {
@@ -205,7 +220,7 @@ queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name
 }
 
 process_skill_play :: proc(skill_play: Battle_Skill_Play) {
-	fmt.printfln("%#v", skill_play)
+	fmt.printfln("Processing skill play: %#v", skill_play)
 
 	skill := skills[skill_play.skill_name]
 	actor := &battle.combatants[skill_play.actor_idx]

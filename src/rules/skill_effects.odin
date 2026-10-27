@@ -216,9 +216,16 @@ _stagger :: proc(target: ^Combatant, stg_acc, stagger, int_acc: int) -> (stagger
 		return
 	}
 	if stagger > 0 {
-		log.infof("Staggering %s by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
-		target.ticks -= Ticks(stagger)
-		staggered = true
+		if skill_play_idx, ok := get_combatant_skill_play(target).?; ok {
+			log.infof("Staggering %s windup by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+			// TODO: confusingly, skill play windup counts down to zero, while combatant ATB counts up to READY_TICKS
+			battle.skill_plays[skill_play_idx].windup += Ticks(stagger)
+			staggered = true
+		} else {
+			log.infof("Staggering %s turn by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+			target.ticks -= Ticks(stagger)
+			staggered = true
+		}
 	}
 	if rand.int_max(100) < int_acc {
 		interrupted = interrupt_windup(target)

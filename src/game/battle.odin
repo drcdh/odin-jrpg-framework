@@ -113,6 +113,7 @@ battle_destroy :: proc() {
 	rules.battle_destroy()
 	delete(battle.combatants)
 	delete(battle.results)
+	battle = {}
 }
 
 battle_init :: proc() {

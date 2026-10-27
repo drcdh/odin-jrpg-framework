@@ -208,13 +208,31 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 }
 
 @(test)
-skill_plays_stagger_the_real_combatant :: proc(t: ^testing.T) {
+skill_plays_stagger_affects_turn_ticks :: proc(t: ^testing.T) {
 	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+
+	// stagger should affect ticks when the target isn't winding up
+	ally.ticks = 100
+	ally.windup = false
+
+	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Debug_Stagger})
+	testing.expect_value(t, ally.ticks, 50)
+	testing.expect(t, !baddy.windup, "the actor is still winding up")
+}
+
+@(test)
+skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
+	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+
+	// stagger should affect windup when the target is winding up
 	ally.ticks = 100
 	ally.windup = true
+	append(&battle.skill_plays, Battle_Skill_Play{actor_idx = battle.allies[0], targets = Target_One_Baddy{0}, skill_name = .Slash, windup = Ticks(100)})
+	testing.expect_value(t, battle.skill_plays[0].windup, 100)
 
-	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Small_Smoke_Bomb})
-	testing.expect_value(t, ally.ticks, 50)
+	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Debug_Stagger})
+	testing.expect_value(t, ally.ticks, 100)
+	testing.expect_value(t, battle.skill_plays[0].windup, 150)
 	testing.expect(t, !baddy.windup, "the actor is still winding up")
 }
 

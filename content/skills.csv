@@ -28,3 +28,5 @@ Healing Hymn,All_Allies,Heal,,,70,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
 Mind Control,One_Opponent,Attack,,,,,,,,ranged,100,.Control,,,,50,,200,Heal,Warp,Attempt to control an enemy's actions.
 Ultimagnitude 9000,All_Combatants,Attack,,1000,1000,50,50,,,ranged,,,,90,90,500,500,0,Heal,Warp,Flip the table of reality.
 Super Hyper Slash,One_Opponent,Attack,,1000,,150,,,,,,,,,,500,500,,Slash,Whack,God stays out of the way.
+Debug Stagger,One_Opponent,Attack,,,,,,,,,,,,50,,,,,,,you shouldn’t be here
+Debug Interrupt,One_Opponent,Attack,,,,,,,,,,,,50,100,,,,,,you shouldn’t be here
