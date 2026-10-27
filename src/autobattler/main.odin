@@ -110,12 +110,6 @@ main :: proc() {
 
 		battle_cleanup()
 	}
-
-	// The PCs keep what happened to them in battle.
-	for pc_idx in 0 ..< rules.party_size() {
-		pc := rules.get_party_member(pc_idx)
-		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, rules.get_stat(pc^, .Hitpoints), pc.status)
-	}
 }
 
 print_result :: proc(result: rules.Battle_Result) {
@@ -124,5 +118,9 @@ print_result :: proc(result: rules.Battle_Result) {
 		fmt.println("BADDY TEAM WON")
 	case .Win:
 		fmt.println("PLAYER TEAM WON")
+	}
+	for pc_idx in 0 ..< rules.party_size() {
+		pc := rules.get_party_member(pc_idx)
+		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, rules.get_stat(pc^, .Hitpoints), pc.status)
 	}
 }
