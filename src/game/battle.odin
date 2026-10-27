@@ -86,6 +86,7 @@ start_encounter :: proc(name: rules.Encounter_Name) {
 	battle_init()
 	battle.active = true
 	battle.paused = true
+	play_music(.Battle)
 	spawn(proc(_: Entity_Id) {
 		if !fade_screen(0, .5) do return
 		if !pause(.5) do return
@@ -313,7 +314,7 @@ show_skill_result :: proc(self: Entity_Id) {
 	c := rules.battle.combatants[br.target_idx]
 	if rules.combatant_downed(c) && !r.downed do return // already down: nothing to show
 
-	// if sound, ok := skill_sounds[br.skill_name].?; ok do play_sound(sound)
+	if sound, ok := skill_sounds[br.skill_name].?; ok do play_sound(sound)
 	if sprite, ok := skill_sprites[br.skill_name].?; ok {
 		if !play_skill_anim(self, sprite) do return
 	}
