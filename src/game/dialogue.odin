@@ -193,7 +193,7 @@ draw_dialogue :: proc() {
 	d := &game.dialogue
 	if !dialogue_active() || game.ui.font.texture.id == 0 do return
 	o := DIALOGUE_ORIGIN
-	w := view_tiles().x
+	w := f32(VIEW_TILES_W)
 	draw_pane(o.x, o.y, w, f32(d.lines + 2) / 2)
 
 	row := 0

@@ -44,6 +44,5 @@ pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
 pc_menu_sprite :: proc(pc_idx: int) -> Sprite_State {
 	s := pc_battle_sprite(pc_idx)
 	s.origin = {0, 0}
-	s.scale = {ZOOM, ZOOM}
 	return s
 }

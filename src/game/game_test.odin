@@ -1081,20 +1081,20 @@ camera_follows_tweened_pos :: proc(t: ^testing.T) {
 	SCREEN :: [2]f32{320, 192} // 80x48 world pixels at ZOOM 4
 	p := spawn_entity({tile = {5, 5}})
 	camera_follow(p)
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, tile_center({5, 5}))
 	testing.expect_value(t, game.world.camera.offset, SCREEN / 2)
 
 	tween_to_tile(p, {6, 5}, 1)
 	run_for(0.5)
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect(t, game.world.camera.target.x > tile_center({5, 5}).x && game.world.camera.target.x < tile_center({6, 5}).x,
 		"camera between tiles mid-step")
 
 	// DEFAULT mode: no clamping past the map edge.
 	set_map({size = {20, 20}})
 	set_tile(p, {0, 0})
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, tile_center({0, 0}))
 }
 
@@ -1168,18 +1168,18 @@ camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	set_map({size = {20, 20}}) // 320x320 world pixels
 	set_map_mode(.CLAMP)
 
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, [2]f32{40, 24})
 	set_tile(p, {19, 19})
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, [2]f32{280, 296})
 	set_tile(p, {10, 10})
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, tile_center({10, 10}))
 
 	// A map narrower than the view is centered on that axis.
 	set_map({size = {4, 20}, mode = .CLAMP})
-	camera_update(SCREEN)
+	camera_update()
 	testing.expect_value(t, game.world.camera.target, [2]f32{32, tile_center({10, 10}).y})
 }
 

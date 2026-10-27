@@ -2,16 +2,12 @@ package game
 
 import "core:math"
 
-// World units are native pixels; the camera zooms them up.
 TILE_SIZE :: 16
-ZOOM      :: 4
 
-// The screen shows VIEW_TILES_W x VIEW_TILES_H tiles, so the window is
-// 1024x896. UI layouts (panes, menus) are in these tiles too (text.odin).
 VIEW_TILES_W  :: 16
 VIEW_TILES_H  :: 14
-WINDOW_WIDTH  :: VIEW_TILES_W * TILE_SIZE * ZOOM
-WINDOW_HEIGHT :: VIEW_TILES_H * TILE_SIZE * ZOOM
+WINDOW_WIDTH  :: VIEW_TILES_W * TILE_SIZE
+WINDOW_HEIGHT :: VIEW_TILES_H * TILE_SIZE
 
 Tile :: [2]i32
 

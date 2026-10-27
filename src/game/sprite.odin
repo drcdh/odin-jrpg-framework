@@ -291,27 +291,13 @@ sprite_src :: proc(state: Sprite_State) -> rl.Rectangle {
 	return {f32(state.frame) * m.frame_size.x, f32(row) * m.frame_size.y, m.frame_size.x, m.frame_size.y}
 }
 
-raw_sprite_size_name :: proc(name: Sprite_Name) -> Pixel_Dim {
+sprite_size_name :: proc(name: Sprite_Name) -> Pixel_Dim {
 	return sprite_metadata[name].frame_size
 }
 
-raw_sprite_size_state :: proc(state: Sprite_State) -> Pixel_Dim {
+sprite_size_state :: proc(state: Sprite_State) -> Pixel_Dim {
 	m, _ := state_metadata(state)
 	return m.frame_size
-}
-
-raw_sprite_size :: proc {
-	raw_sprite_size_name,
-	raw_sprite_size_state,
-}
-
-// On-screen size at the camera's zoom.
-sprite_size_name :: proc(name: Sprite_Name) -> Pixel_Dim {
-	return ZOOM * raw_sprite_size_name(name)
-}
-
-sprite_size_state :: proc(state: Sprite_State) -> Pixel_Dim {
-	return ZOOM * raw_sprite_size_state(state)
 }
 
 sprite_size :: proc {

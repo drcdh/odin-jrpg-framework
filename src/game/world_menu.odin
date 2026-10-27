@@ -98,7 +98,7 @@ world_menu_load :: proc() {
 	menu.textures[World_Menu_Textures.System] = rl.LoadRenderTexture(w, h)
 	menu.textures[World_Menu_Textures.Save] = rl.LoadRenderTexture(w, h)
 
-	w, h = i32(16 * UI_TILE), i32(4 * UI_TILE)
+	w, h = i32(16 * TILE_SIZE), i32(4 * TILE_SIZE)
 	menu.textures[World_Menu_Textures.Targeting] = rl.LoadRenderTexture(w, h)
 }
 
@@ -164,7 +164,7 @@ draw_popups :: proc() {
 		color.a = u8(255 * (1 - k))
 		// Over the sprite in the Targeting pane (draw_targeting), rising half a
 		// tile towards the target cursor as it fades.
-		w := sprite_size(pc_menu_sprite(rules.get_pc_idx(p.slot))).x / UI_TILE
+		w := sprite_size(pc_menu_sprite(rules.get_pc_idx(p.slot))).x / TILE_SIZE
 		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color)
 	}
 }
@@ -713,7 +713,7 @@ draw_targeting :: proc() {
 	w := f32(texture.width)
 	h := f32(texture.height)
 	src := rl.Rectangle{0, 0, w, -h}
-	dest := rl.Rectangle{0, 10 * UI_TILE, w, -h}
+	dest := rl.Rectangle{0, 10 * TILE_SIZE, w, -h}
 	rl.DrawTexturePro(texture, src, dest, {}, 0, rl.WHITE)
 
 	p := f32(menu.party_idx)

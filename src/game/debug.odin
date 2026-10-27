@@ -132,7 +132,7 @@ debug_draw :: proc() {
 
 	if debug_grid {
 		c := rl.Color{100, 50, 50, 200}
-		dg := i32(UI_TILE)
+		dg := i32(TILE_SIZE)
 		G := i32(view.x)
 		t := 0
 		for g: i32 = 0; g <= G; g += dg {
@@ -140,22 +140,22 @@ debug_draw :: proc() {
 			y := i32(view.y)
 			rl.DrawLine(g, 0, g, y, c)
 			rl.DrawLine(0, g, x, g, c)
-			rl.DrawTextEx(font, fmt.ctprintf("%X", t), {0, f32(g)}, UI_TILE, 0, c)
-			rl.DrawTextEx(font, fmt.ctprintf("%X", t), {f32(g), 0}, UI_TILE, 0, c)
+			rl.DrawTextEx(font, fmt.ctprintf("%X", t), {0, f32(g)}, TILE_SIZE, 0, c)
+			rl.DrawTextEx(font, fmt.ctprintf("%X", t), {f32(g), 0}, TILE_SIZE, 0, c)
 			t += 1
 		}
 	}
 
 	if debug_text {
-		h0 := UI_TILE
-		h := h0
+		h0 :: TILE_SIZE
+		h : f32 = h0
 		rl.DrawLineV({0, h0}, {view.x, h0}, rl.WHITE)
 		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, 0}, h0, 0, rl.WHITE)
-		h1 := UI_TILE / 2
+		h1 :: TILE_SIZE / 2
 		h += h1
 		rl.DrawLineV({0, h}, {view.x, h}, rl.WHITE)
 		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, h - h1}, h1, 0, rl.WHITE)
-		h2 := UI_TILE / 4
+		h2 :: TILE_SIZE / 4
 		h += h2
 		rl.DrawLineV({0, h}, {view.x, h}, rl.WHITE)
 		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, h - h2}, h2, 0, rl.WHITE)

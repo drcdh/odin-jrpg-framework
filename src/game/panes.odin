@@ -69,7 +69,7 @@ draw_pane_piece :: proc(piece: Pane_Piece, l, t: f32) {
 // A pane at (l, t), w x h UI tiles, in half-tile steps.
 draw_pane_f32 :: proc(l, t, w, h: f32) {
 	inside_pos := ui_to_screen(l + .5, t + .5)
-	inside_dim := [2]f32{w - 1, h - 1} * UI_TILE
+	inside_dim := [2]f32{w - 1, h - 1} * TILE_SIZE
 	if inside_dim.x > 0 && inside_dim.y > 0 {
 		rl.DrawRectangleV(inside_pos, inside_dim, PANE_BACKGROUND_COLOR)
 	}

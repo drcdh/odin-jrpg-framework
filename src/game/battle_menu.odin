@@ -79,7 +79,7 @@ battle_menu: Battle_Menu
 battle_menu_load :: proc() {
 	for pane in Battle_Pane {
 		dim := BATTLE_PANE_DIM[pane]
-		battle_menu.textures[pane] = rl.LoadRenderTexture(i32(f32(dim.x) * UI_TILE), i32(f32(dim.y) * UI_TILE))
+		battle_menu.textures[pane] = rl.LoadRenderTexture(dim.x * TILE_SIZE, dim.y * TILE_SIZE)
 	}
 }
 

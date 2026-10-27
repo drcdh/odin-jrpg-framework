@@ -47,7 +47,6 @@ ui_update :: proc(dt: f32) {
 ui_icon_state :: proc(name: Sprite_Name) -> Sprite_State {
 	s := create_sprite_state(name, play = true)
 	s.origin = {0, 0}
-	s.scale = {ZOOM, ZOOM}
 	return s
 }
 

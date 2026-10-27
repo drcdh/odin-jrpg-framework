@@ -31,6 +31,8 @@ Game :: struct {
 
 game: Game
 
+texture: rl.RenderTexture
+
 init :: proc(allocator := context.allocator) {
 	log.info("initializing game")
 	hm.dynamic_init(&game.images, allocator)
@@ -43,8 +45,8 @@ init :: proc(allocator := context.allocator) {
 
 	game.clock.time_scale = 1
 
-	game.battle.camera.zoom = ZOOM
-	game.world.camera.zoom = ZOOM
+	game.battle.camera.zoom = 1
+	game.world.camera.zoom = 1
 
 	dialogue_init(allocator)
 	input_init()
@@ -52,6 +54,8 @@ init :: proc(allocator := context.allocator) {
 	sounds_init(allocator)
 	ui_init() // after the sprite maps: it creates the icon sprites
 	world_init(allocator)
+
+	texture = rl.LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT)
 }
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
@@ -80,6 +84,8 @@ shutdown :: proc() {
 	sounds_destroy()
 	ui_destroy()
 	world_shutdown()
+
+	rl.UnloadRenderTexture(texture)
 }
 
 update :: proc() {
@@ -106,6 +112,7 @@ update :: proc() {
 }
 
 draw :: proc() {
+	rl.BeginTextureMode(texture)
 	if battle_active() {
 		draw_battle()
 	} else {
@@ -114,6 +121,7 @@ draw :: proc() {
 	draw_screen_effects()
 	draw_dialogue()
 	debug_draw()
+	rl.EndTextureMode()
 }
 
 draw_entities :: proc(battle := false) {

@@ -58,17 +58,17 @@ camera_focus_on :: proc(focus: Camera_Focus, speed: f32, easing: Ease) {
 	if speed > 0 do game.world.camera.pan = {from = game.world.camera.target, speed = speed, easing = easing}
 }
 
-// Centers the focus on a screen of `screen` pixels, panning if a pan is under
+// Centers the focus on the screen, panning if a pan is under
 // way. In CLAMP mode the view stays inside the map, and a map smaller than the
 // view is centered.
-camera_update :: proc(screen: [2]f32) {
-	game.world.camera.offset = screen / 2
+camera_update :: proc() {
+	game.world.camera.offset = [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2
 	focus, ok := camera_focus_point()
 	if !ok {
 		game.world.camera.pan = {}
 		return
 	}
-	focus = camera_clamp(focus, screen)
+	focus = camera_clamp(focus)
 
 	pan := &game.world.camera.pan
 	if pan.speed <= 0 {
@@ -100,10 +100,10 @@ camera_focus_point :: proc() -> ([2]f32, bool) {
 }
 
 @(private = "file")
-camera_clamp :: proc(p: [2]f32, screen: [2]f32) -> [2]f32 {
+camera_clamp :: proc(p: [2]f32) -> [2]f32 {
 	if game.world.level_map.mode != .CLAMP do return p
 	p := p
-	half := screen / game.world.camera.zoom / 2
+	half := [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2
 	size := map_pixel_size()
 	for i in 0..<2 {
 		if size[i] <= 2 * half[i] {

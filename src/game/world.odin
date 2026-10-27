@@ -26,7 +26,7 @@ world_shutdown :: proc() {
 update_world :: proc() {
 	player_update()
 	world_menu_update()
-	camera_update({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())})
+	camera_update()
 }
 
 draw_world :: proc() {
