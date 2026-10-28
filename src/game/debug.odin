@@ -13,7 +13,7 @@ import "../rules"
 // outside debug builds (ODIN_DEBUG).
 
 DEBUG_FRAMERATE_PERIOD :: 5 // seconds
-THROTTLED_FPS :: 60
+THROTTLED_FPS :: #config(FPS, 60)
 
 debug_framerate: bool
 debug_framerate_count: int
@@ -109,11 +109,11 @@ wait_describe :: proc(w: Wait) -> string {
 debug_draw :: proc() {
 	when !ODIN_DEBUG do return // debug builds only
 
-	view := [2]f32{f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}
+	view := [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT}
 	font := game.ui.font
 
 	if debug_framerate {
-		h: f32 = 20
+		h: f32 = 8
 		origin := [2]f32{0, view.y - h}
 		rl.DrawRectangleV(origin, {view.x, h}, rl.BLACK)
 		mean: f32 = 0
@@ -122,7 +122,7 @@ debug_draw :: proc() {
 		}
 		rl.DrawTextEx(
 			font,
-			fmt.ctprintf("%f seconds | %d frames | %f fps", debug_framerate_sum, debug_framerate_count, mean),
+			fmt.ctprintf("%.1f sec | %d frames | %.1f fps", debug_framerate_sum, debug_framerate_count, mean),
 			origin,
 			h,
 			0,

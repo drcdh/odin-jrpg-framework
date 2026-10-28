@@ -35,7 +35,13 @@ draw_world :: proc() {
 	draw_debug_world()
 	rl.EndMode2D()
 	draw_debug_world_hud()
-	draw_world_menu()
+	if world_menu_active() {
+		// shade the world behind the menu
+		rl.BeginBlendMode(.MULTIPLIED)
+		rl.DrawRectangleV({}, {WINDOW_WIDTH, WINDOW_HEIGHT}, {120, 120, 165, 255})
+		rl.EndBlendMode()
+		draw_world_menu()
+	}
 }
 
 player     :: proc() -> Entity_Id { return game.world.player }

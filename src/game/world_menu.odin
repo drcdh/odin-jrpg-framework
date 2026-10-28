@@ -173,9 +173,7 @@ world_menu_active :: proc() -> bool {
 	return menu.ui_state != .Inactive
 }
 
-// Screen space, after the dialogue box.
 draw_world_menu :: proc() {
-	if menu.textures[World_Menu_Textures.Top].id == 0 do return
 	switch menu.ui_state {
 	case .Inactive:
 	case .Top:
@@ -191,9 +189,7 @@ draw_world_menu :: proc() {
 	case .Skill_Target:
 		draw_textures(.Skills, .Targeting)
 	case .Inventory:
-		// After the last of an item is used, its popups still need the pane.
-		if sa.len(menu.popups) > 0 do draw_textures(.Inventory, .Targeting)
-		else do draw_textures(.Inventory)
+		draw_textures(.Inventory)
 	case .Item_Target:
 		draw_textures(.Inventory, .Targeting)
 	case .System:
@@ -204,11 +200,11 @@ draw_world_menu :: proc() {
 	draw_popups()
 }
 
-// Reads the menu's input. Call after dialogue_update.
 @(private)
 world_menu_update :: proc() {
 	popups_update(game.clock.raw_dt)
-	#partial switch menu.ui_state {
+
+	switch menu.ui_state {
 	case .Inactive:
 
 	case .Top:
@@ -323,7 +319,7 @@ world_menu_update :: proc() {
 			if _, consumable := rules.items[item_name].data.(rules.Consumable); consumable {
 				menu.ui_state = .Item_Target
 			} else {
-				fmt.printfln("Item %s isn't a rules.Consumable", rules.items[item_name])
+				fmt.printfln("%v isn't a Consumable", item_name)
 				play_sound(.Blerp)
 			}
 		} else if dy, ok := get_y_input().?; ok {
