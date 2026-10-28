@@ -43,7 +43,7 @@ init :: proc(allocator := context.allocator) {
 	game.script_order    = make([dynamic]Script_Id, allocator)
 	game.swapped_sprites = make(map[Swap_Key]Sprite_Handle, allocator)
 
-	game.clock.time_scale = 1
+	game.clock = {time_scale = 1}
 
 	game.battle.camera.zoom = 1
 	game.world.camera.zoom = 1
@@ -55,14 +55,29 @@ init :: proc(allocator := context.allocator) {
 	ui_init() // after the sprite maps: it creates the icon sprites
 	world_init(allocator)
 
-	texture = rl.LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT)
+	if rl.IsWindowReady() do texture = rl.LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT)
 }
 
 // Cancels and reaps all scripts, then frees everything. Call before rl.CloseWindow.
 shutdown :: proc() {
 	log.info("shutting down game")
+	scripts_shutdown()
+	unload_map()
+
+	dialogue_destroy()
+	music_shutdown()
+	sounds_destroy()
+	ui_destroy()
+
+	it := hm.iterator_make(&game.images)
+	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
+	for tex in game.tilesets do if tex.id != 0 do rl.UnloadTexture(tex)
+	if texture.id != 0 do rl.UnloadRenderTexture(texture)
+	texture = {}
+
 	rules.destroy()
 
+	// Must be last: everything above may still look things up in these.
 	hm.dynamic_destroy(&game.entities)
 	hm.dynamic_destroy(&game.images)
 	hm.dynamic_destroy(&game.scripts)
@@ -72,25 +87,15 @@ shutdown :: proc() {
 	delete(game.script_order)
 	delete(game.swapped_sprites)
 
-	it := hm.iterator_make(&game.images)
-	for img, _ in hm.iterate(&it) do if img.texture.id != 0 do rl.UnloadTexture(img.texture)
-	for tex in game.tilesets do if tex.id != 0 do rl.UnloadTexture(tex)
-
-	scripts_shutdown()
-	unload_map()
-
-	dialogue_destroy()
-	music_shutdown()
-	sounds_destroy()
-	ui_destroy()
 	world_shutdown()
-
-	rl.UnloadRenderTexture(texture)
+	game = {} // a later init starts clean
 }
 
-update :: proc() {
-	clock_advance(rl.GetFrameTime())
-	input_update(rl.GetFrameTime())
+// frame_dt is the real time since the last frame; the entrypoint passes
+// rl.GetFrameTime. Call after input_update, which the entrypoint does so tests
+// can set input themselves.
+update :: proc(frame_dt: f32) {
+	clock_advance(frame_dt)
 
 	if battle_staged() do encounter_init()
 	if battle_active() {
@@ -100,13 +105,15 @@ update :: proc() {
 	}
 
 	debug_update()
+	tweens_update(game.clock.dt)
 	scripts_update()
 
 	dialogue_update(game.clock.dt)
 	sounds_update(game.clock.dt)
 	sprites_update(game.clock.dt)
-	tweens_update(game.clock.dt)
 	ui_update(game.clock.raw_dt) // cursors animate while the menu pauses the world
+
+	if !battle_active() do camera_update()
 
 	entities_flush_destroyed()
 }

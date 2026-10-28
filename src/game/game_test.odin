@@ -17,10 +17,7 @@ FRAME :: f32(1.0 / 50.0)
 // Advances `seconds` of game time in FRAME steps, running a full update per frame.
 @(private = "file")
 run_for :: proc(seconds: f32) {
-	for _ in 0..<int(math.round(seconds / FRAME)) {
-		clock_advance(FRAME)
-		update()
-	}
+	for _ in 0..<int(math.round(seconds / FRAME)) do update(FRAME)
 }
 
 // Tween tests work in raw pixels; spawn_entity snaps pos to a tile center, so override it.
@@ -1078,12 +1075,11 @@ map_render_headless_is_noop :: proc(t: ^testing.T) {
 @(test)
 camera_follows_tweened_pos :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	SCREEN :: [2]f32{320, 192} // 80x48 world pixels at ZOOM 4
 	p := spawn_entity({tile = {5, 5}})
 	camera_follow(p)
 	camera_update()
 	testing.expect_value(t, game.world.camera.target, tile_center({5, 5}))
-	testing.expect_value(t, game.world.camera.offset, SCREEN / 2)
+	testing.expect_value(t, game.world.camera.offset, [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2)
 
 	tween_to_tile(p, {6, 5}, 1)
 	run_for(0.5)
@@ -1162,17 +1158,18 @@ pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
 @(test)
 camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	SCREEN :: [2]f32{320, 192} // half view: 40x24 world pixels
+	half := [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2
+	map_size := [2]f32{20, 20} * TILE_SIZE // bigger than the view
 	p := spawn_entity({tile = {0, 0}})
 	camera_follow(p)
-	set_map({size = {20, 20}}) // 320x320 world pixels
+	set_map({size = {20, 20}})
 	set_map_mode(.CLAMP)
 
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, [2]f32{40, 24})
+	testing.expect_value(t, game.world.camera.target, half)
 	set_tile(p, {19, 19})
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, [2]f32{280, 296})
+	testing.expect_value(t, game.world.camera.target, map_size - half)
 	set_tile(p, {10, 10})
 	camera_update()
 	testing.expect_value(t, game.world.camera.target, tile_center({10, 10}))

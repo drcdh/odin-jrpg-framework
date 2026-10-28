@@ -44,7 +44,8 @@ main :: proc() {
 		SRC :: rl.Rectangle{0, 0, game.WINDOW_WIDTH, -game.WINDOW_HEIGHT}
 		DEST :: rl.Rectangle{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}
 
-		game.update()
+		game.input_update(rl.GetFrameTime())
+		game.update(rl.GetFrameTime())
 		game.draw()
 
 		rl.BeginDrawing()

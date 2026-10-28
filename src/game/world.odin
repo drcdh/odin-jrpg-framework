@@ -26,7 +26,6 @@ world_shutdown :: proc() {
 update_world :: proc() {
 	player_update()
 	world_menu_update()
-	camera_update()
 }
 
 draw_world :: proc() {
