@@ -319,10 +319,12 @@ set_autobattle :: proc(v := true) {
 // have all finished, then ends if a team has won.
 process_skill_results :: proc() {
 	if len(rules.battle.skill_result) == 0 do return
+	log.info("processing skill results")
 	assert(!script_alive(game.battle.results_script), "a skill play is already being shown")
 	clear(&game.battle.results)
 	append(&game.battle.results, ..rules.battle.skill_result[:])
 	game.battle.paused = true
+	log.infof("starting show_skill_results: len(game.battle.results) = %d", len(game.battle.results))
 	game.battle.results_script = spawn(show_skill_results, name = "skill results")
 }
 
@@ -339,6 +341,7 @@ show_skill_results :: proc(_: Entity_Id) {
 	battle_menu_set_stale(.Baddies)
 	battle_menu_set_stale(.Party)
 	if result, over := rules.check_win().?; over {
+		log.infof("battle result non-nil: %v", result)
 		game.battle.result = result
 		if result == .Win {
 			game.battle.ui_disabled = true
