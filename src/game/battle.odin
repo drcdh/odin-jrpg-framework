@@ -101,6 +101,7 @@ encounter_init :: proc() {
 	battle_init()
 	game.battle.state = .Active
 	game.battle.paused = true
+	game.battle.ui_disabled = false
 	log.info("battle is Active")
 }
 
@@ -345,6 +346,7 @@ show_skill_results :: proc(_: Entity_Id) {
 		game.battle.result = result
 		if result == .Win {
 			game.battle.ui_disabled = true
+			battle_menu.ui_state = .Idle
 			for c_idx in rules.battle.allies {
 				if rules.combatant_alive(rules.battle.combatants[c_idx]) {
 					set_sprite_tag_of(game.battle.combatants[c_idx], .Cheer)

@@ -411,9 +411,11 @@ change_ally_selection :: proc(t, d: int) -> int {
 }
 
 change_baddy_selection :: proc(t, d: int) -> int {
+	aaah: int
 	initial_target := t
 	target := t + d
 	for {
+		if aaah += 1; aaah > 10 do break // FIXME
 		if target < 0 {target = len(rules.battle.baddies) - 1}
 		if target >= len(rules.battle.baddies) {target = 0}
 		if target == initial_target {break}

@@ -126,13 +126,14 @@ monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: rules.E
 
 start_encounter :: proc(name: rules.Encounter_Name) {
 	log.infof("starting encounter %v", name)
+	wait_script(spawn(proc(_: Entity_Id) {
+		if !fade_screen(1, .25) do return
+	}))
 	battle_stage(name) // tell battle to initialize from encounter. Must happen on main thread to load baddy sprites
 	spawn(proc(_: Entity_Id) {
-		if !fade_screen(1, .5) do return
-		if !battle_active() do return // wait until initialization is done
 		play_music(.Battle)
-		if !fade_screen(0, .5) do return
-		if !pause(.5) do return
+		if !fade_screen(0, .25) do return
+		if !pause(.25) do return
 		game.battle.paused = false
 	}, name = "battle start")
 }
