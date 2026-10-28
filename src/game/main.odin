@@ -113,6 +113,7 @@ update :: proc() {
 
 draw :: proc() {
 	rl.BeginTextureMode(texture)
+	rl.ClearBackground({30, 30, 40, 255})
 	if battle_active() {
 		draw_battle()
 	} else {

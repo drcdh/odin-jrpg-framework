@@ -213,7 +213,7 @@ draw_dialogue :: proc() {
 
 	#partial switch _ in d.state {
 	case Dialogue_Wait:
-		draw_sprite(game.ui.dialogue_icon, ui_to_screen(o.x + w - 1, o.y + f32(d.lines / 2)))
+		draw_sprite(game.ui.dialogue_icon, tile_to_pixel(o.x + w - 1, o.y + f32(d.lines / 2)))
 	case Dialogue_Choose:
 		draw_pane(o.x, o.y + f32(d.lines + 2) / 2, w, f32(len(d.choices) + 2) / 2)
 		for c, i in d.choices {

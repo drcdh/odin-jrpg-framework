@@ -438,7 +438,7 @@ draw_top :: proc() {
 			draw_text(origin + {2, 0}, strings.clone_to_cstring(pc.name, context.temp_allocator))
 			draw_text(origin + {2, 1}, "HP", LABEL_COLOR)
 			draw_text(origin + {3.5, 1}, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
-			draw_sprite(pc_menu_sprite(pc_idx), ui_to_screen(origin.x, origin.y))
+			draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(origin.x, origin.y))
 		})
 
 		draw_pane(11, 0, 5, 6) // top
@@ -470,10 +470,10 @@ draw_top :: proc() {
 
 	#partial switch menu.ui_state {
 	case .Top:
-		draw_text_indicator(ui_to_screen(12, .75 + f32(menu.top)))
+		draw_text_indicator(tile_to_pixel(12, .75 + f32(menu.top)))
 	case .Party:
 		p := f32(menu.party_idx)
-		draw_tile_indicator(ui_to_screen(1, 1 + 2 * p))
+		draw_tile_indicator(tile_to_pixel(1, 1 + 2 * p))
 	}
 }
 
@@ -489,7 +489,7 @@ draw_character :: proc() {
 		draw_pane(12, 0, 4, 1.5)
 		draw_text(12.5, .5, "Status", LABEL_COLOR)
 
-		draw_sprite(pc_menu_sprite(pc_idx), ui_to_screen(1, 1))
+		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
 
 		draw_text(3.5, 2.0, "Level", LABEL_COLOR)
 		draw_text(4.0, 2.5, fmt.ctprint(pc.level))
@@ -571,10 +571,10 @@ draw_character :: proc() {
 	#partial switch menu.ui_state {
 	case .Character:
 		s := f32(menu.slot_idx)
-		draw_text_indicator(ui_to_screen(1, 5 + s))
+		draw_text_indicator(tile_to_pixel(1, 5 + s))
 	case .Equipment:
 		r := f32(selection_row(menu.equip_sel))
-		draw_text_indicator(ui_to_screen(1, 7 + .5 * r))
+		draw_text_indicator(tile_to_pixel(1, 7 + .5 * r))
 	}
 }
 
@@ -614,7 +614,7 @@ draw_inventory :: proc() {
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
 
 	r := f32(selection_row(menu.inven_sel))
-	draw_text_indicator(ui_to_screen(1, 5 + .5 * r))
+	draw_text_indicator(tile_to_pixel(1, 5 + .5 * r))
 }
 
 draw_skills :: proc() {
@@ -629,7 +629,7 @@ draw_skills :: proc() {
 		draw_pane(12, 0, 4, 1.5)
 		draw_text(12.5, .5, "Skills", LABEL_COLOR)
 
-		draw_sprite(pc_menu_sprite(pc_idx), ui_to_screen(1, 1))
+		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
 		draw_text(3, 1, strings.clone_to_cstring(pc.name, context.temp_allocator))
 
 		draw_text(1, 3, "Description", LABEL_COLOR)
@@ -657,7 +657,7 @@ draw_skills :: proc() {
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
 
 	r := f32(selection_row(menu.skill_sel))
-	draw_text_indicator(ui_to_screen(1, 5 + .5 * r))
+	draw_text_indicator(tile_to_pixel(1, 5 + .5 * r))
 }
 
 draw_system :: proc() {
@@ -689,7 +689,7 @@ draw_targeting :: proc() {
 		rules.party_apply(
 			proc(i, pc_idx: int) {
 				pc := rules.playable_characters[pc_idx]
-				draw_sprite(pc_menu_sprite(pc_idx), ui_to_screen(1.5 + 2.5 * f32(i), 1))
+				draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1.5 + 2.5 * f32(i), 1))
 				hp_tint := rl.WHITE
 				hp := pc.hitpoints
 				max_hp := int(rules.get_stat(pc, .Hitpoints))
@@ -717,7 +717,7 @@ draw_targeting :: proc() {
 	rl.DrawTexturePro(texture, src, dest, {}, 0, rl.WHITE)
 
 	p := f32(menu.party_idx)
-	draw_tile_indicator(ui_to_screen(1.5 + 2.5 * p, 11), direction = Tile_Indicator_Direction.Down)
+	draw_tile_indicator(tile_to_pixel(1.5 + 2.5 * p, 11), direction = Tile_Indicator_Direction.Down)
 }
 
 draw_save :: proc() {
@@ -748,7 +748,7 @@ draw_save :: proc() {
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
 
 	r := f32(selection_row(menu.save_sel))
-	draw_text_indicator(ui_to_screen(1, TITLE_HEIGHT + r * SLOT_HEIGHT + .5))
+	draw_text_indicator(tile_to_pixel(1, TITLE_HEIGHT + r * SLOT_HEIGHT + .5))
 }
 
 @(private)

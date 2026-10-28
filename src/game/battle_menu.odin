@@ -159,7 +159,7 @@ battle_redraw_top_pane :: proc() {
 
 battle_draw_top_icons :: proc() {
 	draw_text_indicator(
-		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + ui_to_screen(.5, .5 + .5 * f32(battle_menu.top)),
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + tile_to_pixel(.5, .5 + .5 * f32(battle_menu.top)),
 	)
 }
 
@@ -229,8 +229,8 @@ battle_redraw_skills_pane :: proc() {
 
 battle_draw_skills_icons :: proc() {
 	draw_text_indicator(
-		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
-		ui_to_screen(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
+		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
 	)
 }
 
@@ -251,8 +251,8 @@ battle_redraw_inventory_pane :: proc() {
 
 battle_draw_inventory_icons :: proc() {
 	draw_text_indicator(
-		ui_tile_to_screen(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
-		ui_to_screen(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
+		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
 	)
 }
 
@@ -280,7 +280,7 @@ battle_redraw_pane :: proc(pane: Battle_Pane) {
 
 battle_draw_pane :: proc(pane: Battle_Pane) {
 	origin_tile := BATTLE_PANE_ORIGIN[pane]
-	origin := ui_tile_to_screen(origin_tile)
+	origin := tile_to_pixel(origin_tile)
 	texture := battle_menu.textures[pane].texture
 	w := f32(texture.width)
 	h := f32(texture.height)

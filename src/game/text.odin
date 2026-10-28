@@ -2,25 +2,8 @@ package game
 
 import rl "vendor:raylib"
 
-// The screen's size in UI tiles.
-// view_tiles :: proc() -> [2]f32 {
-// 	return {VIEW_TILES_W, VIEW_TILES_H}
-// }
-
-// UI tile coordinates to screen pixels.
-ui_to_screen :: proc(l, t: f32) -> [2]f32 {
-	p := [2]f32{l, t} * TILE_SIZE
-	if p.x < 0 do p.x += f32(rl.GetScreenWidth())
-	if p.y < 0 do p.y += f32(rl.GetScreenHeight())
-	return p
-}
-
-ui_tile_to_screen :: proc(t: Tile) -> [2]f32 {
-	return ui_to_screen(f32(t.x), f32(t.y))
-}
-
 draw_text_f32 :: proc(l, t: f32, text: cstring, tint := rl.WHITE) {
-	rl.DrawTextEx(game.ui.font, text, ui_to_screen(l, t), TILE_SIZE / 2, 0, tint)
+	rl.DrawTextEx(game.ui.font, text, tile_to_pixel(l, t), TILE_SIZE / 2, 0, tint)
 }
 
 draw_text_V :: proc(lt: [2]f32, text: cstring, tint := rl.WHITE) {
