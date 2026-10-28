@@ -1,5 +1,6 @@
 package game
 
+import "core:fmt"
 import "core:log"
 import "core:math/rand"
 import rl "vendor:raylib"
@@ -136,3 +137,38 @@ start_encounter :: proc(name: rules.Encounter_Name) {
 	}, name = "battle start")
 }
 
+character_get_experience_result: struct {
+	prev_level: int,
+	new_skills: rules.Skill_Set,
+	new_level: int,
+	name: string,
+}
+
+character_get_experience :: proc(pc_idx, exp: int) {
+	c := &rules.playable_characters[pc_idx]
+	character_get_experience_result = {prev_level = c.level} // resets other fields
+	character_get_experience_result.new_skills = rules.character_get_experience(c, exp)
+	character_get_experience_result.new_level = c.level
+	character_get_experience_result.name = c.name
+	log.infof("%s get experience %d", c.name, exp)
+
+	wait_script(spawn(proc(_: Entity_Id) {
+		if character_get_experience_result.new_level > character_get_experience_result.prev_level do say(fmt.tprintf("%s got to level %d", character_get_experience_result.name, character_get_experience_result.new_level))
+		for k in character_get_experience_result.new_skills {
+			say(fmt.tprintf("%s learned %s", character_get_experience_result.name, rules.skills[k].name))
+		}
+	}))
+}
+
+party_get_experience_v: int
+party_get_experience :: proc(exp: int) {
+	log.infof("party get experience %d", exp)
+	party_get_experience_v = exp
+	wait_script(spawn(proc(_: Entity_Id) {
+		say(fmt.tprintf("Got %d experience points", party_get_experience_v))
+		for pc_idx in 0 ..< rules.NUM_PC {
+			if !rules.game_data.party_membership[pc_idx] do continue
+			character_get_experience(pc_idx, party_get_experience_v)
+		}
+	}))
+}

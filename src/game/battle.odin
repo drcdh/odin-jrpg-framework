@@ -204,7 +204,7 @@ draw_battle :: proc() {
 		draw_debug_battle()
 	}
 	rl.EndMode2D()
-	battle_menu_draw()
+	battle_menu_draw(game.battle.ui_disabled)
 	draw_battle_popups()
 
 	// debug
@@ -336,8 +336,26 @@ show_skill_results :: proc(_: Entity_Id) {
 	for s in sa.slice(&scripts) {
 		if !wait_script(s) do return
 	}
+	battle_menu_set_stale(.Baddies)
+	battle_menu_set_stale(.Party)
 	if result, over := rules.check_win().?; over {
 		game.battle.result = result
+		if result == .Win {
+			game.battle.ui_disabled = true
+			for c_idx in rules.battle.allies {
+				if rules.combatant_alive(rules.battle.combatants[c_idx]) {
+					set_sprite_tag_of(game.battle.combatants[c_idx], .Cheer)
+				}
+			}
+			say("Victory!")
+			party_get_experience(rules.encounters[game.battle.staging.encounter_name].exp) // blocks with say
+			// get_spoils()
+			fade_screen(1, .5)
+			game.battle.state = .None // stop drawing battle and draw world
+			play_prev_music()
+			fade_screen(0, .5)
+			battle_deactivate()
+		}
 	} else {
 		game.battle.paused = false
 	}

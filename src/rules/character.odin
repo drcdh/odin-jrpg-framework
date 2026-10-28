@@ -35,6 +35,7 @@ exp_to_next :: proc(level: int) -> Maybe(int) {
 }
 
 set_level :: proc(c: ^Character, level: int) {
+	log.infof("%s went to level %d", c.name, level)
 	c.exp_to_next = exp_to_next(level)
 	c.level = level
 	set_leveled_stats(c)
@@ -75,21 +76,23 @@ take_poison_damage :: proc(c: ^Character) -> int {
 	return dmg
 }
 
-gain_level :: proc(c: ^Character) {
+gain_level :: proc(c: ^Character) -> Skill_Set {
+	log.infof("%s gained a level", c.name)
 	prev_skill_set := c.skill_set
 	set_level(c, c.level + 1)
 	new_skills := c.skill_set - prev_skill_set
 	for k in new_skills {
 		log.infof("%s learned %s", c.name, skills[k].name)
 	}
+	return new_skills
 }
 
-get_experience :: proc(c: ^Character, exp: int) {
+character_get_experience :: proc(c: ^Character, exp: int) -> (new_skills: Skill_Set) {
 	for exp := exp; exp > 0; {
-		log.infof("~ %s gets %d exp", c.name, exp)
+		log.infof("%s gets %d exp", c.name, exp)
 		if exp_needed, ok := c.exp_to_next.(int); ok {
 			if exp >= exp_needed {
-				gain_level(c)
+				new_skills |= gain_level(c)
 				exp -= exp_needed
 			} else {
 				c.exp_to_next = exp_needed - exp
@@ -97,15 +100,16 @@ get_experience :: proc(c: ^Character, exp: int) {
 			}
 		}
 	}
+	return
 }
 
-party_get_experience :: proc(exp: int) {
-	if exp <= 0 do return
-	for party_idx in 0 ..< party_size() {
-		pc := get_party_member(party_idx)
-		get_experience(pc, exp)
-	}
-}
+// party_get_experience :: proc(exp: int) {
+// 	if exp <= 0 do return
+// 	for party_idx in 0 ..< party_size() {
+// 		pc := get_party_member(party_idx)
+// 		get_experience(pc, exp)
+// 	}
+// }
 
 Status_Name :: enum {
 	Confuse,

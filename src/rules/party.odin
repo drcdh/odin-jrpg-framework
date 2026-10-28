@@ -24,7 +24,7 @@ init_pcs :: proc() {
 		{
 			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
 			name = strings.clone("One"),
-			equipment = new_equipment(body = .Shirt, feet = .Boots),
+			equipment = new_equipment(mainhand = .Sword, body = .Shirt, feet = .Boots),
 		},
 		{
 			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},

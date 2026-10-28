@@ -103,13 +103,15 @@ battle_menu_end :: proc() {
 	battle_menu.ui_state = .Inactive
 }
 
-battle_menu_draw :: proc() {
+battle_menu_draw :: proc(disabled: bool) {
 	for &stale, i in battle_menu.stale {
 		if stale {
 			battle_redraw_pane(Battle_Pane(i))
 			stale = false
 		}
 	}
+	if disabled do battle_menu.ui_state = .Idle
+
 	switch battle_menu.ui_state {
 	case .Inactive:
 	case .Idle:
@@ -130,7 +132,7 @@ battle_menu_draw :: proc() {
 	if battle_menu.show_text {
 		battle_draw_panes(.Text)
 	}
-	if battle_menu.ui_state != .Inactive {
+	if !disabled && battle_menu.ui_state != .Inactive {
 		battle_menu_draw_icons()
 	}
 }
