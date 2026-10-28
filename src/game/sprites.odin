@@ -35,8 +35,10 @@ pc_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
 
 // A playable character's battle sprite, idling.
 pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
-	if pc_idx == 0 do return create_sprite_state(.Player_Battle, Sprite_Tag.Idle, play = true, layer = layer)
-	return create_sprite_state(.Man_Battle_Ps, Sprite_Tag.Idle, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
+	c := rules.playable_characters[pc_idx]
+	t := Sprite_Tag.Idle if rules.Stat(c.hitpoints) > rules.get_stat(c, .Hitpoints)/4 else (c.hitpoints == 0 ? Sprite_Tag.Downed : Sprite_Tag.Kneeled)
+	if pc_idx == 0 do return create_sprite_state(.Player_Battle, t, play = true, layer = layer)
+	return create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
 }
 
 // A playable character's sprite for menus (its battle sprite): screen space,
