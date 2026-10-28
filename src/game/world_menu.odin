@@ -376,8 +376,6 @@ world_menu_update :: proc() {
 			set_stale(.Save)
 		}
 	}
-
-	redraw_world_menu_content()
 }
 
 // ******************************
@@ -415,7 +413,6 @@ draw_texture :: proc(texture: World_Menu_Textures) {
 	}
 }
 
-@(private = "file")
 redraw_world_menu_content :: proc() {
 	for t in World_Menu_Textures {
 		if menu.stale[t] do draw_content(t)

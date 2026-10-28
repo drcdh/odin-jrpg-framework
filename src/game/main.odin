@@ -119,6 +119,8 @@ update :: proc(frame_dt: f32) {
 }
 
 draw :: proc() {
+	redraw_world_menu_content()
+
 	rl.BeginTextureMode(texture)
 	rl.ClearBackground({30, 30, 40, 255})
 	if battle_active() {
