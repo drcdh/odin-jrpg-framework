@@ -69,7 +69,7 @@ main :: proc() {
 
 			game.clock_advance(rl.GetFrameTime())
 			game.input_update(rl.GetFrameTime())
-			game.update()
+			game.update(rl.GetFrameTime())
 			game.debug_update()
 
 			rl.BeginDrawing()
