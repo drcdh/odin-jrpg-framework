@@ -175,13 +175,22 @@ spawn_combatants :: proc(name: Encounter_Name) {
 		tile := BADDY_ORIGIN + 2 * Tile{i32(spot.tile.x), i32(spot.tile.y)}
 		spawn_combatant(rules.baddy_templates[baddy_id].name, tile, sprite)
 	}
-	row: i32
+
+	dy: i32 = 2
+	y0: i32 = 3
+	x: i32 = 9
+	y: i32 = y0
+	party_idx := 0
 	for pc_idx in 0 ..< rules.NUM_PC {
 		if !rules.game_data.party_membership[pc_idx] do continue
-		// Stagger the column so neighbours' gauges don't cover each other.
-		tile := ALLY_ORIGIN + {row % 2, row}
-		spawn_combatant(rules.playable_characters[pc_idx].name, tile, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
-		row += 1
+		spawn_combatant(rules.playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
+		party_idx += 1
+		x += 1
+		if party_idx != 3 {
+			y += dy
+		} else {
+			y = y0 + dy / 2
+		}
 	}
 	assert(len(game.battle.combatants) == len(rules.battle.combatants), "combatant entities out of step with rules.battle")
 }
