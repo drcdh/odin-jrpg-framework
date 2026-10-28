@@ -376,6 +376,8 @@ world_menu_update :: proc() {
 			set_stale(.Save)
 		}
 	}
+
+	redraw_world_menu_content()
 }
 
 // ******************************
@@ -414,49 +416,79 @@ draw_texture :: proc(texture: World_Menu_Textures) {
 }
 
 @(private = "file")
+redraw_world_menu_content :: proc() {
+	for t in World_Menu_Textures {
+		if menu.stale[t] do draw_content(t)
+	}
+}
+
+@(private = "file")
+draw_content :: proc(texture: World_Menu_Textures) {
+	switch texture {
+	case .Top:
+		draw_top_content()
+	case .Character:
+		draw_character_content()
+	case .Skills:
+		draw_skills_content()
+	case .Inventory:
+		draw_inventory_content()
+	case .Targeting:
+		draw_targeting_content()
+	case .System:
+		draw_system_content()
+	case .Save:
+		draw_save_content()
+	}
+}
+
+@(private = "file")
+draw_top_content :: proc() {
+	t :: World_Menu_Textures.Top
+	rl.BeginTextureMode(menu.textures[t])
+
+	draw_pane(0, 0, 10, 14) // party
+	rules.party_apply(proc(p, pc_idx: int) {
+		origin := [2]f32{1, 1 + 2 * f32(p)}
+		pc := rules.playable_characters[pc_idx]
+		hp_tint := rl.WHITE
+		hp := pc.hitpoints
+		max_hp := int(rules.get_stat(pc, .Hitpoints))
+		if hp <= 0 {
+			hp_tint = rl.RED
+		} else if hp <= max_hp / 4 {
+			hp_tint = rl.ORANGE
+		}
+		draw_text(origin + {2, 0}, strings.clone_to_cstring(pc.name, context.temp_allocator))
+		draw_text(origin + {2, 1}, "HP", LABEL_COLOR)
+		draw_text(origin + {3.5, 1}, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
+		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(origin.x, origin.y))
+	})
+
+	draw_pane(11, 0, 5, 6) // top
+	draw_text(12, 0.75 + 0, "Items")
+	draw_text(12, 0.75 + 1, "Skills")
+	draw_text(12, 0.75 + 2, "Status")
+	draw_text(12, 0.75 + 3, "System")
+	draw_text(12, 0.75 + 4, "Save")
+
+	draw_pane(12, 9, 4, 3) // clock
+	draw_text(12.5, 9.5, "Time", LABEL_COLOR)
+	draw_text(12.5, 10.0, fmt.ctprintf("% 6d", rules.game_data.time))
+	draw_text(12.5, 10.5, "Steps", LABEL_COLOR)
+	draw_text(12.5, 11.0, fmt.ctprintf("% 6d", rules.game_data.steps))
+
+	draw_pane(12, 12, 4, 2) // money
+	draw_text(12.5, 12.5, "Cash", LABEL_COLOR)
+	draw_text(12.5, 13.0, fmt.ctprintf("% 6d", rules.game_data.money))
+
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
 draw_top :: proc() {
 	t :: World_Menu_Textures.Top
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
-
-		draw_pane(0, 0, 10, 14) // party
-		rules.party_apply(proc(p, pc_idx: int) {
-			origin := [2]f32{1, 1 + 2 * f32(p)}
-			pc := rules.playable_characters[pc_idx]
-			hp_tint := rl.WHITE
-			hp := pc.hitpoints
-			max_hp := int(rules.get_stat(pc, .Hitpoints))
-			if hp <= 0 {
-				hp_tint = rl.RED
-			} else if hp <= max_hp / 4 {
-				hp_tint = rl.ORANGE
-			}
-			draw_text(origin + {2, 0}, strings.clone_to_cstring(pc.name, context.temp_allocator))
-			draw_text(origin + {2, 1}, "HP", LABEL_COLOR)
-			draw_text(origin + {3.5, 1}, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
-			draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(origin.x, origin.y))
-		})
-
-		draw_pane(11, 0, 5, 6) // top
-		draw_text(12, 0.75 + 0, "Items")
-		draw_text(12, 0.75 + 1, "Skills")
-		draw_text(12, 0.75 + 2, "Status")
-		draw_text(12, 0.75 + 3, "System")
-		draw_text(12, 0.75 + 4, "Save")
-
-		draw_pane(12, 9, 4, 3) // clock
-		draw_text(12.5, 9.5, "Time", LABEL_COLOR)
-		draw_text(12.5, 10.0, fmt.ctprintf("% 6d", rules.game_data.time))
-		draw_text(12.5, 10.5, "Steps", LABEL_COLOR)
-		draw_text(12.5, 11.0, fmt.ctprintf("% 6d", rules.game_data.steps))
-
-		draw_pane(12, 12, 4, 2) // money
-		draw_text(12.5, 12.5, "Cash", LABEL_COLOR)
-		draw_text(12.5, 13.0, fmt.ctprintf("% 6d", rules.game_data.money))
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
-	}
 
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
@@ -473,90 +505,94 @@ draw_top :: proc() {
 	}
 }
 
-draw_character :: proc() {
+@(private = "file")
+draw_character_content :: proc() {
 	t :: World_Menu_Textures.Character
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
+	rl.BeginTextureMode(menu.textures[t])
 
-		pc_idx := rules.get_pc_idx(menu.party_idx)
-		pc := rules.playable_characters[pc_idx]
+	pc_idx := rules.get_pc_idx(menu.party_idx)
+	pc := rules.playable_characters[pc_idx]
 
-		draw_pane(0, 0, 16, 14)
-		draw_pane(12, 0, 4, 1.5)
-		draw_text(12.5, .5, "Status", LABEL_COLOR)
+	draw_pane(0, 0, 16, 14)
+	draw_pane(12, 0, 4, 1.5)
+	draw_text(12.5, .5, "Status", LABEL_COLOR)
 
-		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
+	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
 
-		draw_text(3.5, 2.0, "Level", LABEL_COLOR)
-		draw_text(4.0, 2.5, fmt.ctprint(pc.level))
-		if exp, ok := pc.exp_to_next.?; ok {
-			draw_text(7.5, 2.0, "Next Level", LABEL_COLOR)
-			draw_text(8.0, 2.5, fmt.ctprint(exp))
-		}
+	draw_text(3.5, 2.0, "Level", LABEL_COLOR)
+	draw_text(4.0, 2.5, fmt.ctprint(pc.level))
+	if exp, ok := pc.exp_to_next.?; ok {
+		draw_text(7.5, 2.0, "Next Level", LABEL_COLOR)
+		draw_text(8.0, 2.5, fmt.ctprint(exp))
+	}
 
-		draw_text(3.5, 3.0, "HP", LABEL_COLOR)
-		hp_tint := rl.WHITE
-		hp := pc.hitpoints
-		max_hp := int(rules.get_stat(pc, .Hitpoints))
-		if hp <= 0 {
-			hp_tint = rl.RED
-		} else if hp <= max_hp / 4 {
-			hp_tint = rl.ORANGE
-		}
-		draw_text(4, 3.5, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
+	draw_text(3.5, 3.0, "HP", LABEL_COLOR)
+	hp_tint := rl.WHITE
+	hp := pc.hitpoints
+	max_hp := int(rules.get_stat(pc, .Hitpoints))
+	if hp <= 0 {
+		hp_tint = rl.RED
+	} else if hp <= max_hp / 4 {
+		hp_tint = rl.ORANGE
+	}
+	draw_text(4, 3.5, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
 
-		EQ :: [2]f32{1, 5}
-		#partial switch menu.ui_state {
-		case .Character:
-			for s in rules.Equipment_Slot {
-				item_name := rules.equipped_item(pc.equipment, s)
-				draw_text(EQ.x, EQ.y + f32(s), fmt.ctprintf("%s", s), LABEL_COLOR)
-				draw_text(
-					EQ.x + .5,
-					EQ.y + .5 + f32(s),
-					fmt.ctprintf("%s", rules.items[item_name].name if item_name != .None else ""),
-				)
-			}
-		case .Equipment:
-			s := rules.Equipment_Slot(menu.slot_idx)
-			current_item_name := rules.equipped_item(pc.equipment, s)
-			draw_text(EQ.x, EQ.y, fmt.ctprintf("%s", s), LABEL_COLOR)
+	EQ :: [2]f32{1, 5}
+	#partial switch menu.ui_state {
+	case .Character:
+		for s in rules.Equipment_Slot {
+			item_name := rules.equipped_item(pc.equipment, s)
+			draw_text(EQ.x, EQ.y + f32(s), fmt.ctprintf("%s", s), LABEL_COLOR)
 			draw_text(
 				EQ.x + .5,
-				EQ.y + .5,
-				fmt.ctprintf("%s>", rules.items[current_item_name].name if current_item_name != .None else "empty"),
+				EQ.y + .5 + f32(s),
+				fmt.ctprintf("%s", rules.items[item_name].name if item_name != .None else ""),
 			)
-			for r in 0 ..< EQUIPMENT_ROWS {
-				if r >= len(rules.equippables_order) {break}
-				item_name := rules.equippables_order[r + menu.equip_sel.origin_idx]
-				if item_name == .None {
-					draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), "remove", rl.WHITE)
-				} else {
-					tint := rl.WHITE if rules.fits_in_slot(item_name, s) else rl.GRAY
-					draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), fmt.ctprint(rules.items[item_name].name), tint)
-				}
+		}
+	case .Equipment:
+		s := rules.Equipment_Slot(menu.slot_idx)
+		current_item_name := rules.equipped_item(pc.equipment, s)
+		draw_text(EQ.x, EQ.y, fmt.ctprintf("%s", s), LABEL_COLOR)
+		draw_text(
+			EQ.x + .5,
+			EQ.y + .5,
+			fmt.ctprintf("%s>", rules.items[current_item_name].name if current_item_name != .None else "empty"),
+		)
+		for r in 0 ..< EQUIPMENT_ROWS {
+			if r >= len(rules.equippables_order) {break}
+			item_name := rules.equippables_order[r + menu.equip_sel.origin_idx]
+			if item_name == .None {
+				draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), "remove", rl.WHITE)
+			} else {
+				tint := rl.WHITE if rules.fits_in_slot(item_name, s) else rl.GRAY
+				draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), fmt.ctprint(rules.items[item_name].name), tint)
 			}
 		}
-
-		for s in rules.Stat_Name {
-			draw_text(9.5, 5 + f32(s), fmt.ctprint(rules.STAT_STRINGS[s]), LABEL_COLOR)
-			draw_text(12.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(pc, s)))
-		}
-
-		if menu.ui_state == .Equipment {
-			item_name := rules.equippables_order[menu.equip_sel.select_idx]
-			slot_idx := menu.slot_idx
-			changing_stats := rules.equipped_stats(pc.leveled_stats, rules.changed_equipment(pc.equipment, item_name, slot_idx))
-			for s in rules.Stat_Name {
-				draw_text(13.5, 5 + f32(s), ">")
-				tint := change_tint(rules.get_stat(pc, s), rules.get_stat(changing_stats, s))
-				draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(changing_stats, s)), tint)
-			}
-		}
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
 	}
+
+	for s in rules.Stat_Name {
+		draw_text(9.5, 5 + f32(s), fmt.ctprint(rules.STAT_STRINGS[s]), LABEL_COLOR)
+		draw_text(12.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(pc, s)))
+	}
+
+	if menu.ui_state == .Equipment {
+		item_name := rules.equippables_order[menu.equip_sel.select_idx]
+		slot_idx := menu.slot_idx
+		changing_stats := rules.equipped_stats(pc.leveled_stats, rules.changed_equipment(pc.equipment, item_name, slot_idx))
+		for s in rules.Stat_Name {
+			draw_text(13.5, 5 + f32(s), ">")
+			tint := change_tint(rules.get_stat(pc, s), rules.get_stat(changing_stats, s))
+			draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(changing_stats, s)), tint)
+		}
+	}
+
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
+draw_character :: proc() {
+	t :: World_Menu_Textures.Character
 
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
@@ -574,35 +610,38 @@ draw_character :: proc() {
 	}
 }
 
-draw_inventory :: proc() {
+@(private = "file")
+draw_inventory_content :: proc() {
 	t :: World_Menu_Textures.Inventory
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
+	rl.BeginTextureMode(menu.textures[t])
 
-		draw_pane(0, 0, 16, 14)
-		draw_pane(10.5, 0, 5.5, 1.5)
-		draw_text(11, .5, "Inventory", LABEL_COLOR)
+	draw_pane(0, 0, 16, 14)
+	draw_pane(10.5, 0, 5.5, 1.5)
+	draw_text(11, .5, "Inventory", LABEL_COLOR)
 
-		draw_text(1, 1.5, "Description", LABEL_COLOR)
+	draw_text(1, 1.5, "Description", LABEL_COLOR)
 
-		origin_idx := menu.inven_sel.origin_idx
-		for r in 0 ..< INVENTORY_ROWS {
-			if r >= len(rules.inventory_order) {break}
-			item_name := rules.inventory_order[r + origin_idx]
-			tint := rl.GRAY
-			if rules.is_world_consumable(item_name) {tint = rl.WHITE}
-			item := rules.items[item_name]
-			draw_text(1, 5 + .5 * f32(r), fmt.ctprint(item.name), tint)
-			draw_text_rjust(15, 5 + .5 * f32(r), fmt.ctprintf("*% 3d", rules.game_data.inventory[item_name]), tint)
-			if r == selection_row(menu.inven_sel) {
-				draw_text(1, 2, strings.clone_to_cstring(item.description, context.temp_allocator))
-			}
+	origin_idx := menu.inven_sel.origin_idx
+	for r in 0 ..< INVENTORY_ROWS {
+		if r >= len(rules.inventory_order) {break}
+		item_name := rules.inventory_order[r + origin_idx]
+		tint := rl.GRAY
+		if rules.is_world_consumable(item_name) {tint = rl.WHITE}
+		item := rules.items[item_name]
+		draw_text(1, 5 + .5 * f32(r), fmt.ctprint(item.name), tint)
+		draw_text_rjust(15, 5 + .5 * f32(r), fmt.ctprintf("*% 3d", rules.game_data.inventory[item_name]), tint)
+		if r == selection_row(menu.inven_sel) {
+			draw_text(1, 2, strings.clone_to_cstring(item.description, context.temp_allocator))
 		}
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
 	}
 
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
+draw_inventory :: proc() {
+	t :: World_Menu_Textures.Inventory
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
 	h := f32(texture.height)
@@ -613,39 +652,42 @@ draw_inventory :: proc() {
 	draw_text_indicator(tile_to_pixel(1, 5 + .5 * r))
 }
 
-draw_skills :: proc() {
+@(private = "file")
+draw_skills_content :: proc() {
 	t :: World_Menu_Textures.Skills
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
+	rl.BeginTextureMode(menu.textures[t])
 
-		pc_idx := rules.get_pc_idx(menu.party_idx)
-		pc := rules.playable_characters[pc_idx]
+	pc_idx := rules.get_pc_idx(menu.party_idx)
+	pc := rules.playable_characters[pc_idx]
 
-		draw_pane(0, 0, 16, 14)
-		draw_pane(12, 0, 4, 1.5)
-		draw_text(12.5, .5, "Skills", LABEL_COLOR)
+	draw_pane(0, 0, 16, 14)
+	draw_pane(12, 0, 4, 1.5)
+	draw_text(12.5, .5, "Skills", LABEL_COLOR)
 
-		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
-		draw_text(3, 1, strings.clone_to_cstring(pc.name, context.temp_allocator))
+	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
+	draw_text(3, 1, strings.clone_to_cstring(pc.name, context.temp_allocator))
 
-		draw_text(1, 3, "Description", LABEL_COLOR)
+	draw_text(1, 3, "Description", LABEL_COLOR)
 
-		origin_idx := menu.skill_sel.origin_idx
-		for r in 0 ..< SKILLS_ROWS {
-			if r >= len(pc.skills) {break}
-			cs := pc.skills[r + origin_idx]
-			k := cs.skill
-			draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", rules.skills[k].name, 100 * f16(cs.charge) / rules.CHARGE_MAX))
-			// draw_text(1, 1 + f32(r), fmt.ctprint(rules.skills[k].name))
-			if r + origin_idx == selection_row(menu.skill_sel) {
-				draw_text(1, 3.5, strings.clone_to_cstring(rules.skills[k].description, context.temp_allocator))
-			}
+	origin_idx := menu.skill_sel.origin_idx
+	for r in 0 ..< SKILLS_ROWS {
+		if r >= len(pc.skills) {break}
+		cs := pc.skills[r + origin_idx]
+		k := cs.skill
+		draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", rules.skills[k].name, 100 * f16(cs.charge) / rules.CHARGE_MAX))
+		// draw_text(1, 1 + f32(r), fmt.ctprint(rules.skills[k].name))
+		if r + origin_idx == selection_row(menu.skill_sel) {
+			draw_text(1, 3.5, strings.clone_to_cstring(rules.skills[k].description, context.temp_allocator))
 		}
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
 	}
 
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
+draw_skills :: proc() {
+	t :: World_Menu_Textures.Skills
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
 	h := f32(texture.height)
@@ -656,19 +698,22 @@ draw_skills :: proc() {
 	draw_text_indicator(tile_to_pixel(1, 5 + .5 * r))
 }
 
+@(private = "file")
+draw_system_content :: proc() {
+	t :: World_Menu_Textures.System
+	rl.BeginTextureMode(menu.textures[t])
+
+	draw_pane(0, 0, 16, 14)
+	draw_pane(12, 0, 4, 1.5)
+	draw_text(12.5, .5, "System", LABEL_COLOR)
+
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
 draw_system :: proc() {
 	t :: World_Menu_Textures.System
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
-
-		draw_pane(0, 0, 16, 14)
-		draw_pane(12, 0, 4, 1.5)
-		draw_text(12.5, .5, "System", LABEL_COLOR)
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
-	}
-
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
 	h := f32(texture.height)
@@ -676,35 +721,38 @@ draw_system :: proc() {
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
 }
 
+@(private = "file")
+draw_targeting_content :: proc() {
+	t :: World_Menu_Textures.Targeting
+	rl.BeginTextureMode(menu.textures[t])
+
+	draw_pane(0, 0, 16, 4)
+	rules.party_apply(
+		proc(i, pc_idx: int) {
+			pc := rules.playable_characters[pc_idx]
+			draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1.5 + 2.5 * f32(i), 1))
+			hp_tint := rl.WHITE
+			hp := pc.hitpoints
+			max_hp := int(rules.get_stat(pc, .Hitpoints))
+			if hp <= 0 {
+				hp_tint = rl.RED
+			} else if hp <= max_hp / 4 {
+				hp_tint = rl.ORANGE
+			} else if hp == max_hp {
+				hp_tint = rl.GREEN
+			}
+			draw_text(.5 + 2.5 * f32(i), 3, fmt.ctprintf("% 4d", pc.hitpoints), hp_tint)
+			// draw_text(1 + 3 * f32(i), 3.5, fmt.ctprintf("/% 4.0f", rules.get_stat(pc, .Hitpoints)))
+		},
+	)
+
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
+
+@(private = "file")
 draw_targeting :: proc() {
 	t :: World_Menu_Textures.Targeting
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
-
-		draw_pane(0, 0, 16, 4)
-		rules.party_apply(
-			proc(i, pc_idx: int) {
-				pc := rules.playable_characters[pc_idx]
-				draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1.5 + 2.5 * f32(i), 1))
-				hp_tint := rl.WHITE
-				hp := pc.hitpoints
-				max_hp := int(rules.get_stat(pc, .Hitpoints))
-				if hp <= 0 {
-					hp_tint = rl.RED
-				} else if hp <= max_hp / 4 {
-					hp_tint = rl.ORANGE
-				} else if hp == max_hp {
-					hp_tint = rl.GREEN
-				}
-				draw_text(.5 + 2.5 * f32(i), 3, fmt.ctprintf("% 4d", pc.hitpoints), hp_tint)
-				// draw_text(1 + 3 * f32(i), 3.5, fmt.ctprintf("/% 4.0f", rules.get_stat(pc, .Hitpoints)))
-			},
-		)
-
-		rl.EndTextureMode()
-		menu.stale[t] = false
-	}
-
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
 	h := f32(texture.height)
@@ -716,27 +764,30 @@ draw_targeting :: proc() {
 	draw_tile_indicator(tile_to_pixel(1.5 + 2.5 * p, 11), direction = Tile_Indicator_Direction.Down)
 }
 
-draw_save :: proc() {
+@(private = "file")
+draw_save_content :: proc() {
 	t :: World_Menu_Textures.Save
-	if menu.stale[t] {
-		rl.BeginTextureMode(menu.textures[t])
-		draw_pane(0, 0, 16, TITLE_HEIGHT)
-		draw_text(8, .5, "Save", LABEL_COLOR)
-		for r in 0 ..< SAVES_ROWS {
-			if r <= len(rules.metadata) {
-				draw_pane(0, f32(TITLE_HEIGHT + r * SLOT_HEIGHT), 16, SLOT_HEIGHT)
-				save_idx := r + menu.save_sel.origin_idx
-				if save_idx < len(rules.metadata) {
-					draw_metadata(save_idx, r)
-				} else {
-					draw_text(1, f32(TITLE_HEIGHT + r * SLOT_HEIGHT) + .5, "New Save")
-				}
+	rl.BeginTextureMode(menu.textures[t])
+	draw_pane(0, 0, 16, TITLE_HEIGHT)
+	draw_text(8, .5, "Save", LABEL_COLOR)
+	for r in 0 ..< SAVES_ROWS {
+		if r <= len(rules.metadata) {
+			draw_pane(0, f32(TITLE_HEIGHT + r * SLOT_HEIGHT), 16, SLOT_HEIGHT)
+			save_idx := r + menu.save_sel.origin_idx
+			if save_idx < len(rules.metadata) {
+				draw_metadata(save_idx, r)
+			} else {
+				draw_text(1, f32(TITLE_HEIGHT + r * SLOT_HEIGHT) + .5, "New Save")
 			}
 		}
-		rl.EndTextureMode()
-		menu.stale[t] = false
 	}
+	rl.EndTextureMode()
+	menu.stale[t] = false
+}
 
+@(private = "file")
+draw_save :: proc() {
+	t :: World_Menu_Textures.Save
 	texture := menu.textures[t].texture
 	w := f32(texture.width)
 	h := f32(texture.height)
