@@ -13,6 +13,10 @@ import rl "vendor:raylib"
 import "../game"
 import "../rules"
 
+ZOOM :: 4
+WINDOW_WIDTH :: ZOOM*game.WINDOW_WIDTH
+WINDOW_HEIGHT :: ZOOM*game.WINDOW_HEIGHT
+
 _ :: mem // only used in debug builds
 
 Options :: struct {
@@ -48,7 +52,7 @@ main :: proc() {
 
 	if opt.visual {
 		rl.SetConfigFlags({.VSYNC_HINT})
-		rl.InitWindow(game.WINDOW_WIDTH, game.WINDOW_HEIGHT, "Autobattler")
+		rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Autobattler")
 		defer rl.CloseWindow()
 		rl.SetTargetFPS(game.THROTTLED_FPS)
 		rl.InitAudioDevice()
@@ -59,7 +63,9 @@ main :: proc() {
 
 		rules.init_new_game() // initializes party
 		if opt.auto do game.set_autobattle(true)
-		game.start_encounter(rules.Encounter_Name.Rat)
+		game.battle_stage(rules.Encounter_Name.Rat)
+		game.encounter_init()
+		game.game.battle.paused = false
 
 		for !rl.WindowShouldClose() {
 			if result, ok := game.battle_result().?; ok {
@@ -67,17 +73,15 @@ main :: proc() {
 				break
 			}
 
-			game.clock_advance(rl.GetFrameTime())
+			SRC :: rl.Rectangle{0, 0, game.WINDOW_WIDTH, -game.WINDOW_HEIGHT}
+			DEST :: rl.Rectangle{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}
+
 			game.input_update(rl.GetFrameTime())
 			game.update(rl.GetFrameTime())
-			game.debug_update()
+			game.draw()
 
 			rl.BeginDrawing()
-			rl.ClearBackground({30, 30, 40, 255})
-			game.draw_battle()
-			game.draw_screen_effects()
-			game.draw_dialogue()
-			game.debug_draw()
+			rl.DrawTexturePro(game.texture.texture, SRC, DEST, {}, 0, rl.WHITE)
 			rl.EndDrawing()
 
 			free_all(context.temp_allocator)
@@ -88,24 +92,22 @@ main :: proc() {
 	} else if !opt.auto {
 		fmt.println("auto must be true if visual is false")
 	} else {
-		using rules
+		rules.init_new_game() // initializes party
+		defer rules.destroy()
 
-		init_new_game() // initializes party
-		defer destroy()
-
-		autobattle = true
-		start_encounter(rules.Encounter_Name.Rat)
-		defer battle_destroy()
+		rules.autobattle = true
+		rules.start_encounter(rules.Encounter_Name.Rat)
+		defer rules.battle_destroy()
 
 		battle: for {
-			battle_tick()
-			if result, ok := check_win().?; ok {
+			rules.battle_tick()
+			if result, ok := rules.check_win().?; ok {
 				print_result(result)
 				break battle
 			}
 		}
 
-		battle_cleanup()
+		rules.battle_cleanup()
 	}
 }
 

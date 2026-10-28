@@ -84,14 +84,20 @@ set_curtain :: proc(alpha: f32) {
 // Shows `tag` on `id`'s sprite. Turns off follow_facing, so the tag sticks on
 // a walker (e.g. Downed); set_follow_facing restores it. Warns if the sheet
 // has no such row.
-set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := #caller_location) {
+set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := #caller_location) -> Maybe(Sprite_Tag) {
 	e, ok := entity_get(id)
-	if !ok do return
+	if !ok do return nil
 	if m, has_meta := state_metadata(e.sprite); has_meta && m.type == .Tagged {
-		if _, has := tag_index(m.tags, tag); !has do log.warnf("%v's sprite has no %v tag", e.name, tag, location = loc)
+		if _, has := tag_index(m.tags, tag); !has {
+			log.warnf("%v's sprite has no %v tag", e.name, tag, location = loc)
+			return nil
+		}
 	}
+	prev := e.sprite.tag
 	e.sprite.follow_facing = false
 	set_sprite_tag(&e.sprite, tag, reset)
+	log.infof("set %v's sprite to tag %v (was %v)", e.name, tag, prev, location = loc)
+	return prev
 }
 
 // When `id`'s sprite animates: always, only while moving, or never.

@@ -370,38 +370,52 @@ show_skill_results :: proc(_: Entity_Id) {
 // reaction and the result's popups, then ally_down or baddy_down if it went
 // down.
 @(private = "file")
-show_skill_result :: proc(self: Entity_Id) {
-	br, found := skill_result_for(self)
-	if !found do return
-	r := br.result
-	c := rules.battle.combatants[br.target_idx]
-	if rules.combatant_downed(c) && !r.downed do return // already down: nothing to show
-
-	if sound, ok := skill_sounds[br.skill_name].?; ok do play_sound(sound)
-	if sprite, ok := skill_sprites[br.skill_name].?; ok {
-		if !play_skill_anim(self, sprite) do return
+show_skill_result :: proc(target_id: Entity_Id) {
+	effect_result, found := skill_result_for(target_id)
+	if !found {
+		log.errorf("show_skill_result called for target_id %v but no effect result found", target_id)
+		return
+	}
+	r := effect_result.result
+	c := rules.battle.combatants[effect_result.target_idx]
+	if rules.combatant_downed(c) && !r.downed {
+		log.warnf("effect result tried to down the already downed combatant %s (c_idx=%d)", c.name, effect_result.target_idx)
+		return
 	}
 
-	react(self, c.team, effect_reaction(r))
-	react_until := game.clock.time + REACTION_TIME
+	// animate reaction with tag change
+	prev_tag: Maybe(Sprite_Tag)
+	if c.team == PLAYER_TEAM {
+		if new_tag, ok := effect_reaction_tag(r).?; ok {
+			prev_tag = set_sprite_tag_of(target_id, new_tag)
+			play_anim(target_id)
+		}
+	}
 
-	// A downed target shows no status change.
+	if sound, ok := skill_sounds[effect_result.skill_name].?; ok do play_sound(sound)
+	if sprite, ok := skill_sprites[effect_result.skill_name].?; ok {
+		if !play_skill_anim(target_id, sprite) do return
+	}
+
+	// restore previous tag
+	if c.team == PLAYER_TEAM {
+		if t, ok := prev_tag.?; ok {
+			set_sprite_tag_of(target_id, t)
+		}
+	}
+
+	// ignore status changes on downed targets
 	popups := effect_popups(r, status = !r.downed)
 	for p, i in sa.slice(&popups) {
-		if i > 0 && !pause(POPUP_GAP) do return
-		battle_popup(self, p)
+		if i > 0 && !pause(POPUP_GAP) do return // pause between popups
+		battle_popup(target_id, p)
 	}
-
-	wait := f32(react_until - game.clock.time)
-	if r.downed do wait = max(wait, BATTLE_POPUP_TIME) // let the damage popup finish
-	if !pause(max(wait, 0)) do return
-	react(self, c.team, .None)
 
 	if r.downed {
 		if c.team == PLAYER_TEAM {
-			ally_down(self)
+			ally_down(target_id)
 		} else {
-			baddy_down(self)
+			baddy_down(target_id)
 		}
 	}
 }
@@ -424,39 +438,36 @@ play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name) -> bool {
 }
 
 @(private = "file")
-effect_reaction :: proc(r: rules.Effect_Result) -> Reaction {
-	if r.hit != .Hit do return .Missed
-	if r.hp_change < 0 do return .Hurt
-	if r.hp_change > 0 || r.levels > 0 do return .Helped
+effect_reaction_tag :: proc(r: rules.Effect_Result) -> Maybe(Sprite_Tag) {
+	if r.hit == .Miss do return nil
+	if r.hit == .Evade do return .LArm
+	if r.hp_change < 0 do return .Hit
+	if r.hp_change > 0 || r.levels > 0 do return .Cheer
+	if r.stagger || r.interrupted do return .Kneeled
 	switch r.status_result {
-	case .Added:                                  return .Hurt
-	case .Removed:                                return .Helped
-	case .Ineffective, .Resisted, .Remove_Missed: return .Missed
+	case .Added:                                  return .Kneeled
+	case .Removed:                                return .Cheer
+	case .Ineffective, .Resisted, .Remove_Missed:
 	case .None:
 	}
-	return .None
+	return nil
 }
 
 // Shows `reaction` on `id`; .None restores its idle pose or tint.
 @(private = "file")
 react :: proc(id: Entity_Id, team: int, reaction: Reaction) {
-	if team == PLAYER_TEAM {
-		set_sprite_tag_of(id, REACTION_POSES[reaction])
-		play_anim(id)
-	} else {
-		set_tint(id, REACTION_TINTS[reaction])
-	}
 }
 
 ally_down :: proc(self: Entity_Id) {
+	set_sprite_tag_of(self, .Kneeled)
 	pause(.25)
-	// play_sound(.Down)
+	play_sound(.Down)
 	set_sprite_tag_of(self, .Downed)
 }
 
 baddy_down :: proc(self: Entity_Id) {
 	pause(.25)
-	// play_sound(.Down)
+	play_sound(.Down)
 	set_tint(self, rl.RED)
 	fade_to(self, 0, .5)
 	set_visible(self, false)
