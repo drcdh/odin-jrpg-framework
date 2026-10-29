@@ -2,8 +2,6 @@ package game
 
 import rl "vendor:raylib"
 
-import "../rules"
-
 init_house_main :: proc() {
 	play_music(.Town)
 
@@ -39,7 +37,6 @@ init_house_main :: proc() {
 
 @(private = "file")
 door_knock :: proc(self: Entity_Id) {
-	Two_Quest :: rules.Two_Quest
 	pause(.5)
 	play_sound(.Door_Knock)
 	pause(1)
@@ -57,7 +54,7 @@ door_knock :: proc(self: Entity_Id) {
 		say("Oh, alright. Let's go.", "Two")
 		play_sound(.Fanfare)
 		say("Player Two joined your party!")
-		rules.game_data.party_membership[1] = true
+		game_data.party_membership[1] = true
 		set_visible(self, false)
 		set_game_data(Int_Datum.Two_Quest, Two_Quest.Joined)
 	} else {

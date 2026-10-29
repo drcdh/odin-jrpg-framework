@@ -3,8 +3,6 @@ package game
 import "core:fmt"
 import "core:time"
 
-import "../rules"
-
 SAVES_ROWS :: 3
 TITLE_HEIGHT :: 2
 
@@ -12,7 +10,7 @@ TITLE_HEIGHT :: 2
 SLOT_HEIGHT :: (VIEW_TILES_H - TITLE_HEIGHT) / SAVES_ROWS
 
 draw_metadata :: proc(save_idx, r: int) {
-	md := rules.metadata[save_idx]
+	md := metadata[save_idx]
 	j0 := f32(TITLE_HEIGHT + r * SLOT_HEIGHT)
 	// draw_text(1, j0 + .5, fmt.ctprintf("%s", md.name))
 	// draw_text(1, j0 + 1.25, fmt.ctprintf("Lvl %d", md.level))

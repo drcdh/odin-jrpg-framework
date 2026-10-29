@@ -5,8 +5,6 @@ import "core:log"
 
 import rl "vendor:raylib"
 
-import "../rules"
-
 BATTLE_SPEED :: 2 // ticks per second per speed
 
 TAKE_TURN_DELAY :: .5 // seconds
@@ -18,7 +16,7 @@ REACTION_TIME :: 1 // seconds a target shows how an effect landed
 BATTLE_POPUP_TIME :: f32(1)
 MAX_BATTLE_POPUPS :: 32
 
-MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + rules.NUM_PC
+MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + NUM_PC
 
 // The battle field in world tiles;
 // baddies stand in their encounter formation from BADDY_ORIGIN, the party in
@@ -41,18 +39,25 @@ Battle_Staging :: struct {
 }
 
 Battle :: struct {
+	allies:       [dynamic]int,
+	baddies:      [dynamic]int,
 	// background: Maybe(Battle_Background),
 	camera:          Camera,
-	combatants:     [dynamic]Entity_Id, // one per rules.battle.combatants, same order
+	combatants:   [dynamic]Combatant,
+	encounter:    ^Encounter,
 	paused:         bool, // true while running audiovisual stuff
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
-	result:         Maybe(rules.Battle_Result), // set once a team has won and the last skill play has been shown
-	results:        [dynamic]rules.Battle_Effect_Result, // the skill play being shown; see process_skill_results
+	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
+	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
 	results_script: Script_Id,
+	skill_plays:  [dynamic]Battle_Skill_Play,
+	skill_result: [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
 	staging:				Battle_Staging,
 	state:					Battle_State,
 	ui_disabled:    bool, // don't draw the menu or accept input while true
 }
+
+battle: Battle
 
 // Text that rises from a combatant and fades out, e.g. damage. See battle_popup.
 Battle_Popup :: struct {
@@ -89,92 +94,103 @@ REACTION_TINTS := [Reaction]rl.Color {
 }
 
 battle_stage :: proc(name: Encounter_Name) {
-	game.battle.staging = {name}
-	game.battle.state = .Staged
+	battle.staging = {name}
+	battle.state = .Staged
 }
 
 encounter_init :: proc() {
-	assert(game.battle.state == .Staged)
-	log.infof("battle is Staged with %v", game.battle.staging)
-	rules.start_encounter(game.battle.staging.encounter_name)
-	spawn_combatants(game.battle.staging.encounter_name)
+	assert(battle.state == .Staged)
+	log.infof("battle is Staged with %v", battle.staging)
+	add_combatants_for_encounter(battle.staging.encounter_name) // writes data and creates baddy Characters
+	spawn_combatants(battle.staging.encounter_name) // spawns Entities
 	battle_init()
-	game.battle.state = .Active
-	game.battle.paused = true
-	game.battle.ui_disabled = false
+	battle.state = .Active
+	battle.paused = true
+	battle.ui_disabled = false
 	log.info("battle is Active")
 }
 
 battle_cleanup :: proc() {
-	script_cancel(game.battle.results_script)
-	for id in game.battle.combatants do destroy_entity(id)
-	rules.battle_cleanup()
-	clear(&game.battle.combatants)
-	clear(&game.battle.results)
-	sa.clear(&game.battle.popups)
-	game.battle.result = nil
+	for c_idx in battle.baddies {
+		// free new Characters created with new_baddy in start_encounter
+		delete(battle.combatants[c_idx].skills)
+		free(battle.combatants[c_idx].character)
+	}
+	clear(&battle.allies)
+	clear(&battle.baddies)
+	clear(&battle.combatants)
+	clear(&battle.skill_plays)
+	clear(&battle.skill_result)
+	battle.encounter = nil
+
+	script_cancel(battle.results_script)
+	for c in battle.combatants do destroy_entity(c)
+	clear(&battle.combatants)
+	clear(&battle.results)
+	sa.clear(&battle.popups)
+	battle.result = nil
 	battle_menu_end()
-	game.battle.staging = {}
+	battle.staging = {}
 }
 
 battle_deactivate :: proc() {
-	game.battle.state = .None
+	battle.state = .None
 	battle_cleanup()
 }
 
 battle_destroy :: proc() {
-	rules.battle_destroy()
-	delete(game.battle.combatants)
-	delete(game.battle.results)
-	game.battle = {}
+	delete(battle.allies)
+	delete(battle.baddies)
+	delete(battle.combatants)
+	delete(battle.skill_plays)
+	delete(battle.skill_result)
+	delete(battle.results)
+	battle = {}
 }
 
 battle_init :: proc() {
 	// Skill animations start in scripts, which can't load sprites.
-	for sprite in skill_sprites {
-		if name, ok := sprite.?; ok do preload_sprite(name)
+	for skill in skills {
+		preload_sprite(skill.animation)
 	}
 	battle_menu_start()
 }
 
 battle_staged :: proc() -> bool {
-	return game.battle.state == .Staged
+	return battle.state == .Staged
 }
 
 battle_active :: proc() -> bool {
-	return game.battle.state == .Active
+	return battle.state == .Active
 }
 
 battle_done :: proc() -> bool {
-	return game.battle.state == .None
+	return battle.state == .None
 }
 
 // The winning team, once the battle is over and its last skill play has been shown.
-battle_result :: proc() -> Maybe(rules.Battle_Result) {
-	return game.battle.result
+battle_result :: proc() -> Maybe(Battle_Result) {
+	return battle.result
 }
 
-// One entity per combatant, so game.battle.combatants[c_idx] shows
-// rules.battle.combatants[c_idx]. rules.start_encounter adds the baddies in
+// One entity per combatant, so battle.combatants[c_idx] shows
+// battle.combatants[c_idx]. start_encounter adds the baddies in
 // formation order, then the party in PC order.
 @(private = "file")
 spawn_combatants :: proc(name: Encounter_Name) {
 	log.infof("spawning combatants for %v", name)
-	spawn_combatant :: proc(name: string, tile: Tile, sprite: Sprite_State) {
+	spawn_combatant :: proc(name: string, tile: Tile, sprite: Sprite_State) -> Entity_Id {
 		log.infof("spawning combatant %s at %v", name, tile)
-		append(&game.battle.combatants, spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true, battle = true}))
+		return spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true, battle = true})
 	}
 
-	for spot in rules.encounters[name].baddies {
-		baddy_id := spot.baddy_id.? or_continue
+	for spot, baddy_idx in encounters[name].baddies {
+		baddy_id := spot.baddy_id
 		sprite: Sprite_State
-		if s, ok := baddy_sprites[baddy_id].?; ok {
-			sprite = create_sprite_state(s, play = true, layer = COMBATANT_LAYER)
-		} else {
-			log.warnf("%v has no battle sprite", baddy_id)
-		}
+		s := baddy_templates[baddy_id].texture
+		sprite = create_sprite_state(s, play = true, layer = COMBATANT_LAYER)
 		tile := BADDY_ORIGIN + 2 * Tile{i32(spot.tile.x), i32(spot.tile.y)}
-		spawn_combatant(rules.baddy_templates[baddy_id].name, tile, sprite)
+		battle.combatants[baddy_idx].eid = spawn_combatant(baddy_templates[baddy_id].name, tile, sprite)
 	}
 
 	dy: i32 = 2
@@ -182,9 +198,9 @@ spawn_combatants :: proc(name: Encounter_Name) {
 	x: i32 = 9
 	y: i32 = y0
 	party_idx := 0
-	for pc_idx in 0 ..< rules.NUM_PC {
-		if !rules.game_data.party_membership[pc_idx] do continue
-		spawn_combatant(rules.playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
+	for pc_idx in 0 ..< NUM_PC {
+		if !game_data.party_membership[pc_idx] do continue
+		spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
 		party_idx += 1
 		x += 1
 		if party_idx != 3 {
@@ -193,24 +209,23 @@ spawn_combatants :: proc(name: Encounter_Name) {
 			y = y0 + dy / 2
 		}
 	}
-	assert(len(game.battle.combatants) == len(rules.battle.combatants), "combatant entities out of step with rules.battle")
 }
 
 draw_battle :: proc() {
 	// TODO: draw background
-	rl.BeginMode2D(game.battle.camera)
+	rl.BeginMode2D(battle.camera)
 	{
 		draw_entities(battle = true)
 		draw_battle_combatants()
 		draw_debug_battle()
 	}
 	rl.EndMode2D()
-	battle_menu_draw(game.battle.ui_disabled)
+	battle_menu_draw(battle.ui_disabled)
 	draw_battle_popups()
 
 	// debug
 	// rl.DrawText(fmt.ctprint(battle_ui_state), 0, i32(7 * tile_size), 16, rl.BLACK)
-	// rl.DrawText(fmt.ctprint(game.battle.state), 0, i32(7.5 * tile_size), 16, rl.BLACK)
+	// rl.DrawText(fmt.ctprint(battle.state), 0, i32(7.5 * tile_size), 16, rl.BLACK)
 }
 
 @(private = "file")
@@ -230,9 +245,9 @@ draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxe
 
 @(private = "file")
 draw_battle_combatants :: proc() {
-	for id, c_idx in game.battle.combatants {
-		c := rules.battle.combatants[c_idx]
-		if rules.combatant_downed(c) do continue
+	for id, c_idx in battle.combatants {
+		c := battle.combatants[c_idx]
+		if combatant_downed(c) do continue
 		tile := entity_tile(id)
 
 		if battle_menu.ui_state != .Idle {
@@ -246,11 +261,11 @@ draw_battle_combatants :: proc() {
 
 		// Under the combatant's tile.
 		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * TILE_SIZE}
-		draw_gauge(gauge_origin, c.ticks, rules.READY_TICKS, rl.WHITE, rl.GRAY, rl.YELLOW)
-		if skill_play_idx, ok := rules.get_combatant_skill_play(c_idx).?; ok {
+		draw_gauge(gauge_origin, c.ticks, READY_TICKS, rl.WHITE, rl.GRAY, rl.YELLOW)
+		if skill_play_idx, ok := get_combatant_skill_play(c_idx).?; ok {
 			gauge_origin += {0, 0.35 * TILE_SIZE}
-			v := rules.battle.skill_plays[skill_play_idx].windup
-			draw_gauge(gauge_origin, v, rules.READY_TICKS, rl.LIME, rl.GRAY, rl.GREEN)
+			v := battle.skill_plays[skill_play_idx].windup
+			draw_gauge(gauge_origin, v, READY_TICKS, rl.LIME, rl.GRAY, rl.GREEN)
 		}
 	}
 }
@@ -258,16 +273,16 @@ draw_battle_combatants :: proc() {
 // Shows `text` rising from the top of `id`'s tile.
 battle_popup :: proc(id: Entity_Id, popup: Effect_Popup) {
 	p := Battle_Popup{popup = popup, pos = entity_pos(id) - {0, TILE_SIZE / 2}}
-	if !sa.push(&game.battle.popups, p) do log.warnf("Too many battle popups; dropped %q", cstring(&p.text[0]))
+	if !sa.push(&battle.popups, p) do log.warnf("Too many battle popups; dropped %q", cstring(&p.text[0]))
 }
 
 @(private = "file")
 battle_popups_update :: proc(dt: f32) {
-	for i := 0; i < sa.len(game.battle.popups); {
-		p := sa.get_ptr(&game.battle.popups, i)
+	for i := 0; i < sa.len(battle.popups); {
+		p := sa.get_ptr(&battle.popups, i)
 		p.t += dt
 		if p.t >= BATTLE_POPUP_TIME {
-			sa.ordered_remove(&game.battle.popups, i)
+			sa.ordered_remove(&battle.popups, i)
 		} else {
 			i += 1
 		}
@@ -276,7 +291,7 @@ battle_popups_update :: proc(dt: f32) {
 
 @(private = "file")
 draw_battle_popups :: proc() {
-	for &p in sa.slice(&game.battle.popups) {
+	for &p in sa.slice(&battle.popups) {
 		k := p.t / BATTLE_POPUP_TIME
 		color := p.color
 		color.a = u8(255 * (1 - k))
@@ -291,17 +306,17 @@ battle_time_tick :: proc(dt: f32) {
 	time_since_tick += dt
 	if time_since_tick >= TICK_TIME {
 		time_since_tick -= TICK_TIME
-		rules.battle_tick()
+		battle_tick()
 		process_skill_results()
 	}
 }
 
 update_battle :: proc(dt: f32) {
-	if !game.battle.ui_disabled {
+	if !battle.ui_disabled {
 		battle_menu_update()
 	}
 
-	if !game.battle.paused && game.battle.result == nil {
+	if !battle.paused && battle.result == nil {
 		battle_time_tick(dt)
 	}
 
@@ -312,57 +327,57 @@ update_battle :: proc(dt: f32) {
 }
 
 set_autobattle :: proc(v := true) {
-	rules.autobattle = v
+	autobattle = v
 }
 
 // Shows what the last tick's skill play did, one script per target (see
 // show_skill_result), MULTI_TARGET_DELAY apart. The battle pauses until they
 // have all finished, then ends if a team has won.
 process_skill_results :: proc() {
-	if len(rules.battle.skill_result) == 0 do return
+	if len(battle.skill_result) == 0 do return
 	log.info("processing skill results")
-	assert(!script_alive(game.battle.results_script), "a skill play is already being shown")
-	clear(&game.battle.results)
-	append(&game.battle.results, ..rules.battle.skill_result[:])
-	game.battle.paused = true
-	log.infof("starting show_skill_results: len(game.battle.results) = %d", len(game.battle.results))
-	game.battle.results_script = spawn(show_skill_results, name = "skill results")
+	assert(!script_alive(battle.results_script), "a skill play is already being shown")
+	clear(&battle.results)
+	append(&battle.results, ..battle.skill_result[:])
+	battle.paused = true
+	log.infof("starting show_skill_results: len(battle.results) = %d", len(battle.results))
+	battle.results_script = spawn(show_skill_results, name = "skill results")
 }
 
 @(private = "file")
 show_skill_results :: proc(_: Entity_Id) {
 	scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
-	for r, i in game.battle.results {
+	for r, i in battle.results {
 		if i > 0 && !pause(MULTI_TARGET_DELAY) do return
-		sa.push(&scripts, spawn(show_skill_result, game.battle.combatants[r.target_idx], name = "skill result"))
+		sa.push(&scripts, spawn(show_skill_result, battle.combatants[r.target_idx], name = "skill result"))
 	}
 	for s in sa.slice(&scripts) {
 		if !wait_script(s) do return
 	}
 	battle_menu_set_stale(.Baddies)
 	battle_menu_set_stale(.Party)
-	if result, over := rules.check_win().?; over {
+	if result, over := check_win().?; over {
 		log.infof("battle result non-nil: %v", result)
-		game.battle.result = result
+		battle.result = result
 		if result == .Win {
-			game.battle.ui_disabled = true
+			battle.ui_disabled = true
 			battle_menu.ui_state = .Idle
-			for c_idx in rules.battle.allies {
-				if rules.combatant_alive(rules.battle.combatants[c_idx]) {
-					set_sprite_tag_of(game.battle.combatants[c_idx], .Cheer)
+			for c_idx in battle.allies {
+				if combatant_alive(battle.combatants[c_idx]) {
+					set_sprite_tag_of(battle.combatants[c_idx], .Cheer)
 				}
 			}
 			say("Victory!")
-			party_get_experience(rules.encounters[game.battle.staging.encounter_name].exp) // blocks with say
+			party_get_experience(encounters[battle.staging.encounter_name].exp) // blocks with say
 			// get_spoils()
 			fade_screen(1, .5)
-			game.battle.state = .None // stop drawing battle and draw world
+			battle.state = .None // stop drawing battle and draw world
 			play_prev_music()
 			fade_screen(0, .5)
 			battle_deactivate()
 		}
 	} else {
-		game.battle.paused = false
+		battle.paused = false
 	}
 }
 
@@ -377,8 +392,8 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		return
 	}
 	r := effect_result.result
-	c := rules.battle.combatants[effect_result.target_idx]
-	if rules.combatant_downed(c) && !r.downed {
+	c := battle.combatants[effect_result.target_idx]
+	if combatant_downed(c) && !r.downed {
 		log.warnf("effect result tried to down the already downed combatant %s (c_idx=%d)", c.name, effect_result.target_idx)
 		return
 	}
@@ -392,10 +407,9 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		}
 	}
 
-	if sound, ok := skill_sounds[effect_result.skill_name].?; ok do play_sound(sound)
-	if sprite, ok := skill_sprites[effect_result.skill_name].?; ok {
-		if !play_skill_anim(target_id, sprite) do return
-	}
+	skill := skills[effect_result.skill_name]
+	play_sound(skill.sound)
+	if !play_skill_anim(target_id, skill.animation) do return
 
 	// restore previous tag
 	if c.team == PLAYER_TEAM {
@@ -421,9 +435,9 @@ show_skill_result :: proc(target_id: Entity_Id) {
 }
 
 @(private = "file")
-skill_result_for :: proc(target: Entity_Id) -> (rules.Battle_Effect_Result, bool) {
-	for r in game.battle.results {
-		if game.battle.combatants[r.target_idx] == target do return r, true
+skill_result_for :: proc(target: Entity_Id) -> (Battle_Effect_Result, bool) {
+	for r in battle.results {
+		if battle.combatants[r.target_idx] == target do return r, true
 	}
 	return {}, false
 }
@@ -438,7 +452,7 @@ play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name) -> bool {
 }
 
 @(private = "file")
-effect_reaction_tag :: proc(r: rules.Effect_Result) -> Maybe(Sprite_Tag) {
+effect_reaction_tag :: proc(r: Effect_Result) -> Maybe(Sprite_Tag) {
 	if r.hit == .Miss do return nil
 	if r.hit == .Evade do return .LArm
 	if r.hp_change < 0 do return .Hit
@@ -478,9 +492,9 @@ targeted :: proc(c_idx, team: int) -> bool {
 	if battle_menu.ui_state == .Skill_Target || battle_menu.ui_state == .Item_Target {
 		switch ts in battle_menu.targets {
 		case Target_One_Baddy:
-			return team == BADDY_TEAM && c_idx == rules.battle.baddies[ts.i]
+			return team == BADDY_TEAM && c_idx == battle.baddies[ts.i]
 		case Target_One_Ally:
-			return team == PLAYER_TEAM && c_idx == rules.battle.allies[ts.i]
+			return team == PLAYER_TEAM && c_idx == battle.allies[ts.i]
 		case Target_All_Allies:
 			return team == PLAYER_TEAM
 		case Target_All_Baddies:

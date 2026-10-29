@@ -16,6 +16,7 @@ Baddy_Template :: struct {
 	level:   int,
 	downed:  Downed_Proc,
 	spoils:  Spoils,
+	texture: Sprite_Name,
 }
 
 sudden_death: bool // debug mode

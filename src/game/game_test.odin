@@ -7,8 +7,6 @@ import "core:strings"
 import "core:testing"
 import rl "vendor:raylib"
 
-import "../rules"
-
 // Headless: no window. Each test owns the global world, so run with ODIN_TEST_THREADS=1.
 
 @(private = "file")
@@ -1576,9 +1574,9 @@ music_fades_are_requests :: proc(t: ^testing.T) {
 @(test)
 item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	rules.init_new_game()
-	pc := rules.get_party_member(0)
-	pc.stats[rules.Stat_Name.Hitpoints] = 100
+	init_new_game()
+	pc := get_party_member(0)
+	pc.stats[Stat_Name.Hitpoints] = 100
 	pc.hitpoints = 1
 	r := do_skill(nil, 0, .Potion, .World_Menu)
 	testing.expect_value(t, r.hp_change, 50)
@@ -1591,17 +1589,17 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 @(test)
 box_gives_its_items_once :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	rules.init_new_game()
-	datum := rules.Chest_Datum(0)
-	rules.game_data.inventory[rules.Item_Name.Potion] = 0
-	rules.set_inventory_order()
+	init_new_game()
+	datum := Chest_Datum(0)
+	game_data.inventory[Item_Name.Potion] = 0
+	set_inventory_order()
 
 	box := spawn_entity({
 		name    = "box",
 		tile    = {5, 4},
 		sprite  = create_sprite_state(.Box, Sprite_Tag.Closed),
 		trigger = new_trigger(proc(self: Entity_Id) {
-			items_in_a_box(self, rules.Chest_Datum(0), .Potion)
+			items_in_a_box(self, Chest_Datum(0), .Potion)
 		}, autoface = false),
 	})
 	opener := spawn_entity({name = "opener", tile = {5, 5}, facing = .Up})
@@ -1609,7 +1607,7 @@ box_gives_its_items_once :: proc(t: ^testing.T) {
 	testing.expect(t, interact(opener), "the box's script didn't start")
 	run_for(0.1)
 	testing.expect(t, get_game_data(datum), "datum not set")
-	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 1)
+	testing.expect_value(t, game_data.inventory[Item_Name.Potion], 1)
 	testing.expect_value(t, entity_get(box).sprite.tag, Sprite_Tag.Opened)
 	testing.expect(t, dialogue_active(), "no message")
 
@@ -1619,35 +1617,35 @@ box_gives_its_items_once :: proc(t: ^testing.T) {
 @(test)
 get_items_groups_duplicates :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	rules.init_new_game()
-	rules.game_data.inventory[rules.Item_Name.Potion] = 0
-	rules.game_data.inventory[rules.Item_Name.Tea] = 0
+	init_new_game()
+	game_data.inventory[Item_Name.Potion] = 0
+	game_data.inventory[Item_Name.Tea] = 0
 	spawn(proc(_: Entity_Id) { get_items(.Potion, .Tea, .Potion) })
 	run_for(0.1)
 	testing.expect_value(t, strings.to_string(game.dialogue.buffer), "Got Potion x2, Tea!")
-	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Potion], 2)
-	testing.expect_value(t, rules.game_data.inventory[rules.Item_Name.Tea], 1)
+	testing.expect_value(t, game_data.inventory[Item_Name.Potion], 2)
+	testing.expect_value(t, game_data.inventory[Item_Name.Tea], 1)
 }
 
 @(test)
 level_without_player :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	rules.init_new_game()
-	start_level(rules.Level(0), with_player = false)
+	init_new_game()
+	start_level(Level(0), with_player = false)
 	testing.expect(t, !entity_alive(player()), "a player spawned")
 	testing.expect(t, !entity_alive(camera_followed()), "the camera follows something")
 	run_for(0.1)
-	testing.expect_value(t, current_level(), rules.Level(0))
+	testing.expect_value(t, current_level(), Level(0))
 }
 
 @(test)
 script_changes_level :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	rules.init_new_game()
-	start_level(rules.Level(0), with_player = false)
-	spawn(proc(_: Entity_Id) { change_level(rules.Level(0), at = Tile{3, 4}, face = .Left, fade = 0.2) })
+	init_new_game()
+	start_level(Level(0), with_player = false)
+	spawn(proc(_: Entity_Id) { change_level(Level(0), at = Tile{3, 4}, face = .Left, fade = 0.2) })
 	run_for(0.3)
-	testing.expect_value(t, current_level(), rules.Level(0))
+	testing.expect_value(t, current_level(), Level(0))
 	testing.expect_value(t, entity_tile(player()), Tile{3, 4})
 	testing.expect_value(t, entity_get(player()).facing, Direction.Left)
 	testing.expect(t, game.curtain > 0, "already faded in")

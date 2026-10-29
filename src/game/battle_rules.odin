@@ -9,9 +9,10 @@ Ticks :: f32
 
 Combatant :: struct {
 	using character: ^Character,
+	using eid: Entity_Id,
 	team:            int,
 	ticks:           Ticks,
-	windup:          bool,
+	windup:          bool, // TODO: change to Maybe(Skill_Play_Id)
 }
 
 Battle_Skill_Play :: struct {
@@ -37,41 +38,7 @@ Battle_Result :: enum {
 	Win,
 }
 
-Battle :: struct {
-	allies:       [dynamic]int,
-	baddies:      [dynamic]int,
-	combatants:   [dynamic]Combatant,
-	encounter:    ^Encounter,
-	skill_plays:  [dynamic]Battle_Skill_Play,
-	skill_result: [dynamic]Battle_Effect_Result, // used by game.battle for visualization; cleared after every tick
-}
-
 autobattle: bool // debug mode
-
-battle: Battle
-
-battle_cleanup :: proc() {
-	for c_idx in battle.baddies {
-		// free new Characters created with new_baddy in start_encounter
-		delete(battle.combatants[c_idx].skills)
-		free(battle.combatants[c_idx].character)
-	}
-	clear(&battle.allies)
-	clear(&battle.baddies)
-	clear(&battle.combatants)
-	clear(&battle.skill_plays)
-	clear(&battle.skill_result)
-	battle.encounter = nil
-}
-
-battle_destroy :: proc() {
-	delete(battle.allies)
-	delete(battle.baddies)
-	delete(battle.combatants)
-	delete(battle.skill_plays)
-	delete(battle.skill_result)
-	battle = {}
-}
 
 check_win :: proc() -> Maybe(Battle_Result) {
 	allies_alive := false

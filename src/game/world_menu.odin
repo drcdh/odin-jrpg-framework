@@ -6,8 +6,6 @@ import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
-import "../rules"
-
 // The world menu: the player's menu outside of battle, opened with MENU
 // (player.odin). The world pauses while it's open. Each screen is drawn into
 // a render texture when it goes stale, so the menu draws nothing headless.
@@ -164,7 +162,7 @@ draw_popups :: proc() {
 		color.a = u8(255 * (1 - k))
 		// Over the sprite in the Targeting pane (draw_targeting), rising half a
 		// tile towards the target cursor as it fades.
-		w := sprite_size(pc_menu_sprite(rules.get_pc_idx(p.slot))).x / TILE_SIZE
+		w := sprite_size(pc_menu_sprite(get_pc_idx(p.slot))).x / TILE_SIZE
 		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color)
 	}
 }
@@ -221,7 +219,7 @@ world_menu_update :: proc() {
 			case 3:
 				menu.ui_state = .System
 			case 4:
-				rules.metadata_load()
+				metadata_load()
 				set_stale(.Save)
 				menu.ui_state = .Save
 			}
@@ -244,7 +242,7 @@ world_menu_update :: proc() {
 			}
 		} else if dy, ok := get_y_input().?; ok {
 			menu.party_idx += dy
-			menu.party_idx %%= rules.party_size()
+			menu.party_idx %%= party_size()
 		}
 
 	case .Character:
@@ -258,11 +256,11 @@ world_menu_update :: proc() {
 			m := get_menu_input()
 			if m.x != 0 {
 				menu.party_idx += m.x
-				menu.party_idx %%= rules.party_size()
+				menu.party_idx %%= party_size()
 				set_stale(.Character)
 			} else if m.y != 0 {
 				menu.slot_idx += m.y
-				menu.slot_idx %%= rules.NUM_EQUIPMENT_SLOTS
+				menu.slot_idx %%= NUM_EQUIPMENT_SLOTS
 			}
 		}
 
@@ -271,11 +269,11 @@ world_menu_update :: proc() {
 			menu.ui_state = .Character
 			set_stale(.Character)
 		} else if get_input(.ENTER) {
-			equipment_slot := rules.Equipment_Slot(menu.slot_idx)
-			item_name := rules.equippables_order[menu.equip_sel.select_idx]
-			if rules.fits_in_slot(item_name, equipment_slot) {
-				pc := rules.get_party_member(menu.party_idx)
-				rules.character_set_equipped_item(pc, equipment_slot, item_name)
+			equipment_slot := Equipment_Slot(menu.slot_idx)
+			item_name := equippables_order[menu.equip_sel.select_idx]
+			if fits_in_slot(item_name, equipment_slot) {
+				pc := get_party_member(menu.party_idx)
+				character_set_equipped_item(pc, equipment_slot, item_name)
 				menu.ui_state = .Character
 				set_stale(.Top)
 				set_stale(.Character)
@@ -285,7 +283,7 @@ world_menu_update :: proc() {
 			}
 		} else {
 			if dy, ok := get_y_input().?; ok {
-				menu.equip_sel = shift_windowed_selection(dy, menu.equip_sel, EQUIPMENT_ROWS, len(rules.equippables_order))
+				menu.equip_sel = shift_windowed_selection(dy, menu.equip_sel, EQUIPMENT_ROWS, len(equippables_order))
 				set_stale(.Character)
 			}
 		}
@@ -297,12 +295,12 @@ world_menu_update :: proc() {
 			// TODO
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
-			menu.party_idx %%= rules.party_size()
+			menu.party_idx %%= party_size()
 			menu.skill_sel = Selection{}
 			set_stale(.Skills)
 		} else if dy, got_y := get_y_input().?; got_y {
-			pc_idx := rules.get_pc_idx(menu.party_idx)
-			pc := rules.playable_characters[pc_idx]
+			pc_idx := get_pc_idx(menu.party_idx)
+			pc := playable_characters[pc_idx]
 			menu.skill_sel = shift_windowed_selection(dy, menu.skill_sel, SKILLS_ROWS, len(pc.skills))
 			set_stale(.Skills)
 		}
@@ -315,15 +313,15 @@ world_menu_update :: proc() {
 			menu.inven_sel = Selection{}
 			menu.ui_state = .Top
 		} else if get_input(.ENTER) {
-			item_name := rules.inventory_order[menu.inven_sel.select_idx]
-			if _, consumable := rules.items[item_name].data.(rules.Consumable); consumable {
+			item_name := inventory_order[menu.inven_sel.select_idx]
+			if _, consumable := items[item_name].data.(Consumable); consumable {
 				menu.ui_state = .Item_Target
 			} else {
 				fmt.printfln("%v isn't a Consumable", item_name)
 				play_sound(.Blerp)
 			}
 		} else if dy, ok := get_y_input().?; ok {
-			menu.inven_sel = shift_windowed_selection(dy, menu.inven_sel, INVENTORY_ROWS, len(rules.inventory_order))
+			menu.inven_sel = shift_windowed_selection(dy, menu.inven_sel, INVENTORY_ROWS, len(inventory_order))
 			set_stale(.Inventory)
 		}
 
@@ -331,13 +329,13 @@ world_menu_update :: proc() {
 		if get_input(.CANCEL) {
 			menu.ui_state = .Inventory
 		} else if get_input(.ENTER) {
-			item_name := rules.inventory_order[menu.inven_sel.select_idx]
+			item_name := inventory_order[menu.inven_sel.select_idx]
 			party_idx := menu.party_idx
-			if consumable, ok := rules.items[item_name].data.(rules.Consumable); ok {
-				pc := rules.get_party_member(party_idx)
+			if consumable, ok := items[item_name].data.(Consumable); ok {
+				pc := get_party_member(party_idx)
 				do_skill(nil, party_idx, consumable, .World_Menu)
-				rules.remove_item(item_name)
-				if rules.game_data.inventory[item_name] == 0 {
+				remove_item(item_name)
+				if game_data.inventory[item_name] == 0 {
 					menu.ui_state = .Inventory
 				}
 				set_stale(.Top)
@@ -349,7 +347,7 @@ world_menu_update :: proc() {
 			}
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
-			menu.party_idx %%= rules.party_size()
+			menu.party_idx %%= party_size()
 		}
 
 	case .System:
@@ -363,15 +361,15 @@ world_menu_update :: proc() {
 			menu.save_sel = Selection{}
 		} else if get_input(.ENTER) {
 			save_idx := menu.save_sel.select_idx
-			if save_idx >= len(rules.metadata) {
+			if save_idx >= len(metadata) {
 				save_game() // new save file
 			} else {
-				save_game(rules.metadata[save_idx].filepath)
+				save_game(metadata[save_idx].filepath)
 			}
 			menu.ui_state = .Top
 			menu.save_sel = Selection{}
 		} else if dy, ok := get_y_input().?; ok {
-			saves := rules.metadata
+			saves := metadata
 			menu.save_sel = shift_windowed_selection(dy, menu.save_sel, SAVES_ROWS, len(saves) + 1)
 			set_stale(.Save)
 		}
@@ -445,12 +443,12 @@ draw_top_content :: proc() {
 	rl.BeginTextureMode(menu.textures[t])
 
 	draw_pane(0, 0, 10, 14) // party
-	rules.party_apply(proc(p, pc_idx: int) {
+	party_apply(proc(p, pc_idx: int) {
 		origin := [2]f32{1, 1 + 2 * f32(p)}
-		pc := rules.playable_characters[pc_idx]
+		pc := playable_characters[pc_idx]
 		hp_tint := rl.WHITE
 		hp := pc.hitpoints
-		max_hp := int(rules.get_stat(pc, .Hitpoints))
+		max_hp := int(get_stat(pc, .Hitpoints))
 		if hp <= 0 {
 			hp_tint = rl.RED
 		} else if hp <= max_hp / 4 {
@@ -471,13 +469,13 @@ draw_top_content :: proc() {
 
 	draw_pane(12, 9, 4, 3) // clock
 	draw_text(12.5, 9.5, "Time", LABEL_COLOR)
-	draw_text(12.5, 10.0, fmt.ctprintf("% 6d", rules.game_data.time))
+	draw_text(12.5, 10.0, fmt.ctprintf("% 6d", game_data.time))
 	draw_text(12.5, 10.5, "Steps", LABEL_COLOR)
-	draw_text(12.5, 11.0, fmt.ctprintf("% 6d", rules.game_data.steps))
+	draw_text(12.5, 11.0, fmt.ctprintf("% 6d", game_data.steps))
 
 	draw_pane(12, 12, 4, 2) // money
 	draw_text(12.5, 12.5, "Cash", LABEL_COLOR)
-	draw_text(12.5, 13.0, fmt.ctprintf("% 6d", rules.game_data.money))
+	draw_text(12.5, 13.0, fmt.ctprintf("% 6d", game_data.money))
 
 	rl.EndTextureMode()
 	menu.stale[t] = false
@@ -507,8 +505,8 @@ draw_character_content :: proc() {
 	t :: World_Menu_Textures.Character
 	rl.BeginTextureMode(menu.textures[t])
 
-	pc_idx := rules.get_pc_idx(menu.party_idx)
-	pc := rules.playable_characters[pc_idx]
+	pc_idx := get_pc_idx(menu.party_idx)
+	pc := playable_characters[pc_idx]
 
 	draw_pane(0, 0, 16, 14)
 	draw_pane(12, 0, 4, 1.5)
@@ -526,7 +524,7 @@ draw_character_content :: proc() {
 	draw_text(3.5, 3.0, "HP", LABEL_COLOR)
 	hp_tint := rl.WHITE
 	hp := pc.hitpoints
-	max_hp := int(rules.get_stat(pc, .Hitpoints))
+	max_hp := int(get_stat(pc, .Hitpoints))
 	if hp <= 0 {
 		hp_tint = rl.RED
 	} else if hp <= max_hp / 4 {
@@ -537,49 +535,49 @@ draw_character_content :: proc() {
 	EQ :: [2]f32{1, 5}
 	#partial switch menu.ui_state {
 	case .Character:
-		for s in rules.Equipment_Slot {
-			item_name := rules.equipped_item(pc.equipment, s)
+		for s in Equipment_Slot {
+			item_name := equipped_item(pc.equipment, s)
 			draw_text(EQ.x, EQ.y + f32(s), fmt.ctprintf("%s", s), LABEL_COLOR)
 			draw_text(
 				EQ.x + .5,
 				EQ.y + .5 + f32(s),
-				fmt.ctprintf("%s", rules.items[item_name].name if item_name != .None else ""),
+				fmt.ctprintf("%s", items[item_name].name if item_name != .None else ""),
 			)
 		}
 	case .Equipment:
-		s := rules.Equipment_Slot(menu.slot_idx)
-		current_item_name := rules.equipped_item(pc.equipment, s)
+		s := Equipment_Slot(menu.slot_idx)
+		current_item_name := equipped_item(pc.equipment, s)
 		draw_text(EQ.x, EQ.y, fmt.ctprintf("%s", s), LABEL_COLOR)
 		draw_text(
 			EQ.x + .5,
 			EQ.y + .5,
-			fmt.ctprintf("%s>", rules.items[current_item_name].name if current_item_name != .None else "empty"),
+			fmt.ctprintf("%s>", items[current_item_name].name if current_item_name != .None else "empty"),
 		)
 		for r in 0 ..< EQUIPMENT_ROWS {
-			if r >= len(rules.equippables_order) {break}
-			item_name := rules.equippables_order[r + menu.equip_sel.origin_idx]
+			if r >= len(equippables_order) {break}
+			item_name := equippables_order[r + menu.equip_sel.origin_idx]
 			if item_name == .None {
 				draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), "remove", rl.WHITE)
 			} else {
-				tint := rl.WHITE if rules.fits_in_slot(item_name, s) else rl.GRAY
-				draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), fmt.ctprint(rules.items[item_name].name), tint)
+				tint := rl.WHITE if fits_in_slot(item_name, s) else rl.GRAY
+				draw_text(EQ.x, EQ.y + 2 + .5 * f32(r), fmt.ctprint(items[item_name].name), tint)
 			}
 		}
 	}
 
-	for s in rules.Stat_Name {
-		draw_text(9.5, 5 + f32(s), fmt.ctprint(rules.STAT_STRINGS[s]), LABEL_COLOR)
-		draw_text(12.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(pc, s)))
+	for s in Stat_Name {
+		draw_text(9.5, 5 + f32(s), fmt.ctprint(STAT_STRINGS[s]), LABEL_COLOR)
+		draw_text(12.0, 5 + f32(s), fmt.ctprintf("% 3.0f", get_stat(pc, s)))
 	}
 
 	if menu.ui_state == .Equipment {
-		item_name := rules.equippables_order[menu.equip_sel.select_idx]
+		item_name := equippables_order[menu.equip_sel.select_idx]
 		slot_idx := menu.slot_idx
-		changing_stats := rules.equipped_stats(pc.leveled_stats, rules.changed_equipment(pc.equipment, item_name, slot_idx))
-		for s in rules.Stat_Name {
+		changing_stats := equipped_stats(pc.leveled_stats, changed_equipment(pc.equipment, item_name, slot_idx))
+		for s in Stat_Name {
 			draw_text(13.5, 5 + f32(s), ">")
-			tint := change_tint(rules.get_stat(pc, s), rules.get_stat(changing_stats, s))
-			draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", rules.get_stat(changing_stats, s)), tint)
+			tint := change_tint(get_stat(pc, s), get_stat(changing_stats, s))
+			draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", get_stat(changing_stats, s)), tint)
 		}
 	}
 
@@ -620,13 +618,13 @@ draw_inventory_content :: proc() {
 
 	origin_idx := menu.inven_sel.origin_idx
 	for r in 0 ..< INVENTORY_ROWS {
-		if r >= len(rules.inventory_order) {break}
-		item_name := rules.inventory_order[r + origin_idx]
+		if r >= len(inventory_order) {break}
+		item_name := inventory_order[r + origin_idx]
 		tint := rl.GRAY
-		if rules.is_world_consumable(item_name) {tint = rl.WHITE}
-		item := rules.items[item_name]
+		if is_world_consumable(item_name) {tint = rl.WHITE}
+		item := items[item_name]
 		draw_text(1, 5 + .5 * f32(r), fmt.ctprint(item.name), tint)
-		draw_text_rjust(15, 5 + .5 * f32(r), fmt.ctprintf("*% 3d", rules.game_data.inventory[item_name]), tint)
+		draw_text_rjust(15, 5 + .5 * f32(r), fmt.ctprintf("*% 3d", game_data.inventory[item_name]), tint)
 		if r == selection_row(menu.inven_sel) {
 			draw_text(1, 2, strings.clone_to_cstring(item.description, context.temp_allocator))
 		}
@@ -654,8 +652,8 @@ draw_skills_content :: proc() {
 	t :: World_Menu_Textures.Skills
 	rl.BeginTextureMode(menu.textures[t])
 
-	pc_idx := rules.get_pc_idx(menu.party_idx)
-	pc := rules.playable_characters[pc_idx]
+	pc_idx := get_pc_idx(menu.party_idx)
+	pc := playable_characters[pc_idx]
 
 	draw_pane(0, 0, 16, 14)
 	draw_pane(12, 0, 4, 1.5)
@@ -671,10 +669,10 @@ draw_skills_content :: proc() {
 		if r >= len(pc.skills) {break}
 		cs := pc.skills[r + origin_idx]
 		k := cs.skill
-		draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", rules.skills[k].name, 100 * f16(cs.charge) / rules.CHARGE_MAX))
-		// draw_text(1, 1 + f32(r), fmt.ctprint(rules.skills[k].name))
+		draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", skills[k].name, 100 * f16(cs.charge) / CHARGE_MAX))
+		// draw_text(1, 1 + f32(r), fmt.ctprint(skills[k].name))
 		if r + origin_idx == selection_row(menu.skill_sel) {
-			draw_text(1, 3.5, strings.clone_to_cstring(rules.skills[k].description, context.temp_allocator))
+			draw_text(1, 3.5, strings.clone_to_cstring(skills[k].description, context.temp_allocator))
 		}
 	}
 
@@ -724,13 +722,13 @@ draw_targeting_content :: proc() {
 	rl.BeginTextureMode(menu.textures[t])
 
 	draw_pane(0, 0, 16, 4)
-	rules.party_apply(
+	party_apply(
 		proc(i, pc_idx: int) {
-			pc := rules.playable_characters[pc_idx]
+			pc := playable_characters[pc_idx]
 			draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1.5 + 2.5 * f32(i), 1))
 			hp_tint := rl.WHITE
 			hp := pc.hitpoints
-			max_hp := int(rules.get_stat(pc, .Hitpoints))
+			max_hp := int(get_stat(pc, .Hitpoints))
 			if hp <= 0 {
 				hp_tint = rl.RED
 			} else if hp <= max_hp / 4 {
@@ -739,7 +737,7 @@ draw_targeting_content :: proc() {
 				hp_tint = rl.GREEN
 			}
 			draw_text(.5 + 2.5 * f32(i), 3, fmt.ctprintf("% 4d", pc.hitpoints), hp_tint)
-			// draw_text(1 + 3 * f32(i), 3.5, fmt.ctprintf("/% 4.0f", rules.get_stat(pc, .Hitpoints)))
+			// draw_text(1 + 3 * f32(i), 3.5, fmt.ctprintf("/% 4.0f", get_stat(pc, .Hitpoints)))
 		},
 	)
 
@@ -768,10 +766,10 @@ draw_save_content :: proc() {
 	draw_pane(0, 0, 16, TITLE_HEIGHT)
 	draw_text(8, .5, "Save", LABEL_COLOR)
 	for r in 0 ..< SAVES_ROWS {
-		if r <= len(rules.metadata) {
+		if r <= len(metadata) {
 			draw_pane(0, f32(TITLE_HEIGHT + r * SLOT_HEIGHT), 16, SLOT_HEIGHT)
 			save_idx := r + menu.save_sel.origin_idx
-			if save_idx < len(rules.metadata) {
+			if save_idx < len(metadata) {
 				draw_metadata(save_idx, r)
 			} else {
 				draw_text(1, f32(TITLE_HEIGHT + r * SLOT_HEIGHT) + .5, "New Save")
@@ -797,13 +795,13 @@ draw_save :: proc() {
 
 @(private)
 world_menu_clock_update :: proc() {
-	// this is just to be called when rules.game_data.time is updated
+	// this is just to be called when game_data.time is updated
 	set_stale(.Top)
 }
 
 // Green if a stat would go up, red if down.
 @(private = "file")
-change_tint :: proc(prev, next: rules.Stat) -> (tint := rl.WHITE) {
+change_tint :: proc(prev, next: Stat) -> (tint := rl.WHITE) {
 	if next > prev do tint = rl.GREEN
 	if next < prev do tint = rl.RED
 	return

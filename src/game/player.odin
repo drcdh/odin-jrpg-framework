@@ -2,8 +2,6 @@ package game
 
 import rl "vendor:raylib"
 
-import "../rules"
-
 _ :: rl // only used in debug builds
 
 PLAYER_SPEED :: 2 // the player walks at 2x: half its sprite's default_step_time per tile
@@ -43,7 +41,7 @@ player_update :: proc() {
 	if !tween_done(pc.step) do return
 	if pc.stepping {
 		pc.stepping = false
-		rules.do_party_step_effects() // counts the step, ticks poison, charges skills
+		do_party_step_effects() // counts the step, ticks poison, charges skills
 		check_edge_exit()
 		if level_transition_update() do return
 	}

@@ -52,7 +52,7 @@ with open(f"{ROOT}/baddies.csv") as f:
 		template_str += "spoils = {" + ",".join(spoils) + "},"
 		baddy_templates.append(template_str)
 
-out_f = open("baddy_data.odin", "w")
+out_f = open(f"{DEST}/baddy_data.odin", "w")
 
 out_f.write("""package game
 

@@ -3,7 +3,6 @@ package game
 import hm "core:container/handle_map"
 import "core:log"
 import "core:time"
-import "../rules"
 
 // The level-independent part of leaving a level. Everything a level added to
 // the world goes: every entity, every tween, every script (cancelled ones
@@ -29,22 +28,22 @@ clear_level :: proc() {
 FADE_TIME :: 0.25 // seconds for each half of a level change
 
 Levels :: struct {
-	current:      rules.Level,
-	prev:         rules.Level, // the level left, with the player's tile and facing there
+	current:      Level,
+	prev:         Level, // the level left, with the player's tile and facing there
 	prev_tile:    Tile,
 	prev_face:    Direction,
 	egress_idx:   int, // the door (0 = the map edge) the player left `prev` by
 	// Where stepping off the map edge goes; nil when the edges are closed.
 	// Set by the generated tiled_init_* from the map's edge_level property.
-	edge:         Maybe(rules.Level),
-	pending:      Maybe(rules.Level), // the level being faded to (change_level)
+	edge:         Maybe(Level),
+	pending:      Maybe(Level), // the level being faded to (change_level)
 	pending_at:   Maybe(Tile),        // the player's spawn there; nil = the entrance rules
 	pending_face: Direction,
 	pending_fade: f32,                // seconds for each half of the change
 	transition:   Tween_Id,           // the curtain tween of the current fade
 }
 
-current_level :: proc() -> rules.Level {
+current_level :: proc() -> Level {
 	return game.world.levels.current
 }
 
@@ -53,7 +52,7 @@ current_level :: proc() -> rules.Level {
 // level's init_* calls camera_follow. Without `with_player` (cutscenes) no
 // player spawns, so nothing takes input and the camera follows nothing until
 // init_* or a script calls camera_follow.
-start_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down, with_player := true) {
+start_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, with_player := true) {
 	lv := &game.world.levels
 	if p, ok := entity_get(player()); ok {
 		lv.prev_face = p.facing
@@ -74,7 +73,7 @@ restart_level :: proc() {
 // would cancel the calling script): fade out over `fade` seconds, start `l`
 // with the player at `at` facing `face`, fade back in. With no `at`, the
 // level's entrance rules pick the spawn. Ignored while a change is under way.
-change_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Down, fade: f32 = FADE_TIME) {
+change_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, fade: f32 = FADE_TIME) {
 	lv := &game.world.levels
 	if _, busy := lv.pending.?; busy do return
 	lv.pending = l
@@ -87,7 +86,7 @@ change_level :: proc(l: rules.Level, at: Maybe(Tile) = nil, face := Direction.Do
 // Leaving through a door or the map edge: a level change whose spawn the
 // destination's entrance rules pick from the level left, the door index and
 // the player's facing.
-egress :: proc(l: rules.Level, egress_idx: int) {
+egress :: proc(l: Level, egress_idx: int) {
 	lv := &game.world.levels
 	if _, busy := lv.pending.?; busy do return
 	lv.egress_idx = egress_idx
@@ -95,7 +94,7 @@ egress :: proc(l: rules.Level, egress_idx: int) {
 }
 
 // A warp pad: egress with the warp sound.
-warp_to_level :: proc(l: rules.Level, egress_idx: int) {
+warp_to_level :: proc(l: Level, egress_idx: int) {
 	play_sound(.Warp)
 	egress(l, egress_idx)
 }
@@ -130,7 +129,7 @@ check_edge_exit :: proc() {
 // adds the rest, and the
 // generated render_* draws the map once.
 @(private = "file")
-enter_level :: proc(l: rules.Level, at: Maybe(Tile), face: Direction, with_player: bool) {
+enter_level :: proc(l: Level, at: Maybe(Tile), face: Direction, with_player: bool) {
 	start := time.tick_now()
 	tiled_init_level(l)
 	if with_player do spawn_player(l, at, face)
@@ -140,7 +139,7 @@ enter_level :: proc(l: rules.Level, at: Maybe(Tile), face: Direction, with_playe
 }
 
 @(private = "file")
-spawn_player :: proc(l: rules.Level, at: Maybe(Tile), at_face: Direction) {
+spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 	tile, face := Tile{}, Direction.Down
 	if t, ok := at.?; ok {
 		tile, face = t, at_face

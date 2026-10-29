@@ -87,22 +87,6 @@ gain_level :: proc(c: ^Character) -> Skill_Set {
 	return new_skills
 }
 
-character_get_experience :: proc(c: ^Character, exp: int) -> (new_skills: Skill_Set) {
-	for exp := exp; exp > 0; {
-		log.infof("%s gets %d exp", c.name, exp)
-		if exp_needed, ok := c.exp_to_next.(int); ok {
-			if exp >= exp_needed {
-				new_skills |= gain_level(c)
-				exp -= exp_needed
-			} else {
-				c.exp_to_next = exp_needed - exp
-				exp = 0
-			}
-		}
-	}
-	return
-}
-
 // party_get_experience :: proc(exp: int) {
 // 	if exp <= 0 do return
 // 	for party_idx in 0 ..< party_size() {

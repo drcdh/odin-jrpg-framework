@@ -6,6 +6,7 @@ import "core:fmt"
 import "core:log"
 import "core:os"
 import "core:strings"
+import "core:time"
 
 SAVE_DIR :: "saves"
 
@@ -108,7 +109,9 @@ encode_party_data :: proc() -> (d: Party_Save_Data) {
 // Writes the game to SAVE_DIR/`filename`, or to a new uniquely named file.
 // `time_saved` is in Unix nanoseconds; the caller reads the clock, since the
 // game package keeps no real time. Returns false (and logs why) if it couldn't.
-save_game :: proc(save_point: Save_Point, time_saved: i64, filename: Maybe(string) = nil) -> bool {
+save_game :: proc(filename: Maybe(string) = nil) -> bool {
+	save_point := Save_Point{game.world.levels.current, entity_tile(player())}
+	time_saved := time.to_unix_nanoseconds(time.now())
 	info := Save_Data{party_data = encode_party_data(), game_data = game_data, save_point = save_point, time_saved = time_saved}
 
 	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true}, context.temp_allocator)
@@ -180,6 +183,9 @@ load_saved_game :: proc(save_data: Save_Data) {
 // Entering that level is the game package's job (game.load_game). Returns false
 // (and logs why) if it couldn't.
 load_game :: proc(filename: string) -> (save_point: Save_Point, ok: bool) {
+	save_point = load_game(filename) or_return
+	start_level(save_point.level, at = save_point.tile, face = .Down)
+	log.infof("Loaded game from %s/%s", SAVE_DIR, filename)
 	save_data := read_saved_game_data(filename) or_return
 	load_saved_game(save_data)
 	return save_data.save_point, true

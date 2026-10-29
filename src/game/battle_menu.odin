@@ -4,8 +4,6 @@ import "core:fmt"
 import "core:strings"
 import rl "vendor:raylib"
 
-import "../rules"
-
 Battle_UI_Top_Choices :: enum {
 	Skill,
 	Item,
@@ -181,20 +179,20 @@ battle_redraw_text_pane :: proc(text: Maybe(string) = nil) {
 
 battle_redraw_baddies_pane :: proc() {
 	row := 0
-	for c_idx in rules.battle.baddies {
-		c := rules.battle.combatants[c_idx]
+	for c_idx in battle.baddies {
+		c := battle.combatants[c_idx]
 		if true {//c.enabled {
 			tint := rl.WHITE
 			if c.hitpoints <= 0 {tint = rl.RED}
-			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", rules.battle.combatants[c_idx].character.name), tint)
+			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name), tint)
 			row += 1
 		}
 	}
 }
 
 battle_redraw_party_pane :: proc() {
-	for i, p in rules.battle.allies {
-		c := rules.battle.combatants[i]
+	for i, p in battle.allies {
+		c := battle.combatants[i]
 		tint := rl.WHITE
 		if c.hitpoints <= 0 {
 			tint = rl.RED
@@ -208,7 +206,7 @@ battle_redraw_party_pane :: proc() {
 
 
 battle_redraw_skills_pane :: proc() {
-	pc := rules.battle.combatants[battle_menu.c_idx].character
+	pc := battle.combatants[battle_menu.c_idx].character
 	// fmt.printfln("\n%#v\n", c_skills)
 	for r in 0 ..< BATTLE_MENU_SKILLS_ROWS {
 		if r >= len(pc.skills) {break}
@@ -223,7 +221,7 @@ battle_redraw_skills_pane :: proc() {
 		draw_text(
 			.5,
 			.5 + f32(r) * .5,
-			fmt.ctprintf("%s % 3.0f", rules.skills[cs.skill].name, 100 * f16(cs.charge) / CHARGE_MAX),
+			fmt.ctprintf("%s % 3.0f", skills[cs.skill].name, 100 * f16(cs.charge) / CHARGE_MAX),
 			tint,
 		)
 	}
@@ -238,12 +236,12 @@ battle_draw_skills_icons :: proc() {
 
 battle_redraw_inventory_pane :: proc() {
 	for r in 0 ..< BATTLE_MENU_INVENTORY_ROWS {
-		if r >= len(rules.inventory_order) {break}
+		if r >= len(inventory_order) {break}
 		draw_text(
 			.5,
 			.5 + f32(r) * .5,
 			strings.clone_to_cstring(
-				rules.items[rules.inventory_order[battle_menu.inv_sel.origin_idx + r]].name,
+				items[inventory_order[battle_menu.inv_sel.origin_idx + r]].name,
 				context.temp_allocator,
 			),
 			rl.YELLOW if r == selection_row(battle_menu.inv_sel) else rl.WHITE,
@@ -301,7 +299,7 @@ battle_menu_set_stale :: proc(pane: Battle_Pane) {
 }
 
 battle_menu_next_combatant :: proc() {
-	if next, ok := rules.get_next_player_controlled_combatant(battle_menu.c_idx).?; ok {
+	if next, ok := get_next_player_controlled_combatant(battle_menu.c_idx).?; ok {
 		battle_menu.c_idx = next
 		battle_menu.ui_state = .Top
 	} else {
@@ -336,16 +334,16 @@ battle_menu_update :: proc() {
 
 	case .Skills:
 		if get_input(.ENTER) {
-			cs := rules.battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
+			cs := battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
 			if cs.charge == CHARGE_MAX {
 				battle_menu.skill = cs.skill
 				battle_menu.ui_state = .Skill_Target
-				battle_menu.targets = default_target_selection(rules.skills[cs.skill].targeting)
+				battle_menu.targets = default_target_selection(skills[cs.skill].targeting)
 			}
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Top
 		} else if dy, ok := get_y_input().?; ok {
-			c_skills := rules.battle.combatants[battle_menu.c_idx].character.skills
+			c_skills := battle.combatants[battle_menu.c_idx].character.skills
 			// fmt.printfln("\n%#v\n", c_skills)
 			battle_menu.skill_sel = shift_windowed_selection(
 				dy,
@@ -358,22 +356,22 @@ battle_menu_update :: proc() {
 
 	case .Skill_Target:
 		if get_input(.ENTER) {
-			cs := &rules.battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
+			cs := &battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
 			cs.charge = 0
-			rules.queue_battle_skill(battle_menu.c_idx, battle_menu.targets, cs.skill)
+			queue_battle_skill(battle_menu.c_idx, battle_menu.targets, cs.skill)
 			battle_menu.ui_state = .Idle
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Skills
 		} else if m := get_menu_input(); m.x != 0 || m.y != 0 {
-			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, rules.skills[battle_menu.skill].targeting)
+			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, skills[battle_menu.skill].targeting)
 		}
 
 	case .Inventory:
 		if get_input(.ENTER) {
-			if consumable, ok := rules.items[rules.inventory_order[battle_menu.inv_sel.select_idx]].data.(Consumable); ok {
+			if consumable, ok := items[inventory_order[battle_menu.inv_sel.select_idx]].data.(Consumable); ok {
 				battle_menu.skill = consumable
 				battle_menu.ui_state = .Item_Target
-				battle_menu.targets = default_target_selection(rules.skills[consumable].targeting)
+				battle_menu.targets = default_target_selection(skills[consumable].targeting)
 			}
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Top
@@ -382,19 +380,19 @@ battle_menu_update :: proc() {
 				dy,
 				battle_menu.inv_sel,
 				BATTLE_MENU_INVENTORY_ROWS,
-				len(rules.inventory_order),
+				len(inventory_order),
 			)
 			battle_menu_set_stale(.Inventory)
 		}
 
 	case .Item_Target:
 		if get_input(.ENTER) {
-			rules.queue_battle_skill(battle_menu.c_idx, battle_menu.targets, battle_menu.skill)
+			queue_battle_skill(battle_menu.c_idx, battle_menu.targets, battle_menu.skill)
 			battle_menu.ui_state = .Idle
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Inventory
 		} else if m := get_menu_input(); m.x != 0 || m.y != 0 {
-			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, rules.skills[battle_menu.skill].targeting)
+			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, skills[battle_menu.skill].targeting)
 		}
 	}
 }
@@ -405,8 +403,8 @@ battle_menu_update :: proc() {
 
 change_ally_selection :: proc(t, d: int) -> int {
 	target := t + d
-	if target < 0 {target = len(rules.battle.allies) - 1}
-	if target >= len(rules.battle.allies) {target = 0}
+	if target < 0 {target = len(battle.allies) - 1}
+	if target >= len(battle.allies) {target = 0}
 	return target
 }
 
@@ -416,10 +414,10 @@ change_baddy_selection :: proc(t, d: int) -> int {
 	target := t + d
 	for {
 		if aaah += 1; aaah > 10 do break // FIXME
-		if target < 0 {target = len(rules.battle.baddies) - 1}
-		if target >= len(rules.battle.baddies) {target = 0}
+		if target < 0 {target = len(battle.baddies) - 1}
+		if target >= len(battle.baddies) {target = 0}
 		if target == initial_target {break}
-		if rules.combatant_alive(rules.battle.combatants[rules.battle.baddies[target]]) {break}
+		if combatant_alive(battle.combatants[battle.baddies[target]]) {break}
 		target += d
 	}
 	return target

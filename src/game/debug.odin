@@ -5,8 +5,6 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-import "../rules"
-
 // Debug aids. F1 toggles the overlay (draw_debug_world, draw_debug_hud; the
 // key is read in player.odin). debug_update reads the other debug keys, from
 // the old game, and debug_draw draws what they toggle; both do nothing
@@ -173,7 +171,7 @@ debug_update :: proc() {
 	// 	}
 	// }
 	if rl.IsKeyPressed(.C) {
-		fmt.printfln("%#v", rules.playable_characters)
+		fmt.printfln("%#v", playable_characters)
 	}
 	// if rl.IsKeyPressed(.D) {
 	// 	if darkness < 250 {
@@ -247,8 +245,8 @@ debug_update :: proc() {
 	}
 
 	if rl.IsKeyPressed(.PERIOD) {
-		rules.sudden_death = !rules.sudden_death
-		fmt.printfln("Baddy sudden death mode %s", rules.sudden_death ? "ACTIVE" : "INACTIVE")
+		sudden_death = !sudden_death
+		fmt.printfln("Baddy sudden death mode %s", sudden_death ? "ACTIVE" : "INACTIVE")
 	}
 
 	// if rl.IsKeyPressed(.SLASH) {
@@ -273,15 +271,15 @@ debug_toggle_pc :: proc(pc_idx: int) {
 	if world_menu_active() {
 		return
 	}
-	if rules.game_data.party_membership[pc_idx] {
-		if rules.party_size() > 1 {
-			rules.game_data.party_membership[pc_idx] = false
+	if game_data.party_membership[pc_idx] {
+		if party_size() > 1 {
+			game_data.party_membership[pc_idx] = false
 			play_sound(.Kaching)
 		} else {
 			play_sound(.Blerp)
 		}
 	} else {
-		rules.game_data.party_membership[pc_idx] = true
+		game_data.party_membership[pc_idx] = true
 		play_sound(.Warp)
 	}
 }

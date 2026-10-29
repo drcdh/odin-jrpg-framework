@@ -4,7 +4,6 @@ import hm "core:container/handle_map"
 import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
-import "../rules"
 
 // general game state, relevant to battle and world modes
 Game :: struct {
@@ -75,7 +74,7 @@ shutdown :: proc() {
 	if texture.id != 0 do rl.UnloadRenderTexture(texture)
 	texture = {}
 
-	rules.destroy()
+	destroy()
 
 	// Must be last: everything above may still look things up in these.
 	hm.dynamic_destroy(&game.entities)

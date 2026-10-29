@@ -5,8 +5,6 @@ import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
-import "../rules"
-
 // --- Immediate verbs: usable anywhere. Each cancels any tween on the property it sets. ---
 
 // Teleports: sets the logical tile and snaps the sprite onto it.
@@ -317,18 +315,18 @@ rotate_by :: proc(id: Entity_Id, degrees: f32, duration: f32, easing := Ease.Lin
 
 // Adds `items` to the inventory and says so: "Got Potion x2, Tea!". Does
 // nothing without items.
-get_items :: proc(items: ..rules.Item_Name, loc := #caller_location) -> bool {
+get_items :: proc(items_: ..Item_Name, loc := #caller_location) -> bool {
 	if len(items) == 0 do return true
-	counts: [rules.Item_Name]int
-	for item in items {
-		rules.add_item(item)
+	counts: [Item_Name]int
+	for item in items_ {
+		add_item(item)
 		counts[item] += 1
 	}
 	names := make([dynamic]string, 0, len(items), context.temp_allocator)
-	for item in items { // in order of first appearance
+	for item in items_ { // in order of first appearance
 		n := counts[item]
 		if n == 0 do continue
-		append(&names, n == 1 ? rules.items[item].name : fmt.tprintf("%s x%d", rules.items[item].name, n))
+		append(&names, n == 1 ? items[item].name : fmt.tprintf("%s x%d", items[item].name, n))
 		counts[item] = 0
 	}
 	return say(strings.concatenate({"Got ", strings.join(names[:], ", ", context.temp_allocator), "!"}, context.temp_allocator), loc = loc)

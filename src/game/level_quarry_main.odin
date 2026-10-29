@@ -1,7 +1,5 @@
 package game
 
-import "../rules"
-
 // The yard is tiles 7..12 square; its west wall has a gap at (6, 9).
 @(private = "file", rodata)
 DUDE_PATH := []Tile{{2, 9}, {9, 9}}
@@ -42,7 +40,7 @@ init_quarry_main :: proc() {
 				choice: int
 				if choice, ok = choose("You'll get a prize if you win (maybe)!", {"I'm game.", "Nah, I'm good."}); !ok do return
 				if choice == 0 {
-					if rules.playable_characters[0].level >= 2 {
+					if playable_characters[0].level >= 2 {
 						monster_fight_stage = 1
 						walk_entity(self, {1, -1})
 						say("Go hog wild, champ.")

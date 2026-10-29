@@ -6,7 +6,7 @@ MAX_ENCOUNTER_SIZE :: 6
 
 Encounter_Spot :: struct {
 	tile:     [2]int, // position in the baddies' formation
-	baddy_id: Maybe(Baddy_Id), // nil: an empty spot
+	baddy_id: Baddy_Id, // nil: an empty spot
 }
 
 Encounter :: struct {
@@ -33,9 +33,9 @@ add_baddy_combatant :: proc(baddy: Combatant) {
 	append(&battle.combatants, baddy)
 }
 
-start_encounter :: proc(name: Encounter_Name) {
+add_combatants_for_encounter :: proc(name: Encounter_Name) {
 	for spot in encounters[name].baddies {
-		baddy_id := spot.baddy_id.? or_continue
+		baddy_id := spot.baddy_id
 		log.infof("adding %s (%v)", baddy_templates[baddy_id].name, baddy_id)
 		add_baddy_combatant(baddy_combatant(baddy_templates[baddy_id]))
 	}

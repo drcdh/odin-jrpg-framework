@@ -5,8 +5,6 @@ import "core:log"
 import "core:math/rand"
 import rl "vendor:raylib"
 
-import "../rules"
-
 // Flash the player red, slide away, wait, then restore the player's tint.
 glide_away :: proc(self: Entity_Id) {
 	player := player()
@@ -102,7 +100,7 @@ vanish :: proc(self: Entity_Id) {
 // A chest's trigger script: opens the box, gives `items` and says so. The box
 // can't be opened again: its trigger is cleared and the datum is set, so the
 // level spawns it opened from then on.
-items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..rules.Item_Name) {
+items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name) {
 	set_game_data(datum, true)
 	clear_trigger(self)
 	set_sprite_tag_of(self, .Opened)
@@ -113,7 +111,7 @@ items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..rules.Item_
 	}
 }
 
-monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: rules.Encounter_Name, items: ..rules.Item_Name) {
+monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encounter_Name, items: ..Item_Name) {
 	set_game_data(datum, true)
 	clear_trigger(self)
 	set_sprite_tag_of(self, .Opened)
@@ -124,7 +122,7 @@ monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: rules.E
 	if len(items) > 0 do get_items(..items)
 }
 
-start_encounter :: proc(name: rules.Encounter_Name) {
+start_encounter :: proc(name: Encounter_Name) {
 	log.infof("starting encounter %v", name)
 	wait_script(spawn(proc(_: Entity_Id) {
 		if !fade_screen(1, .25) do return
@@ -140,15 +138,30 @@ start_encounter :: proc(name: rules.Encounter_Name) {
 
 character_get_experience_result: struct {
 	prev_level: int,
-	new_skills: rules.Skill_Set,
+	new_skills: Skill_Set,
 	new_level: int,
 	name: string,
 }
 
 character_get_experience :: proc(pc_idx, exp: int) {
-	c := &rules.playable_characters[pc_idx]
+	c := &playable_characters[pc_idx]
 	character_get_experience_result = {prev_level = c.level} // resets other fields
-	character_get_experience_result.new_skills = rules.character_get_experience(c, exp)
+
+	character_get_experience_result.new_skills = {}
+
+	for exp := exp; exp > 0; {
+		log.infof("%s gets %d exp", c.name, exp)
+		if exp_needed, ok := c.exp_to_next.(int); ok {
+			if exp >= exp_needed {
+				character_get_experience_result.new_skills |= gain_level(c)
+				exp -= exp_needed
+			} else {
+				c.exp_to_next = exp_needed - exp
+				exp = 0
+			}
+		}
+	}
+
 	character_get_experience_result.new_level = c.level
 	character_get_experience_result.name = c.name
 	log.infof("%s get experience %d", c.name, exp)
@@ -156,7 +169,7 @@ character_get_experience :: proc(pc_idx, exp: int) {
 	wait_script(spawn(proc(_: Entity_Id) {
 		if character_get_experience_result.new_level > character_get_experience_result.prev_level do say(fmt.tprintf("%s got to level %d", character_get_experience_result.name, character_get_experience_result.new_level))
 		for k in character_get_experience_result.new_skills {
-			say(fmt.tprintf("%s learned %s", character_get_experience_result.name, rules.skills[k].name))
+			say(fmt.tprintf("%s learned %s", character_get_experience_result.name, skills[k].name))
 		}
 	}))
 }
@@ -167,8 +180,8 @@ party_get_experience :: proc(exp: int) {
 	party_get_experience_v = exp
 	wait_script(spawn(proc(_: Entity_Id) {
 		say(fmt.tprintf("Got %d experience points", party_get_experience_v))
-		for pc_idx in 0 ..< rules.NUM_PC {
-			if !rules.game_data.party_membership[pc_idx] do continue
+		for pc_idx in 0 ..< NUM_PC {
+			if !game_data.party_membership[pc_idx] do continue
 			character_get_experience(pc_idx, party_get_experience_v)
 		}
 	}))

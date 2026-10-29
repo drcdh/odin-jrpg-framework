@@ -317,8 +317,6 @@ def main():
 			f.write(f"\t{lenum},\n")
 		f.write("}\n")
 
-		f.write("package game\n")
-
 		write_case_proc(f, "tiled_init")
 		write_case_proc(f, "init")
 		write_case_proc(f, "render")
