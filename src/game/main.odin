@@ -30,7 +30,7 @@ game: Game
 
 texture: rl.RenderTexture
 
-init :: proc(allocator := context.allocator) {
+init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 	log.info("initializing game")
 	hm.dynamic_init(&game.images, allocator)
 	hm.dynamic_init(&game.scripts, allocator)
@@ -40,7 +40,7 @@ init :: proc(allocator := context.allocator) {
 	game.script_order    = make([dynamic]Script_Id, allocator)
 	game.swapped_sprites = make(map[Swap_Key]Sprite_Handle, allocator)
 
-	game.clock = {time_scale = 1}
+	game.clock = {time_scale = time_scale}
 
 	// TODO: use #load, preload (as here) at runtime, or lazy-load
 	for bt in baddy_templates {

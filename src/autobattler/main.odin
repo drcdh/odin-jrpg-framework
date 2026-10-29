@@ -19,9 +19,10 @@ WINDOW_HEIGHT :: ZOOM*game.WINDOW_HEIGHT
 _ :: mem // only used in debug builds
 
 Options :: struct {
-	auto: bool `usage:"Autobattle mode, must be true if visual is false (default true)."`,
-	seed: u64 `usage:"Random seed (default 1959)."`,
-	visual: bool `usage:"Audiovisual mode (default false)."`,
+	auto:			  bool `usage:"Autobattle mode, must be true if visual is false (default true)."`,
+	seed: 		  u64  `usage:"Random seed (default 1959)."`,
+	tscale: f32  `usage:"Modify factor for game time vs real time (default 1)."`,
+	visual:     bool `usage:"Audiovisual mode (default false)."`,
 }
 
 main :: proc() {
@@ -44,7 +45,7 @@ main :: proc() {
 		}
 	}
 
-	opt := Options{auto = true, seed = 1959, visual = false}
+	opt := Options{auto = true, seed = 1959, tscale = 1, visual = false}
 	flags.parse_or_exit(&opt, os.args)
 	log.infof("Setting random seed to %d", opt.seed)
 	rand.reset(opt.seed)
@@ -57,7 +58,7 @@ main :: proc() {
 		rl.InitAudioDevice()
 		defer rl.CloseAudioDevice() // after game.shutdown: it unloads sounds
 
-		game.init()
+		game.init(opt.tscale)
 		defer game.shutdown() // before CloseWindow: it unloads textures
 
 		game.init_new_game() // initializes party
