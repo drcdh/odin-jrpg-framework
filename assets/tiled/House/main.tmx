@@ -3,6 +3,7 @@
  <properties>
   <property name="edge_level" value="Overworld"/>
   <property name="map_mode" value="CLAMP"/>
+  <property name="overlay" value="Clouds"/>
  </properties>
  <tileset firstgid="1" source="../tilesets/tileset_terrain.tsx"/>
  <tileset firstgid="17" source="../tilesets/tileset_town.tsx"/>

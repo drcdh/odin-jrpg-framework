@@ -24,10 +24,11 @@ Map_Mode :: enum {
 // The current level's map, filled in by the generated tiled_init_* procs
 // (set_map) and render_* procs (begin_map_render .. end_map_render).
 Level_Map :: struct {
-	battle_background: Battle_Background,
+	background: Battle_Background,
 	firstgids: []int,
 	mode:      Map_Mode,
 	open_edges: bool,            // outside the map is passable (the level has an edge exit)
+	overlay:   Overlay,
 	passable:  []u8,             // flags per in-map tile, row-major; empty means all passable
 	routes:    [][]Tile,
 	rt:        rl.RenderTexture, // the whole map, rendered once on entry
