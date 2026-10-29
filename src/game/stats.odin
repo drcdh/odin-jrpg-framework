@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import rl "vendor:raylib"
 
 Stat_Name :: enum {
 	Hitpoints,
@@ -105,4 +106,10 @@ equipped_stats :: proc(lstats: Stats, equipment: Equipment) -> Stats {
 
 effective_stats :: proc(stats: Stats, status: Status) -> Stats {
 	return stats // TODO
+}
+
+change_tint :: proc(prev, next: Stat) -> (tint := rl.WHITE) {
+	if next > prev do tint = rl.GREEN
+	if next < prev do tint = rl.RED
+	return
 }
