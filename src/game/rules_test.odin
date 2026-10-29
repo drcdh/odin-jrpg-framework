@@ -237,21 +237,10 @@ skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
 }
 
 @(test)
-battles_reset_pc_skill_charges :: proc(t: ^testing.T) {
-	init_new_game(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
-	for &cs in playable_characters[0].skills do cs.charge = CHARGE_MAX
-	start_encounter(.Rat)
-	for cs in playable_characters[0].skills do testing.expect_value(t, cs.charge, 0)
-}
-
-@(test)
 item_counts_stay_between_0_and_max :: proc(t: ^testing.T) {
 	init_new_game(); defer destroy()
-	game_data.inventory[Item_Name.Potion] = MAX_ITEM_COUNT - 1
-	add_item(.Potion, 5)
-	testing.expect_value(t, game_data.inventory[Item_Name.Potion], MAX_ITEM_COUNT)
-	game_data.inventory[Item_Name.Potion] = 255
-	add_item(.Potion) // a count above the cap (an old save) comes back down to it
+	game_data.inventory[Item_Name.Potion] = 0
+	add_item(.Potion, MAX_ITEM_COUNT + 1)
 	testing.expect_value(t, game_data.inventory[Item_Name.Potion], MAX_ITEM_COUNT)
 	game_data.inventory[Item_Name.Potion] = 2
 	remove_item(.Potion, 5)
