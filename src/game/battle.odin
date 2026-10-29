@@ -136,7 +136,7 @@ spawn_combatants :: proc(name: Encounter_Name) {
 	party_idx := 0
 	for pc_idx in 0 ..< NUM_PC {
 		if !game_data.party_membership[pc_idx] do continue
-		spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
+		battle.combatants[battle.allies[party_idx]].eid = spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
 		party_idx += 1
 		x += 1
 		if party_idx != 3 {
@@ -152,7 +152,7 @@ draw_battle :: proc() {
 	rl.BeginMode2D(battle.camera)
 	{
 		draw_entities(battle = true)
-		draw_battle_combatants()
+		if !battle.ui_disabled do draw_battle_combatants()
 		draw_debug_battle()
 	}
 	rl.EndMode2D()
@@ -298,8 +298,11 @@ show_skill_results :: proc(_: Entity_Id) {
 			battle.ui_disabled = true
 			battle_menu.ui_state = .Idle
 			for c_idx in battle.allies {
-				if combatant_alive(battle.combatants[c_idx]) {
-					set_sprite_tag_of(battle.combatants[c_idx].eid, .Cheer)
+				c := battle.combatants[c_idx]
+				if combatant_alive(c) {
+					set_sprite_tag_of(c.eid, .Cheer)
+					set_anim_when(c.eid, .Always)
+					play_anim(c.eid)
 				}
 			}
 			say("Victory!")

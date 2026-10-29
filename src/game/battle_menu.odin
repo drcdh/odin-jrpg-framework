@@ -180,10 +180,8 @@ battle_redraw_baddies_pane :: proc() {
 	row := 0
 	for c_idx in battle.baddies {
 		c := battle.combatants[c_idx]
-		if true {//c.enabled {
-			tint := rl.WHITE
-			if c.hitpoints <= 0 {tint = rl.RED}
-			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name), tint)
+		if combatant_alive(c) {
+			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name))
 			row += 1
 		}
 	}
