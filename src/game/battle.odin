@@ -52,6 +52,7 @@ Battle_Popup :: struct {
 targeting_ease: f32
 
 encounter_init :: proc(encounter_name: Encounter_Name) {
+	battle_clear()
 	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
 	spawn_combatants(encounter_name) // spawns Entities
 	battle.encounter = &encounters[encounter_name]
@@ -63,8 +64,8 @@ encounter_init :: proc(encounter_name: Encounter_Name) {
 	log.info("battle is Active")
 }
 
-// call when we're ready to switch back to world
-battle_deactivate :: proc() {
+// call this before battles
+battle_clear :: proc() {
 	for c_idx in battle.baddies {
 		// free new Characters created with new_baddy in start_encounter
 		delete(battle.combatants[c_idx].skills)
@@ -74,14 +75,17 @@ battle_deactivate :: proc() {
 	clear(&battle.allies)
 	clear(&battle.baddies)
 	clear(&battle.combatants)
+	battle.encounter = nil
+	battle.result = nil
+}
+
+// call when we're ready to switch back to world
+battle_deactivate :: proc() {
 	clear(&battle.skill_plays)
 	clear(&battle.skill_result)
-
 	script_cancel(battle.results_script)
 	clear(&battle.results)
 	sa.clear(&battle.popups)
-	battle.encounter = nil
-	battle.result = nil
 	battle_menu_end()
 	battle.active = false
 }

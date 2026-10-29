@@ -43,6 +43,7 @@ init_quarry_main :: proc() {
 					if playable_characters[0].level >= 2 {
 						monster_fight_stage = 1
 						walk_entity(self, {1, -1})
+						set_facing(self, .Down)
 						say("Go hog wild, champ.")
 					} else {
 						say("Hmm, I appreciate your spunk, but you're way too whimpy. Come back after you've {leveled up}, so to speak.")
@@ -63,16 +64,23 @@ init_quarry_main :: proc() {
 		sprite = walker_sprite(.Baddy_World),
 		tile = QUARRY_MAIN_BADDY,
 		trigger = new_trigger(proc(self: Entity_Id) {
-			say("Oh, excuse me. Battles aren't re-implemented yet, so let's just pretend to fight.")
 			ok: bool
 			choice: int
-			if choice, ok = choose("Be the winner?", {"Yeah.", "Naw."}); !ok do return
+			if choice, ok = choose("Hello there! Isn't it a lovely day?", {"Fight!", "I choose peace."}, speaker = "Monster"); !ok do return
 			if choice == 0 {
-				monster_fight_stage = 2
-			} else {
-				monster_fight_stage = 3
+				start_encounter(.Mouse_Boss)
+				wait_battle()
+				pause(.5)
+				if battle_result() == .Win {
+					say("Well now the whole picnic is ruined.", speaker = "Monster")
+					monster_fight_stage = 2
+				} else if battle_result() == .Lose {
+					say("Looooooser.", speaker = "Monster")
+					monster_fight_stage = 3
+				}
+				fade_to(self, 0, 1)
+				destroy_entity(self)
 			}
-			destroy_entity(self)
 		})
 	})
 }

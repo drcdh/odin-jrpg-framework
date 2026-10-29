@@ -27,7 +27,7 @@ player_update :: proc() {
 	when ODIN_DEBUG {
 		if rl.IsKeyPressed(.F4) do save_game_now(TEST_SAVE)
 		if rl.IsKeyPressed(.F5) {
-			load_game(TEST_SAVE)
+			load_save_file(TEST_SAVE)
 			return
 		}
 	}

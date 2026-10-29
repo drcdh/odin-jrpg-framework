@@ -93,11 +93,12 @@ tile_rect :: proc(t: Tile) -> rl.Rectangle {
 @(private)
 wait_describe :: proc(w: Wait) -> string {
 	switch v in w {
-	case Wait_Time:   return fmt.tprintf("pause, %.2fs left", max(v.until - game.clock.time, 0))
+	case Wait_Battle: return "battle end"
 	case Wait_Frame:  return "next frame"
-	case Wait_Tween:  return fmt.tprintf("tween [%d:%d]", v.tween.idx, v.tween.gen)
-	case Wait_Script: return fmt.tprintf("script [%d:%d]", v.script.idx, v.script.gen)
 	case Wait_Pred:   return "predicate"
+	case Wait_Script: return fmt.tprintf("script [%d:%d]", v.script.idx, v.script.gen)
+	case Wait_Time:   return fmt.tprintf("pause, %.2fs left", max(v.until - game.clock.time, 0))
+	case Wait_Tween:  return fmt.tprintf("tween [%d:%d]", v.tween.idx, v.tween.gen)
 	}
 	return "starting"
 }

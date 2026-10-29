@@ -1,5 +1,6 @@
 package game
 
+import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -90,6 +91,7 @@ dialogue_active :: proc() -> bool {
 // closes once the speaking script stops talking (doesn't say or choose again
 // on the frame it resumes), so a run of says reads as one conversation.
 say :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
+	log.infof("say %v", text)
 	return dialogue_show(text, speaker, nil, hurry, pause, clear, loc)
 }
 
@@ -97,7 +99,9 @@ say :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear :
 // the highlight (wrapping around), ENTER picks. Returns the chosen index.
 choose :: proc(text: string, choices: []string, speaker := "", loc := #caller_location) -> (choice: int, ok: bool) {
 	assert(len(choices) > 0, "choose needs at least one choice", loc)
+	log.infof("given prompt \"%s\" with choices %v", text, choices)
 	ok = dialogue_show(text, speaker, choices, false, 0, true, loc)
+	log.infof("made choice %d of %d: \"%s\"", game.dialogue.choice+1, len(choices), choices[game.dialogue.choice])
 	return game.dialogue.choice, ok
 }
 

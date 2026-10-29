@@ -158,7 +158,7 @@ read_saved_game_data :: proc(filename: string) -> (save_data: Save_Data, ok: boo
 	return save_data, true
 }
 
-load_saved_game :: proc(save_data: Save_Data) {
+load_save_data :: proc(save_data: Save_Data) {
 	game_data = save_data.game_data
 	set_inventory_order()
 	party_unequip_all(to_inventory = false)
@@ -182,12 +182,12 @@ load_saved_game :: proc(save_data: Save_Data) {
 // Reads SAVE_DIR/`filename` into game_data and returns where the player was.
 // Entering that level is the game package's job (game.load_game). Returns false
 // (and logs why) if it couldn't.
-load_game :: proc(filename: string) -> (save_point: Save_Point, ok: bool) {
-	save_point = load_game(filename) or_return
-	start_level(save_point.level, at = save_point.tile, face = .Down)
-	log.infof("Loaded game from %s/%s", SAVE_DIR, filename)
+load_save_file :: proc(filename: string) -> (save_point: Save_Point, ok: bool) {
+	log.infof("reading saved game from %s/%s", SAVE_DIR, filename)
 	save_data := read_saved_game_data(filename) or_return
-	load_saved_game(save_data)
+	load_save_data(save_data)
+	save_point = save_data.save_point
+	start_level(save_point.level, at = save_point.tile, face = .Down)
 	return save_data.save_point, true
 }
 

@@ -113,12 +113,15 @@ items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name) 
 
 // this gets called inside a trigger script, so stuff can block
 monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encounter_Name, items: ..Item_Name) {
+	log.infof("monster-in-a-box %v encounter %v", datum, encounter)
 	set_game_data(datum, true)
 	clear_trigger(self)
 	set_sprite_tag_of(self, .Opened)
 	say("Monster in a box!")
 	start_encounter(encounter)
-	if !battle_done() do return
+	wait_battle()
+	pause(.5) // wait for fade_screen in show_skill_results
+	log.infof("monster-in-a-box %v items %v", datum, items)
 	// say nothing if no items in this case
 	if len(items) > 0 do get_items(..items)
 }

@@ -148,6 +148,10 @@ wait_all :: proc(tweens: ..Tween_Id, loc := #caller_location) -> bool {
 	return true
 }
 
+wait_battle :: proc(loc := #caller_location) -> bool {
+	return yield_until(Wait_Battle{}, loc)
+}
+
 wait_script :: proc(s: Script_Id, loc := #caller_location) -> bool {
 	return yield_until(Wait_Script{s}, loc)
 }

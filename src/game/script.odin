@@ -41,18 +41,20 @@ Script :: struct {
 }
 
 Wait :: union {
-	Wait_Time,
+	Wait_Battle,
 	Wait_Frame,
-	Wait_Tween,
-	Wait_Script,
 	Wait_Pred,
+	Wait_Script,
+	Wait_Time,
+	Wait_Tween,
 }
 
-Wait_Time   :: struct { until: f64 }
+Wait_Battle :: struct {}
 Wait_Frame  :: struct {}
-Wait_Tween  :: struct { tween: Tween_Id }
-Wait_Script :: struct { script: Script_Id }
 Wait_Pred   :: struct { pred: proc(data: rawptr) -> bool, data: rawptr } // evaluated on the main thread
+Wait_Script :: struct { script: Script_Id }
+Wait_Time   :: struct { until: f64 }
+Wait_Tween  :: struct { tween: Tween_Id }
 
 // Debug builds warn when a script runs this long without yielding.
 WATCHDOG_TIMEOUT :: 2 * time.Second
@@ -155,11 +157,12 @@ scripts_shutdown :: proc() {
 @(private)
 wait_satisfied :: proc(w: Wait) -> bool {
 	switch v in w {
-	case Wait_Time:   return game.clock.time >= v.until
+	case Wait_Battle: return battle_done()
 	case Wait_Frame:  return true
-	case Wait_Tween:  return tween_done(v.tween)
-	case Wait_Script: return !script_alive(v.script)
 	case Wait_Pred:   return v.pred(v.data)
+	case Wait_Script: return !script_alive(v.script)
+	case Wait_Time:   return game.clock.time >= v.until
+	case Wait_Tween:  return tween_done(v.tween)
 	}
 	return true // nil
 }

@@ -57,7 +57,7 @@ save_and_load_restore_the_party :: proc(t: ^testing.T) {
 	pc.hitpoints = 1
 	game_data.money = 0
 
-	sp, ok := load_game(FILE)
+	sp, ok := load_save_file(FILE)
 	testing.expect(t, ok)
 	testing.expect_value(t, sp, Save_Point{level = Level(0), tile = {4, 5}})
 	pc = &playable_characters[0]
