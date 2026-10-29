@@ -57,6 +57,7 @@ init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 	bb_init()
 	input_init()
 	music_init()
+	shop_load()
 	sounds_init(allocator)
 	ui_init() // after the sprite maps: it creates the icon sprites
 	world_init(allocator)
@@ -72,6 +73,7 @@ shutdown :: proc() {
 
 	dialogue_destroy()
 	music_shutdown()
+	shop_unload()
 	sounds_destroy()
 	ui_destroy()
 
@@ -111,6 +113,8 @@ update :: proc(frame_dt: f32) {
 		update_battle(game.clock.dt)
 	} else if start_menu_active() {
 		start_menu_update()
+	} else if shop_menu_active() {
+		shop_update()
 	} else {
 		update_world()
 	}
@@ -140,6 +144,8 @@ draw :: proc() {
 		draw_battle()
 	} else if start_menu_active() {
 		start_menu_draw()
+	} else if shop_menu_active() {
+		shop_draw()
 	} else {
 		draw_world()
 	}

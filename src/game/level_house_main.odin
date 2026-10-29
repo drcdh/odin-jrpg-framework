@@ -2,6 +2,25 @@ package game
 
 import rl "vendor:raylib"
 
+@(rodata)
+GUY_SHOP := Shop {
+	inventory = {
+		.Potion,
+		.Super_Potion,
+		.Antidote,
+		.Poisonous_Mushroom,
+		.Tea,
+		.Boost_Donut,
+		.Knife,
+		.Sword,
+		.Nail_Bat,
+		.Basic_Wand,
+		.Beef_Bracer,
+		.Chump_Charm,
+		.Speed_Ring,
+	},
+}
+
 init_house_main :: proc() {
 	play_music(.Town)
 
@@ -25,7 +44,11 @@ init_house_main :: proc() {
 					} else {
 						say("Have you met Dude yet? No? Well!")
 					}
-				}, autobusy = true, autoface = true),
+					choice: int
+					ok: bool
+					if choice, ok = choose("Care to buy something?", {"Whatcha got?", "I'm good."}); !ok do return
+					if choice == 0 do shop_enter(&GUY_SHOP)
+				}),
 		},
 	)
 

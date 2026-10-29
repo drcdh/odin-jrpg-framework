@@ -798,11 +798,3 @@ world_menu_clock_update :: proc() {
 	// this is just to be called when game_data.time is updated
 	set_stale(.Top)
 }
-
-// Green if a stat would go up, red if down.
-@(private = "file")
-change_tint :: proc(prev, next: Stat) -> (tint := rl.WHITE) {
-	if next > prev do tint = rl.GREEN
-	if next < prev do tint = rl.RED
-	return
-}
