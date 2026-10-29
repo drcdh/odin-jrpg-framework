@@ -54,6 +54,7 @@ init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 	}
 
 	dialogue_init(allocator)
+	bb_init()
 	input_init()
 	music_init()
 	sounds_init(allocator)

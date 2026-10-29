@@ -23,20 +23,20 @@ COMBATANT_LAYER  :: 0
 SKILL_ANIM_LAYER :: 1 // skill animations draw over the combatants
 
 Battle :: struct {
-	active: bool, // battle will be drawn if true, else world
-	allies:       [dynamic]int,
-	baddies:      [dynamic]int,
-	// background: Maybe(Battle_Background),
-	camera:          Camera,
-	combatants:   [dynamic]Combatant,
-	encounter:    ^Encounter,
+	active:					bool, // battle will be drawn if true, else world
+	allies:					[dynamic]int,
+	baddies:      	[dynamic]int,
+	background:			Battle_Background,
+	camera:         Camera,
+	combatants:			[dynamic]Combatant,
+	encounter:    	^Encounter,
 	paused:         bool, // true while running audiovisual stuff
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
 	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
 	results_script: Script_Id,
-	skill_plays:  [dynamic]Battle_Skill_Play,
-	skill_result: [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
+	skill_plays:    [dynamic]Battle_Skill_Play,
+	skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
 	ui_disabled:    bool, // don't draw the menu or accept input while true
 }
 
@@ -56,6 +56,7 @@ encounter_init :: proc(encounter_name: Encounter_Name) {
 	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
 	spawn_combatants(encounter_name) // spawns Entities
 	battle.encounter = &encounters[encounter_name]
+	battle.background = world.level_map.battle_background
 	battle_menu_start()
 	battle.camera.zoom = 1
 	battle.active = true
@@ -152,7 +153,7 @@ spawn_combatants :: proc(name: Encounter_Name) {
 }
 
 draw_battle :: proc() {
-	// TODO: draw background
+	draw_bb(battle.background)
 	rl.BeginMode2D(battle.camera)
 	{
 		draw_entities(battle = true)
