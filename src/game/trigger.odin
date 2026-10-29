@@ -6,15 +6,16 @@ import hm "core:container/handle_map"
 // A trigger never runs its script twice at once. The entity's busy flag is
 // cleared when the script finishes.
 Trigger :: struct {
-	script:   Script_Proc, // nil = no trigger
-	autoface: bool,        // turn to face whoever talks
-	autobusy: bool,        // busy (set_busy) for the script, so other scripts can't move or turn it
-	running:  Script_Id,
+	autobusy:				 bool,        // busy (set_busy) for the script, so other scripts can't move or turn it
+	autobusy_actor:  bool,        // set actor (usually the player) busy for the script
+	autoface:				 bool,        // turn to face whoever talks
+	running:  			 Script_Id,
+	script:   			 Script_Proc, // nil = no trigger
 }
 
 // A trigger that, by default, faces the talker and is busy while it runs.
-new_trigger :: proc(script: Script_Proc, autoface := true, autobusy := true) -> Trigger {
-	return {script = script, autoface = autoface, autobusy = autobusy}
+new_trigger :: proc(script: Script_Proc, autoface := true, autobusy := true, autobusy_actor := true) -> Trigger {
+	return {script = script, autoface = autoface, autobusy = autobusy, autobusy_actor = autobusy_actor}
 }
 
 // `actor` talks to whatever is on the tile it faces. The first entity there
@@ -37,6 +38,10 @@ interact :: proc(actor: Entity_Id) -> bool {
 		if tr.autobusy {
 			e.busy = true
 			e.busy_by = tr.running
+		}
+		if tr.autobusy_actor {
+			a.busy = true
+			a.busy_by = tr.running
 		}
 		return true
 	}
