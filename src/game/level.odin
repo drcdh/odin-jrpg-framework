@@ -17,10 +17,10 @@ clear_level :: proc() {
 	tw := hm.iterator_make(&game.tweens)
 	for _, h in hm.iterate(&tw) do hm.remove(&game.tweens, h)
 	unload_map()
-	game.world.level_map = {}
-	game.world.player = {}
-	game.world.camera.focus = nil
-	game.world.camera.pan = {}
+	world.level_map = {}
+	world.player = {}
+	world.camera.focus = nil
+	world.camera.pan = {}
 }
 
 // --- Level changes ---
@@ -44,7 +44,7 @@ Levels :: struct {
 }
 
 current_level :: proc() -> Level {
-	return game.world.levels.current
+	return world.levels.current
 }
 
 // Leaves the current level and enters `l`: clears the world, then the
@@ -53,7 +53,7 @@ current_level :: proc() -> Level {
 // player spawns, so nothing takes input and the camera follows nothing until
 // init_* or a script calls camera_follow.
 start_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, with_player := true) {
-	lv := &game.world.levels
+	lv := &world.levels
 	if p, ok := entity_get(player()); ok {
 		lv.prev_face = p.facing
 		lv.prev_tile = p.tile
@@ -66,7 +66,7 @@ start_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, wit
 }
 
 restart_level :: proc() {
-	start_level(game.world.levels.current)
+	start_level(world.levels.current)
 }
 
 // A level change on the main thread, so scripts can ask for one (start_level
@@ -74,7 +74,7 @@ restart_level :: proc() {
 // with the player at `at` facing `face`, fade back in. With no `at`, the
 // level's entrance rules pick the spawn. Ignored while a change is under way.
 change_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, fade: f32 = FADE_TIME) {
-	lv := &game.world.levels
+	lv := &world.levels
 	if _, busy := lv.pending.?; busy do return
 	lv.pending = l
 	lv.pending_at = at
@@ -87,7 +87,7 @@ change_level :: proc(l: Level, at: Maybe(Tile) = nil, face := Direction.Down, fa
 // destination's entrance rules pick from the level left, the door index and
 // the player's facing.
 egress :: proc(l: Level, egress_idx: int) {
-	lv := &game.world.levels
+	lv := &world.levels
 	if _, busy := lv.pending.?; busy do return
 	lv.egress_idx = egress_idx
 	change_level(l)
@@ -103,7 +103,7 @@ warp_to_level :: proc(l: Level, egress_idx: int) {
 // in), so the player can't act.
 @(private)
 level_transition_update :: proc() -> bool {
-	lv := &game.world.levels
+	lv := &world.levels
 	if l, ok := lv.pending.?; ok {
 		if !tween_done(lv.transition) do return true
 		lv.pending = nil
@@ -118,7 +118,7 @@ level_transition_update :: proc() -> bool {
 // the level, if it has an edge exit.
 @(private)
 check_edge_exit :: proc() {
-	l, ok := game.world.levels.edge.?
+	l, ok := world.levels.edge.?
 	if !ok || map_contains(entity_tile(player())) do return
 	egress(l, 0)
 }
@@ -135,7 +135,7 @@ enter_level :: proc(l: Level, at: Maybe(Tile), face: Direction, with_player: boo
 	if with_player do spawn_player(l, at, face)
 	init_level(l)
 	render_level(l)
-	log.infof("loaded level %v (%v tiles) in %v", l, game.world.level_map.size, time.tick_since(start))
+	log.infof("loaded level %v (%v tiles) in %v", l, world.level_map.size, time.tick_since(start))
 }
 
 @(private = "file")
@@ -146,8 +146,8 @@ spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 	} else if t2, f, found := player_spawn_level(l); found {
 		tile, face = t2, f
 	} else {
-		lv := &game.world.levels
-		tile = game.world.level_map.size / 2
+		lv := &world.levels
+		tile = world.level_map.size / 2
 		log.errorf("%v has no entrance for %v door %d facing %v; spawning the player at the map center %v",
 			l, lv.prev, lv.egress_idx, lv.prev_face, tile)
 	}

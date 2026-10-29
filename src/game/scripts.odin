@@ -111,6 +111,7 @@ items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name) 
 	}
 }
 
+// this gets called inside a trigger script, so stuff can block
 monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encounter_Name, items: ..Item_Name) {
 	set_game_data(datum, true)
 	clear_trigger(self)
@@ -122,18 +123,15 @@ monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encount
 	if len(items) > 0 do get_items(..items)
 }
 
+// should get called inside a script, so stuff can block
 start_encounter :: proc(name: Encounter_Name) {
 	log.infof("starting encounter %v", name)
-	wait_script(spawn(proc(_: Entity_Id) {
-		if !fade_screen(1, .25) do return
-	}))
-	battle_stage(name) // tell battle to initialize from encounter. Must happen on main thread to load baddy sprites
-	spawn(proc(_: Entity_Id) {
-		play_music(.Battle)
-		if !fade_screen(0, .25) do return
-		if !pause(.25) do return
-		game.battle.paused = false
-	}, name = "battle start")
+	fade_screen(1, .25)
+	encounter_init(name) // sets battle.active = true
+	play_music(.Battle)
+	fade_screen(0, .25)
+	pause(.25)
+	battle.paused = false
 }
 
 character_get_experience_result: struct {
@@ -171,7 +169,7 @@ character_get_experience :: proc(pc_idx, exp: int) {
 		for k in character_get_experience_result.new_skills {
 			say(fmt.tprintf("%s learned %s", character_get_experience_result.name, skills[k].name))
 		}
-	}))
+	}, name = "learned skills"))
 }
 
 party_get_experience_v: int
@@ -184,5 +182,5 @@ party_get_experience :: proc(exp: int) {
 			if !game_data.party_membership[pc_idx] do continue
 			character_get_experience(pc_idx, party_get_experience_v)
 		}
-	}))
+	}, name = "get experience"))
 }

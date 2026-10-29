@@ -38,19 +38,19 @@ Level_Map :: struct {
 set_map :: proc(m: Level_Map) {
 	assert(len(m.passable) == 0 || len(m.passable) == int(m.size.x * m.size.y), "passable must have a flag per tile")
 	unload_map()
-	game.world.level_map = m
+	world.level_map = m
 }
 
 set_map_mode :: proc(mode: Map_Mode) {
-	game.world.level_map.mode = mode
+	world.level_map.mode = mode
 }
 
 map_pixel_size :: proc() -> [2]f32 {
-	return {f32(game.world.level_map.size.x), f32(game.world.level_map.size.y)} * TILE_SIZE
+	return {f32(world.level_map.size.x), f32(world.level_map.size.y)} * TILE_SIZE
 }
 
 map_contains :: proc(t: Tile) -> bool {
-	s := game.world.level_map.size
+	s := world.level_map.size
 	return t.x >= 0 && t.y >= 0 && t.x < s.x && t.y < s.y
 }
 
@@ -62,7 +62,7 @@ tile_free :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
 }
 
 tile_passable :: proc(t: Tile) -> bool {
-	m := &game.world.level_map
+	m := &world.level_map
 	if m.size == {} do return true // no map loaded
 	w := wrap_tile(t)
 	if !map_contains(w) do return m.open_edges
@@ -89,7 +89,7 @@ tile_occupied :: proc(t: Tile, mover: Entity_Id = {}) -> bool {
 // x-then-y walk. `ok` is false if `to` can't be reached. Searching Up, Down,
 // Left, Right in that order makes the path deterministic.
 find_path :: proc(from, to: Tile, allocator := context.allocator) -> (steps: []Tile, ok: bool) {
-	m := &game.world.level_map
+	m := &world.level_map
 	if m.size == {} {
 		d := to - from
 		out := make([dynamic]Tile, 0, abs(d.x) + abs(d.y), allocator)
@@ -102,7 +102,7 @@ find_path :: proc(from, to: Tile, allocator := context.allocator) -> (steps: []T
 	if start == goal do return nil, true
 
 	dirs := [4]Tile{{0, -1}, {0, 1}, {-1, 0}, {1, 0}}
-	index :: proc(t: Tile) -> int { return int(t.y * game.world.level_map.size.x + t.x) }
+	index :: proc(t: Tile) -> int { return int(t.y * world.level_map.size.x + t.x) }
 	// came[i] is 1 + the dirs index of the step into tile i; 0 = not reached.
 	came := make([]u8, int(m.size.x * m.size.y), context.temp_allocator)
 	queue := make([dynamic]Tile, 0, len(came), context.temp_allocator)
@@ -133,7 +133,7 @@ find_path :: proc(from, to: Tile, allocator := context.allocator) -> (steps: []T
 
 // `t` wrapped into the map in WRAP mode; unchanged otherwise.
 wrap_tile :: proc(t: Tile) -> Tile {
-	m := &game.world.level_map
+	m := &world.level_map
 	if m.mode != .WRAP || m.size.x <= 0 || m.size.y <= 0 do return t
 	return {t.x %% m.size.x, t.y %% m.size.y}
 }
@@ -141,7 +141,7 @@ wrap_tile :: proc(t: Tile) -> Tile {
 // A route from the map's Tiled polylines and polygons, by index (the
 // generated <LEVEL>_<NAME> constants).
 map_route :: proc(i: int) -> []Tile {
-	return game.world.level_map.routes[i]
+	return world.level_map.routes[i]
 }
 
 // --- Rendering, main thread only. Without a window these do nothing. ---
@@ -150,16 +150,16 @@ begin_map_render :: proc() {
 	assert(!in_script(), "maps must be rendered on the main thread")
 	if !rl.IsWindowReady() do return
 	unload_map()
-	size := game.world.level_map.size * TILE_SIZE
-	game.world.level_map.rt = rl.LoadRenderTexture(size.x, size.y)
-	rl.BeginTextureMode(game.world.level_map.rt)
+	size := world.level_map.size * TILE_SIZE
+	world.level_map.rt = rl.LoadRenderTexture(size.x, size.y)
+	rl.BeginTextureMode(world.level_map.rt)
 	rl.ClearBackground(rl.BLANK)
 }
 
 // `gid` is a Tiled global tile id; 0 is an empty cell.
 draw_map_tile :: proc(gid: int, i, j: int) {
 	if !rl.IsWindowReady() do return
-	ts, t := map_gid_tile(game.world.level_map, gid)
+	ts, t := map_gid_tile(world.level_map, gid)
 	if t < 0 do return
 	tex := tileset_texture(ts)
 	cols := int(tex.width) / TILE_SIZE
@@ -172,17 +172,17 @@ end_map_render :: proc() {
 	if !rl.IsWindowReady() do return
 	rl.EndTextureMode()
 	// For WRAP; clipped draws in the other modes never sample past the edge.
-	rl.SetTextureWrap(game.world.level_map.rt.texture, .REPEAT)
+	rl.SetTextureWrap(world.level_map.rt.texture, .REPEAT)
 }
 
 unload_map :: proc() {
-	if game.world.level_map.rt.id != 0 do rl.UnloadRenderTexture(game.world.level_map.rt)
-	game.world.level_map.rt = {}
+	if world.level_map.rt.id != 0 do rl.UnloadRenderTexture(world.level_map.rt)
+	world.level_map.rt = {}
 }
 
 // World space, inside BeginMode2D: the part of the map the camera sees.
 draw_map :: proc() {
-	m := &game.world.level_map
+	m := &world.level_map
 	if m.rt.id == 0 do return
 	src := visible_world_rect()
 	if m.mode != .WRAP {
@@ -200,8 +200,8 @@ draw_map :: proc() {
 
 // The world rect the screen covers under the current camera.
 visible_world_rect :: proc() -> rl.Rectangle {
-	tl := rl.GetScreenToWorld2D({0, 0}, game.world.camera)
-	br := rl.GetScreenToWorld2D({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}, game.world.camera)
+	tl := rl.GetScreenToWorld2D({0, 0}, world.camera)
+	br := rl.GetScreenToWorld2D({f32(rl.GetScreenWidth()), f32(rl.GetScreenHeight())}, world.camera)
 	return {tl.x, tl.y, br.x - tl.x, br.y - tl.y}
 }
 

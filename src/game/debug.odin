@@ -46,7 +46,7 @@ draw_debug_world :: proc() {
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, color)
 	}
 
-	if p, ok := entity_get(game.world.player); ok {
+	if p, ok := entity_get(world.player); ok {
 		rl.DrawRectangleRec(tile_rect(p.tile + dir_vec(p.facing)), {255, 255, 0, 60})
 	}
 }
@@ -64,7 +64,7 @@ draw_debug_world_hud :: proc() {
 	line(x, &y, fmt.ctprintf("fps %d   time %.2f   frame %d", rl.GetFPS(), game.clock.time, game.clock.frame))
 	line(x, &y, fmt.ctprintf("entities %d   tweens %d   scripts %d",
 		hm.len(game.entities), hm.len(game.tweens), len(game.script_order)))
-	if p, ok := entity_get(game.world.player); ok {
+	if p, ok := entity_get(world.player); ok {
 		line(x, &y, fmt.ctprintf("player tile %v   facing %v", p.tile, p.facing))
 	}
 	for h in game.script_order {
@@ -79,7 +79,7 @@ draw_debug_world_hud :: proc() {
 draw_debug_battle :: proc() {
 	if !debug_overlay do return
 
-	for c in game.battle.combatants {
+	for c in battle.combatants {
 		e := hm.get(&game.entities, c.eid)
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, rl.GREEN)
 	}

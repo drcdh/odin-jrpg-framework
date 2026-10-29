@@ -90,9 +90,8 @@ battle_menu_unload :: proc() {
 battle_menu_start :: proc() {
 	battle_menu.ui_data = Battle_UI_Data{}
 	battle_menu.ui_state = .Idle
-
 	for pane in Battle_Pane {
-		battle_redraw_pane(pane)
+		battle_menu_set_stale(pane)
 	}
 }
 

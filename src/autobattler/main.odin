@@ -11,7 +11,6 @@ import "core:os"
 import rl "vendor:raylib"
 
 import "../game"
-import "../rules"
 
 ZOOM :: 4
 WINDOW_WIDTH :: ZOOM*game.WINDOW_WIDTH
@@ -45,7 +44,7 @@ main :: proc() {
 		}
 	}
 
-	opt := Options{auto = true, seed = 1959}
+	opt := Options{auto = true, seed = 1959, visual = false}
 	flags.parse_or_exit(&opt, os.args)
 	log.infof("Setting random seed to %d", opt.seed)
 	rand.reset(opt.seed)
@@ -61,11 +60,10 @@ main :: proc() {
 		game.init()
 		defer game.shutdown() // before CloseWindow: it unloads textures
 
-		rules.init_new_game() // initializes party
+		game.init_new_game() // initializes party
 		if opt.auto do game.set_autobattle(true)
-		game.battle_stage(rules.Encounter_Name.Rat)
-		game.encounter_init()
-		game.game.battle.paused = false
+		game.encounter_init(game.Encounter_Name.Rat)
+		game.battle.paused = false
 
 		for !rl.WindowShouldClose() {
 			if result, ok := game.battle_result().?; ok {
@@ -87,39 +85,42 @@ main :: proc() {
 			free_all(context.temp_allocator)
 		}
 
+		game.scripts_shutdown()
 		game.battle_deactivate()
 		game.battle_destroy()
 	} else if !opt.auto {
 		fmt.println("auto must be true if visual is false")
 	} else {
-		rules.init_new_game() // initializes party
-		defer rules.destroy()
+		game.init_new_game() // initializes party
+		defer game.destroy()
 
-		rules.autobattle = true
-		rules.start_encounter(rules.Encounter_Name.Rat)
-		defer rules.battle_destroy()
+		game.autobattle = true
+		game.add_combatants_for_encounter(game.Encounter_Name.Rat)
+		game.battle.active = true
+		game.battle.paused = false
+
+		defer game.battle_destroy()
+		defer game.battle_deactivate()
 
 		battle: for {
-			rules.battle_tick()
-			if result, ok := rules.check_win().?; ok {
+			game.battle_tick()
+			if result, ok := game.check_win().?; ok {
 				print_result(result)
 				break battle
 			}
 		}
-
-		rules.battle_cleanup()
 	}
 }
 
-print_result :: proc(result: rules.Battle_Result) {
+print_result :: proc(result: game.Battle_Result) {
 	switch result {
 	case .Lose:
 		fmt.println("BADDY TEAM WON")
 	case .Win:
 		fmt.println("PLAYER TEAM WON")
 	}
-	for pc_idx in 0 ..< rules.party_size() {
-		pc := rules.get_party_member(pc_idx)
-		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, rules.get_stat(pc^, .Hitpoints), pc.status)
+	for pc_idx in 0 ..< game.party_size() {
+		pc := game.get_party_member(pc_idx)
+		fmt.printfln("%s: %d/%.0f HP %v", pc.name, pc.hitpoints, game.get_stat(pc^, .Hitpoints), pc.status)
 	}
 }

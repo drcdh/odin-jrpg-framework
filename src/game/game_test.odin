@@ -1067,7 +1067,7 @@ map_render_headless_is_noop :: proc(t: ^testing.T) {
 	begin_map_render()
 	draw_map_tile(1, 0, 0)
 	end_map_render()
-	testing.expect_value(t, game.world.level_map.rt.id, 0)
+	testing.expect_value(t, world.level_map.rt.id, 0)
 }
 
 @(test)
@@ -1076,20 +1076,20 @@ camera_follows_tweened_pos :: proc(t: ^testing.T) {
 	p := spawn_entity({tile = {5, 5}})
 	camera_follow(p)
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, tile_center({5, 5}))
-	testing.expect_value(t, game.world.camera.offset, [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2)
+	testing.expect_value(t, world.camera.target, tile_center({5, 5}))
+	testing.expect_value(t, world.camera.offset, [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2)
 
 	tween_to_tile(p, {6, 5}, 1)
 	run_for(0.5)
 	camera_update()
-	testing.expect(t, game.world.camera.target.x > tile_center({5, 5}).x && game.world.camera.target.x < tile_center({6, 5}).x,
+	testing.expect(t, world.camera.target.x > tile_center({5, 5}).x && world.camera.target.x < tile_center({6, 5}).x,
 		"camera between tiles mid-step")
 
 	// DEFAULT mode: no clamping past the map edge.
 	set_map({size = {20, 20}})
 	set_tile(p, {0, 0})
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, tile_center({0, 0}))
+	testing.expect_value(t, world.camera.target, tile_center({0, 0}))
 }
 
 @(test)
@@ -1098,13 +1098,13 @@ camera_snaps_to_tile_and_entity :: proc(t: ^testing.T) {
 	set_map({size = {20, 20}})
 	camera_to_tile({7, 3})
 	run_for(FRAME)
-	testing.expect_value(t, game.world.camera.target, tile_center({7, 3}))
+	testing.expect_value(t, world.camera.target, tile_center({7, 3}))
 	testing.expect(t, !camera_panning())
 
 	e := spawn_entity({tile = {2, 9}})
 	camera_follow(e)
 	run_for(FRAME)
-	testing.expect_value(t, game.world.camera.target, tile_center({2, 9}))
+	testing.expect_value(t, world.camera.target, tile_center({2, 9}))
 	testing.expect_value(t, camera_followed(), e)
 }
 
@@ -1117,10 +1117,10 @@ camera_pans_to_tile_at_speed :: proc(t: ^testing.T) {
 	camera_to_tile({6, 2}, speed = 2) // 4 tiles at 2 tiles/s: 2 s
 	run_for(1)
 	testing.expect(t, camera_panning(), "still panning at 1 s")
-	testing.expectf(t, abs(game.world.camera.target.x - tile_center({4, 2}).x) < 1, "halfway, got %v", game.world.camera.target)
+	testing.expectf(t, abs(world.camera.target.x - tile_center({4, 2}).x) < 1, "halfway, got %v", world.camera.target)
 	run_for(1.1)
 	testing.expect(t, !camera_panning(), "pan done at 2 s")
-	testing.expect_value(t, game.world.camera.target, tile_center({6, 2}))
+	testing.expect_value(t, world.camera.target, tile_center({6, 2}))
 }
 
 @(test)
@@ -1134,9 +1134,9 @@ camera_pans_onto_moving_entity :: proc(t: ^testing.T) {
 	camera_follow(e, speed = 4)
 	for frame := 0; camera_panning() && frame < 500; frame += 1 do run_for(FRAME)
 	testing.expect(t, !camera_panning(), "the pan should end")
-	testing.expect_value(t, game.world.camera.target, entity_get(e).pos)
+	testing.expect_value(t, world.camera.target, entity_get(e).pos)
 	run_for(0.5)
-	testing.expect_value(t, game.world.camera.target, entity_get(e).pos) // and follows after
+	testing.expect_value(t, world.camera.target, entity_get(e).pos) // and follows after
 }
 
 @(test)
@@ -1150,7 +1150,7 @@ pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
 	testing.expect(t, script_alive(s), "still panning")
 	run_for(0.6)
 	testing.expect(t, !script_alive(s), "pan_camera_to_tile returns once the pan is done")
-	testing.expect_value(t, game.world.camera.target, tile_center({3, 0}))
+	testing.expect_value(t, world.camera.target, tile_center({3, 0}))
 }
 
 @(test)
@@ -1164,18 +1164,18 @@ camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 	set_map_mode(.CLAMP)
 
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, half)
+	testing.expect_value(t, world.camera.target, half)
 	set_tile(p, {19, 19})
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, map_size - half)
+	testing.expect_value(t, world.camera.target, map_size - half)
 	set_tile(p, {10, 10})
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, tile_center({10, 10}))
+	testing.expect_value(t, world.camera.target, tile_center({10, 10}))
 
 	// A map narrower than the view is centered on that axis.
 	set_map({size = {4, 20}, mode = .CLAMP})
 	camera_update()
-	testing.expect_value(t, game.world.camera.target, [2]f32{32, tile_center({10, 10}).y})
+	testing.expect_value(t, world.camera.target, [2]f32{32, tile_center({10, 10}).y})
 }
 
 @(test)
@@ -1194,9 +1194,9 @@ clear_level_removes_everything :: proc(t: ^testing.T) {
 	testing.expect(t, tween_done(tw))
 	run_for(FRAME) // cancelled scripts finish on their next resume
 	testing.expect(t, !script_alive(s))
-	testing.expect_value(t, game.world.level_map.size, Tile{})
-	testing.expect_value(t, game.world.player, Entity_Id{})
-	testing.expect(t, game.world.camera.focus == nil, "the camera still has a focus")
+	testing.expect_value(t, world.level_map.size, Tile{})
+	testing.expect_value(t, world.player, Entity_Id{})
+	testing.expect(t, world.camera.focus == nil, "the camera still has a focus")
 }
 
 // A 4x3 map whose column x == 2 is impassable.

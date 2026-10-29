@@ -12,13 +12,16 @@ World :: struct {
 	player_control:  Player_Control,
 }
 
+world: World
+
 world_init :: proc(allocator := context.allocator) {
 	log.info("initializing world")
+	world.camera.zoom = 1
 }
 
 world_shutdown :: proc() {
 	log.info("shutting down world")
-	game.world = {}
+	world = {}
 }
 
 // One simulation step, starting with the player's turn. Call after
@@ -29,7 +32,7 @@ update_world :: proc() {
 }
 
 draw_world :: proc() {
-	rl.BeginMode2D(game.world.camera)
+	rl.BeginMode2D(world.camera)
 	draw_map()
 	draw_entities()
 	draw_debug_world()
@@ -44,7 +47,7 @@ draw_world :: proc() {
 	}
 }
 
-player     :: proc() -> Entity_Id { return game.world.player }
-set_player :: proc(id: Entity_Id) { game.world.player = id }
+player     :: proc() -> Entity_Id { return world.player }
+set_player :: proc(id: Entity_Id) { world.player = id }
 
 toggle_debug :: proc() { debug_overlay = !debug_overlay }

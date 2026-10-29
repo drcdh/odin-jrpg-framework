@@ -200,7 +200,7 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 	effect := Effect_Data{hit_acc = 100, power = 100, sts_acc = 100, status = .Poison}
 	r := do_effect(baddy, ally, effect, .Attack)
 	testing.expect_value(t, r.hit, Hit_Result.Hit)
-	battle_cleanup() // frees the baddy
+	battle_deactivate() // frees the baddy
 
 	testing.expect_value(t, playable_characters[0].hitpoints, max_hp + r.hp_change)
 	testing.expect(t, playable_characters[0].hitpoints < max_hp, "no damage taken")
@@ -209,7 +209,7 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 
 @(test)
 skill_plays_stagger_affects_turn_ticks :: proc(t: ^testing.T) {
-	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
 	// stagger should affect ticks when the target isn't winding up
 	ally.ticks = 100
@@ -222,7 +222,7 @@ skill_plays_stagger_affects_turn_ticks :: proc(t: ^testing.T) {
 
 @(test)
 skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
-	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+	baddy, ally := setup_rat_battle(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
 	// stagger should affect windup when the target is winding up
 	ally.ticks = 100
@@ -238,7 +238,7 @@ skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
 
 @(test)
 battles_reset_pc_skill_charges :: proc(t: ^testing.T) {
-	init_new_game(); defer destroy(); defer battle_destroy(); defer battle_cleanup()
+	init_new_game(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 	for &cs in playable_characters[0].skills do cs.charge = CHARGE_MAX
 	start_encounter(.Rat)
 	for cs in playable_characters[0].skills do testing.expect_value(t, cs.charge, 0)

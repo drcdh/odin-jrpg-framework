@@ -107,7 +107,7 @@ entity_tile :: proc(id: Entity_Id) -> Tile {
 entity_arrived :: proc(id: Entity_Id) {
 	// In WRAP mode, an entity that walked off the edge comes back in on the
 	// other side; the map repeats, so nothing visibly jumps.
-	if game.world.level_map.mode == .WRAP && !map_contains(entity_tile(id)) {
+	if world.level_map.mode == .WRAP && !map_contains(entity_tile(id)) {
 		set_tile(id, wrap_tile(entity_tile(id)))
 	}
 	tile := entity_tile(id)

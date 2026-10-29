@@ -5,10 +5,9 @@ import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
 
-// general game state, relevant to battle and world modes
+// general game system stuff
 Game :: struct {
 	audio:           Audio, // sound effects; see sound.odin
-	battle:					 Battle,
 	clock:           Clock,
 	curtain:         f32, // 0 clear .. 1 black; see curtain_to
 	dialogue:        Dialogue,
@@ -25,7 +24,6 @@ Game :: struct {
 	tilesets:        [Tileset_Id]rl.Texture, // loaded on first use
 	tweens:          hm.Dynamic_Handle_Map(Tween, Tween_Id),
 	ui:              UI, // font, pane texture, icons; loaded only with a window
-	world:					 World,
 }
 
 game: Game
@@ -44,8 +42,13 @@ init :: proc(allocator := context.allocator) {
 
 	game.clock = {time_scale = 1}
 
-	game.battle.camera.zoom = 1
-	game.world.camera.zoom = 1
+	// TODO: use #load, preload (as here) at runtime, or lazy-load
+	for bt in baddy_templates {
+		preload_sprite(bt.texture)
+	}
+	for skill in skills {
+		preload_sprite(skill.animation)
+	}
 
 	dialogue_init(allocator)
 	input_init()
@@ -96,7 +99,6 @@ shutdown :: proc() {
 update :: proc(frame_dt: f32) {
 	clock_advance(frame_dt)
 
-	if battle_staged() do encounter_init()
 	if battle_active() {
 		update_battle(game.clock.dt)
 	} else {

@@ -11,34 +11,19 @@ TAKE_TURN_DELAY :: .5 // seconds
 
 MULTI_TARGET_DELAY :: .2 // seconds
 
-REACTION_TIME :: 1 // seconds a target shows how an effect landed
-
 BATTLE_POPUP_TIME :: f32(1)
 MAX_BATTLE_POPUPS :: 32
 
 MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + NUM_PC
 
-// The battle field in world tiles;
-// baddies stand in their encounter formation from BADDY_ORIGIN, the party in
-// a column from ALLY_ORIGIN.
 BADDY_ORIGIN  :: Tile{2, 3}
 ALLY_ORIGIN   :: Tile{12, 3}
 
 COMBATANT_LAYER  :: 0
 SKILL_ANIM_LAYER :: 1 // skill animations draw over the combatants
 
-Battle_State :: enum {
-	None,
-	Staged, // battle.staging is set, but encounter_init has not run
-	Active, // encounter_init has run and battle is being played
-}
-
-Battle_Staging :: struct {
-	encounter_name: Encounter_Name,
-	// TODO background, music
-}
-
 Battle :: struct {
+	active: bool, // battle will be drawn if true, else world
 	allies:       [dynamic]int,
 	baddies:      [dynamic]int,
 	// background: Maybe(Battle_Background),
@@ -52,8 +37,6 @@ Battle :: struct {
 	results_script: Script_Id,
 	skill_plays:  [dynamic]Battle_Skill_Play,
 	skill_result: [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
-	staging:				Battle_Staging,
-	state:					Battle_State,
 	ui_disabled:    bool, // don't draw the menu or accept input while true
 }
 
@@ -68,49 +51,20 @@ Battle_Popup :: struct {
 
 targeting_ease: f32
 
-// How a target takes an effect, shown for REACTION_TIME: allies (tagged
-// sprites) strike a pose, baddies (static sprites) change tint.
-Reaction :: enum {
-	None,
-	Hurt,
-	Helped,
-	Missed,
-}
-
-@(rodata)
-REACTION_POSES := [Reaction]Sprite_Tag {
-	.None   = .Idle,
-	.Hurt   = .Kneeled,
-	.Helped = .Cheer,
-	.Missed = .Walk,
-}
-
-@(rodata)
-REACTION_TINTS := [Reaction]rl.Color {
-	.None   = rl.WHITE,
-	.Hurt   = rl.RED,
-	.Helped = rl.GREEN,
-	.Missed = rl.GRAY,
-}
-
-battle_stage :: proc(name: Encounter_Name) {
-	battle.staging = {name}
-	battle.state = .Staged
-}
-
-encounter_init :: proc() {
-	assert(battle.state == .Staged)
-	log.infof("battle is Staged with %v", battle.staging)
-	add_combatants_for_encounter(battle.staging.encounter_name) // writes data and creates baddy Characters
-	spawn_combatants(battle.staging.encounter_name) // spawns Entities
-	battle_init()
-	battle.state = .Active
+encounter_init :: proc(encounter_name: Encounter_Name) {
+	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
+	spawn_combatants(encounter_name) // spawns Entities
+	battle.encounter = &encounters[encounter_name]
+	battle_menu_start()
+	battle.camera.zoom = 1
+	battle.active = true
 	battle.paused = true
 	battle.ui_disabled = false
 	log.info("battle is Active")
 }
 
-battle_cleanup :: proc() {
+// call when we're ready to switch back to world
+battle_deactivate :: proc() {
 	for c_idx in battle.baddies {
 		// free new Characters created with new_baddy in start_encounter
 		delete(battle.combatants[c_idx].skills)
@@ -129,12 +83,7 @@ battle_cleanup :: proc() {
 	battle.encounter = nil
 	battle.result = nil
 	battle_menu_end()
-	battle.staging = {}
-}
-
-battle_deactivate :: proc() {
-	battle.state = .None
-	battle_cleanup()
+	battle.active = false
 }
 
 battle_destroy :: proc() {
@@ -147,27 +96,14 @@ battle_destroy :: proc() {
 	battle = {}
 }
 
-battle_init :: proc() {
-	// Skill animations start in scripts, which can't load sprites.
-	for skill in skills {
-		preload_sprite(skill.animation)
-	}
-	battle_menu_start()
-}
-
-battle_staged :: proc() -> bool {
-	return battle.state == .Staged
-}
-
 battle_active :: proc() -> bool {
-	return battle.state == .Active
+	return battle.active
 }
 
 battle_done :: proc() -> bool {
-	return battle.state == .None
+	return !battle_active()
 }
 
-// The winning team, once the battle is over and its last skill play has been shown.
 battle_result :: proc() -> Maybe(Battle_Result) {
 	return battle.result
 }
@@ -177,7 +113,7 @@ battle_result :: proc() -> Maybe(Battle_Result) {
 // formation order, then the party in PC order.
 @(private = "file")
 spawn_combatants :: proc(name: Encounter_Name) {
-	log.infof("spawning combatants for %v", name)
+	log.infof("spawning combatants for encounter %v", name)
 	spawn_combatant :: proc(name: string, tile: Tile, sprite: Sprite_State) -> Entity_Id {
 		log.infof("spawning combatant %s at %v", name, tile)
 		return spawn_entity(Entity{name = name, tile = tile, sprite = sprite, ghost = true, battle = true})
@@ -185,6 +121,7 @@ spawn_combatants :: proc(name: Encounter_Name) {
 
 	for spot, baddy_idx in encounters[name].baddies {
 		baddy_id := spot.baddy_id
+		if baddy_id == .None do continue
 		sprite: Sprite_State
 		s := baddy_templates[baddy_id].texture
 		sprite = create_sprite_state(s, play = true, layer = COMBATANT_LAYER)
@@ -366,13 +303,12 @@ show_skill_results :: proc(_: Entity_Id) {
 				}
 			}
 			say("Victory!")
-			party_get_experience(encounters[battle.staging.encounter_name].exp) // blocks with say
+			party_get_experience(battle.encounter.exp) // blocks with say
 			// get_spoils()
 			fade_screen(1, .5)
-			battle.state = .None // stop drawing battle and draw world
+			battle_deactivate() // stop drawing battle and draw world
 			play_prev_music()
 			fade_screen(0, .5)
-			battle_deactivate()
 		}
 	} else {
 		battle.paused = false
@@ -463,11 +399,6 @@ effect_reaction_tag :: proc(r: Effect_Result) -> Maybe(Sprite_Tag) {
 	case .None:
 	}
 	return nil
-}
-
-// Shows `reaction` on `id`; .None restores its idle pose or tint.
-@(private = "file")
-react :: proc(id: Entity_Id, team: int, reaction: Reaction) {
 }
 
 ally_down :: proc(self: Entity_Id) {

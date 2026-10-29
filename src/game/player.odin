@@ -35,7 +35,7 @@ player_update :: proc() {
 	// The dialogue box reads its own input; the player waits.
 	if dialogue_active() do return
 
-	pc := &game.world.player_control
+	pc := &world.player_control
 	p := player()
 	if !entity_alive(p) do return
 	if !tween_done(pc.step) do return

@@ -107,7 +107,7 @@ encode_party_data :: proc() -> (d: Party_Save_Data) {
 }
 
 save_game_now :: proc(filename: Maybe(string) = nil) -> bool {
-	save_point := Save_Point{game.world.levels.current, entity_tile(player())}
+	save_point := Save_Point{world.levels.current, entity_tile(player())}
 	time_saved := time.to_unix_nanoseconds(time.now())
 	return save_game(save_point, time_saved, filename)
 }

@@ -146,6 +146,11 @@ preload_sprite :: proc(name: Sprite_Name) {
 
 @(private)
 load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
+	if len(palette) > 0 {
+		log.infof("loading sprite %v with palette swap %v", name, palette)
+	} else {
+		log.infof("loading sprite %v", name)
+	}
 	assert(!in_script(), "sprites must be loaded on the main thread (preload_sprite)")
 	m := sprite_metadata[name]
 	sprite := Sprite{name = name, meta = m}
