@@ -279,7 +279,7 @@ encounter_init :: proc(encounter_name: Encounter_Name) {
 	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
 	spawn_combatants(encounter_name) // spawns Entities
 	battle.encounter = &encounters[encounter_name]
-	battle.background = world.level_map.battle_background
+	battle.background = world.level_map.background
 	battle_menu_start()
 	battle.camera.zoom = 1
 	battle.active = true

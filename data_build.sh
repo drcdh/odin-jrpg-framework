@@ -8,6 +8,7 @@ python src/build_tools/process_baddies.py
 python src/build_tools/process_bb.py
 python src/build_tools/process_encounters.py
 python src/build_tools/process_items.py
+python src/build_tools/process_overlays.py
 python src/build_tools/process_skills.py
 python src/build_tools/process_sprites.py
 python src/build_tools/process_tiled.py
