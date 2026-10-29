@@ -9,7 +9,7 @@ Ticks :: f32
 
 Combatant :: struct {
 	using character: ^Character,
-	using eid: Entity_Id,
+	eid: Entity_Id,
 	team:            int,
 	ticks:           Ticks,
 	windup:          bool, // TODO: change to Maybe(Skill_Play_Id)

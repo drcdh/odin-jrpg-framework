@@ -79,8 +79,8 @@ draw_debug_world_hud :: proc() {
 draw_debug_battle :: proc() {
 	if !debug_overlay do return
 
-	for h in game.battle.combatants {
-		e := hm.get(&game.entities, h)
+	for c in game.battle.combatants {
+		e := hm.get(&game.entities, c.eid)
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, rl.GREEN)
 	}
 }

@@ -116,18 +116,17 @@ battle_cleanup :: proc() {
 		delete(battle.combatants[c_idx].skills)
 		free(battle.combatants[c_idx].character)
 	}
+	for c in battle.combatants do destroy_entity(c.eid)
 	clear(&battle.allies)
 	clear(&battle.baddies)
 	clear(&battle.combatants)
 	clear(&battle.skill_plays)
 	clear(&battle.skill_result)
-	battle.encounter = nil
 
 	script_cancel(battle.results_script)
-	for c in battle.combatants do destroy_entity(c)
-	clear(&battle.combatants)
 	clear(&battle.results)
 	sa.clear(&battle.popups)
+	battle.encounter = nil
 	battle.result = nil
 	battle_menu_end()
 	battle.staging = {}
@@ -245,10 +244,9 @@ draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxe
 
 @(private = "file")
 draw_battle_combatants :: proc() {
-	for id, c_idx in battle.combatants {
-		c := battle.combatants[c_idx]
+	for c, c_idx in battle.combatants {
 		if combatant_downed(c) do continue
-		tile := entity_tile(id)
+		tile := entity_tile(c.eid)
 
 		if battle_menu.ui_state != .Idle {
 			if c_idx == battle_menu.c_idx {
@@ -349,7 +347,7 @@ show_skill_results :: proc(_: Entity_Id) {
 	scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
 	for r, i in battle.results {
 		if i > 0 && !pause(MULTI_TARGET_DELAY) do return
-		sa.push(&scripts, spawn(show_skill_result, battle.combatants[r.target_idx], name = "skill result"))
+		sa.push(&scripts, spawn(show_skill_result, battle.combatants[r.target_idx].eid, name = "skill result"))
 	}
 	for s in sa.slice(&scripts) {
 		if !wait_script(s) do return
@@ -364,7 +362,7 @@ show_skill_results :: proc(_: Entity_Id) {
 			battle_menu.ui_state = .Idle
 			for c_idx in battle.allies {
 				if combatant_alive(battle.combatants[c_idx]) {
-					set_sprite_tag_of(battle.combatants[c_idx], .Cheer)
+					set_sprite_tag_of(battle.combatants[c_idx].eid, .Cheer)
 				}
 			}
 			say("Victory!")
@@ -437,7 +435,7 @@ show_skill_result :: proc(target_id: Entity_Id) {
 @(private = "file")
 skill_result_for :: proc(target: Entity_Id) -> (Battle_Effect_Result, bool) {
 	for r in battle.results {
-		if battle.combatants[r.target_idx] == target do return r, true
+		if battle.combatants[r.target_idx].eid == target do return r, true
 	}
 	return {}, false
 }
