@@ -89,7 +89,7 @@ draw_pane_f32 :: proc(l, t, w, h: f32) {
 	}
 }
 
-draw_pane_Tile :: proc(l, t, w, h: i32) {
+draw_pane_Tile :: proc(#any_int l, t, w, h: i32) {
 	draw_pane_f32(f32(l), f32(t), f32(w), f32(h))
 }
 

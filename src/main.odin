@@ -40,7 +40,7 @@ main :: proc() {
 	defer game.shutdown() // before CloseWindow: it unloads textures
 	game.start_game()
 
-	for !rl.WindowShouldClose() {
+	for !rl.WindowShouldClose() && game.running() {
 		SRC :: rl.Rectangle{0, 0, game.WINDOW_WIDTH, -game.WINDOW_HEIGHT}
 		DEST :: rl.Rectangle{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}
 

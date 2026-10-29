@@ -22,12 +22,14 @@ ui_init :: proc() {
 	game.ui.select_tile      = ui_icon_state(.Select_Tile)
 	game.ui.select_tile_down = ui_icon_state(.Select_Tile_Down)
 	game.ui.menu_icon        = ui_icon_state(.Select_Icon_Small)
+	start_menu_load()
 	world_menu_load()
 	battle_menu_load()
 }
 
 @(private)
 ui_destroy :: proc() {
+	start_menu_unload()
 	world_menu_unload()
 	battle_menu_unload()
 	font_destroy()

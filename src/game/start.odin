@@ -1,19 +1,17 @@
 package game
 
 GAME_TITLE :: "Odin JRPG"
+SPLASH_TITLE :: "ODIN JRPG"
 
 SKIP_INTRO :: #config(SKIP_INTRO, false)
 
-// Called by main after init.
+// Called by main after init. Last thing called before draw/update loop
 start_game :: proc() {
-	// TODO: enter the start menu
-	new_game()
+	game.running = true
+	start_menu_enter()
 }
 
-// Resets the game data and starts Quarry without a player, which plays the
-// opening cutscene; it then starts Grove (level_quarry_main.odin).
 new_game :: proc() {
-	// Eventually, this procedure should be called from the start menu when starting a new game
 	init_new_game()
 	when SKIP_INTRO {
 		start_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO)

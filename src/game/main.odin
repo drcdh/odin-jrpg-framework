@@ -16,6 +16,8 @@ Game :: struct {
 	images:          hm.Dynamic_Handle_Map(Image, Image_Handle),
 	input:           Input,
 	pending_destroy: [dynamic]Entity_Id,
+	quitting:				 bool, // set true by scripts to tell update to set running to false
+	running:				 bool, // set false to tell the main procedure to stop the game loop
 	script_order:    [dynamic]Script_Id, // spawn order; scripts resume in this order
 	scripts:         hm.Dynamic_Handle_Map(Script, Script_Id),
 	sprite_handles:  [Sprite_Name]Sprite_Handle, // unswapped sprites; zero = not loaded
@@ -26,6 +28,7 @@ Game :: struct {
 	ui:              UI, // font, pane texture, icons; loaded only with a window
 }
 
+@(private)
 game: Game
 
 texture: rl.RenderTexture
@@ -93,6 +96,10 @@ shutdown :: proc() {
 	game = {} // a later init starts clean
 }
 
+running :: proc() -> bool {
+	return game.running
+}
+
 // frame_dt is the real time since the last frame; the entrypoint passes
 // rl.GetFrameTime. Call after input_update, which the entrypoint does so tests
 // can set input themselves.
@@ -101,6 +108,8 @@ update :: proc(frame_dt: f32) {
 
 	if battle_active() {
 		update_battle(game.clock.dt)
+	} else if start_menu_active() {
+		start_menu_update()
 	} else {
 		update_world()
 	}
@@ -117,6 +126,8 @@ update :: proc(frame_dt: f32) {
 	if !battle_active() do camera_update()
 
 	entities_flush_destroyed()
+
+	game.running = !(game.quitting || rl.IsKeyDown(.Q))
 }
 
 draw :: proc() {
@@ -126,6 +137,8 @@ draw :: proc() {
 	rl.ClearBackground({30, 30, 40, 255})
 	if battle_active() {
 		draw_battle()
+	} else if start_menu_active() {
+		start_menu_draw()
 	} else {
 		draw_world()
 	}
