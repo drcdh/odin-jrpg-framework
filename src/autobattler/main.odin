@@ -103,14 +103,14 @@ main :: proc() {
 		defer game.battle_destroy()
 		defer game.battle_deactivate()
 
-		battle: for {
+		battle: for game.battle_active() {
 			game.battle_tick()
-			if result, ok := game.check_win().?; ok {
-				print_result(result)
-				break battle
-			}
 		}
-	}
+
+		if result, ok := game.check_win().?; ok {
+			print_result(result)
+		}
+	 }
 }
 
 print_result :: proc(result: game.Battle_Result) {

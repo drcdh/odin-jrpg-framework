@@ -131,24 +131,16 @@ start_encounter :: proc(name: Encounter_Name) {
 	battle.paused = false
 }
 
-character_get_experience_result: struct {
-	prev_level: int,
-	new_skills: Skill_Set,
-	new_level: int,
-	name: string,
-}
-
 character_get_experience :: proc(pc_idx, exp: int) {
 	c := &playable_characters[pc_idx]
-	character_get_experience_result = {prev_level = c.level} // resets other fields
-
-	character_get_experience_result.new_skills = {}
-
+	log.infof("%s gets experience %d", c.name, exp)
+	prev_level := c.level
+	new_skills: Skill_Set
 	for exp := exp; exp > 0; {
-		log.infof("%s gets %d exp", c.name, exp)
+		log.infof("%s gets %d exp to next level", c.name, exp)
 		if exp_needed, ok := c.exp_to_next.(int); ok {
 			if exp >= exp_needed {
-				character_get_experience_result.new_skills |= gain_level(c)
+				new_skills |= gain_level(c)
 				exp -= exp_needed
 			} else {
 				c.exp_to_next = exp_needed - exp
@@ -157,27 +149,20 @@ character_get_experience :: proc(pc_idx, exp: int) {
 		}
 	}
 
-	character_get_experience_result.new_level = c.level
-	character_get_experience_result.name = c.name
-	log.infof("%s get experience %d", c.name, exp)
-
-	wait_script(spawn(proc(_: Entity_Id) {
-		if character_get_experience_result.new_level > character_get_experience_result.prev_level do say(fmt.tprintf("%s got to level %d", character_get_experience_result.name, character_get_experience_result.new_level))
-		for k in character_get_experience_result.new_skills {
-			say(fmt.tprintf("%s learned %s", character_get_experience_result.name, skills[k].name))
+	if c.level > prev_level {
+		say(fmt.tprintf("%s got to level %d", c.name, c.level))
+		for k in new_skills {
+			say(fmt.tprintf("%s learned %s", c.name, skills[k].name))
 		}
-	}, name = "learned skills"))
+	}
 }
 
-party_get_experience_v: int
 party_get_experience :: proc(exp: int) {
-	log.infof("party get experience %d", exp)
-	party_get_experience_v = exp
-	wait_script(spawn(proc(_: Entity_Id) {
-		say(fmt.tprintf("Got %d experience points", party_get_experience_v))
-		for pc_idx in 0 ..< NUM_PC {
-			if !game_data.party_membership[pc_idx] do continue
-			character_get_experience(pc_idx, party_get_experience_v)
-		}
-	}, name = "get experience"))
+	log.infof("party gets experience %d", exp)
+	say(fmt.tprintf("Got %d experience points", exp))
+
+	for pc_idx in 0 ..< NUM_PC {
+		if !game_data.party_membership[pc_idx] do continue
+		character_get_experience(pc_idx, exp)
+	}
 }
