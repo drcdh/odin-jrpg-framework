@@ -79,12 +79,6 @@ blink_alarm :: proc(button: Entity_Id, light_name: string, loc := #caller_locati
 	set_sprite_tag_of(button, .Up)
 }
 
-// Each line stays up until the player presses Z.
-villager_talk :: proc(self: Entity_Id) {
-	if !say("Hello there! You can walk around with the arrow keys.", "Villager") do return
-	say("Press Z while facing something to talk to it. I hear the buttons down south do something...", "Villager")
-}
-
 // Flashes the screen a random bright color for a quarter second.
 flash_random :: proc(self: Entity_Id) {
 	color := rl.ColorFromHSV(rand.float32_range(0, 360), 0.8, 1)
