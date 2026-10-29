@@ -1,0 +1,38 @@
+import fnmatch
+import os
+import subprocess
+
+ROOT = "./assets/battle_backgrounds"
+DEST = "./src/game"
+
+bb = {"None": ""}
+
+def process_ase(file):
+	name = file[:-4]
+	png_file = f"{name}.png"
+	subprocess.run(f"aseprite -b {ROOT}/{file} --save-as {ROOT}/{png_file}".split())
+	bb[name.title()] = png_file
+
+def write_odin(f):
+	f.write("package game\n\n")
+	f.write("Battle_Background :: enum {\n")
+	for enum in bb.keys():
+		f.write(f"\t{enum},\n")
+	f.write("}\n\n")
+
+	f.write("@(rodata)\n")
+	f.write("battle_background_paths := [Battle_Background]cstring{\n")
+	for enum, s in bb.items():
+		f.write(f"\t.{enum} = \"{s}\",\n")
+	f.write("}")
+
+def main():
+	for file in os.listdir(ROOT):
+		if fnmatch.fnmatch(file, "*.ase*"):
+			print(f"processing {file}")
+			process_ase(file)
+	with open(f"{DEST}/battle_background_data.odin", "w") as f:
+		write_odin(f)
+
+if __name__ == "__main__":
+	main()

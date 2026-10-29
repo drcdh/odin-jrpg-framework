@@ -74,6 +74,7 @@ def process_tmx(level_name, room_name):
 
 	# Custom map properties: where leaving the map edge goes (none if empty),
 	# and the Map_Mode.
+	battle_background = tmap.properties.get("battle_background", "None") if tmap.properties else "None"
 	edge_level = tmap.properties.get("edge_level", "") if tmap.properties else ""
 	map_mode = (tmap.properties.get("map_mode", "") if tmap.properties else "") or "DEFAULT"
 	assert map_mode in MAP_MODES, f"{tmx_file}: map_mode must be one of {MAP_MODES}"
@@ -196,6 +197,7 @@ render_{lr_lower} :: proc() {{
 		firstgids = {prefix}FIRSTGIDS[:],
 		routes = {prefix}ROUTES[:],
 		passable = {prefix}PASSABLE[:],
+		battle_background = .{battle_background},
 		mode = .{map_mode},
 		open_edges = {"true" if edge_level else "false"},
 	}})
