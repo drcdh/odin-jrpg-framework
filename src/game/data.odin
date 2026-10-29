@@ -106,14 +106,14 @@ encode_party_data :: proc() -> (d: Party_Save_Data) {
 	return
 }
 
-// Writes the game to SAVE_DIR/`filename`, or to a new uniquely named file.
-// `time_saved` is in Unix nanoseconds; the caller reads the clock, since the
-// game package keeps no real time. Returns false (and logs why) if it couldn't.
-save_game :: proc(filename: Maybe(string) = nil) -> bool {
+save_game_now :: proc(filename: Maybe(string) = nil) -> bool {
 	save_point := Save_Point{game.world.levels.current, entity_tile(player())}
 	time_saved := time.to_unix_nanoseconds(time.now())
-	info := Save_Data{party_data = encode_party_data(), game_data = game_data, save_point = save_point, time_saved = time_saved}
+	return save_game(save_point, time_saved, filename)
+}
 
+save_game :: proc(save_point: Save_Point, time_saved: i64, filename: Maybe(string) = nil) -> bool {
+	info := Save_Data{party_data = encode_party_data(), game_data = game_data, save_point = save_point, time_saved = time_saved}
 	json_data, err := json.marshal(info, {pretty = true, use_enum_names = true}, context.temp_allocator)
 	if err != nil {
 		log.errorf("Unable to marshal JSON: %v", err)

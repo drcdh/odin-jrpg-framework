@@ -362,9 +362,9 @@ world_menu_update :: proc() {
 		} else if get_input(.ENTER) {
 			save_idx := menu.save_sel.select_idx
 			if save_idx >= len(metadata) {
-				save_game() // new save file
+				save_game_now() // new save file
 			} else {
-				save_game(metadata[save_idx].filepath)
+				save_game_now(metadata[save_idx].filepath)
 			}
 			menu.ui_state = .Top
 			menu.save_sel = Selection{}

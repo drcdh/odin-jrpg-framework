@@ -25,7 +25,7 @@ player_update :: proc() {
 
 	// Test keys, debug builds only; saving also goes through the world menu.
 	when ODIN_DEBUG {
-		if rl.IsKeyPressed(.F4) do save_game(TEST_SAVE)
+		if rl.IsKeyPressed(.F4) do save_game_now(TEST_SAVE)
 		if rl.IsKeyPressed(.F5) {
 			load_game(TEST_SAVE)
 			return

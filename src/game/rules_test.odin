@@ -113,11 +113,11 @@ potion_heals_up_to_max_hitpoints :: proc(t: ^testing.T) {
 	pc := setup_target(1); defer destroy()
 	max_hp := 100
 	pc.hitpoints = max_hp - 60
-	r := do_skill(nil, pc, skills[Skill_Name.Potion])
+	r := do_skill_character(nil, pc, skills[Skill_Name.Potion])
 	testing.expect_value(t, r.hp_change, 50)
 	testing.expect_value(t, pc.hitpoints, max_hp - 10)
 
-	r = do_skill(nil, pc, skills[Skill_Name.Potion])
+	r = do_skill_character(nil, pc, skills[Skill_Name.Potion])
 	testing.expect_value(t, r.hp_change, 10)
 	testing.expect_value(t, pc.hitpoints, max_hp)
 }
@@ -126,7 +126,7 @@ potion_heals_up_to_max_hitpoints :: proc(t: ^testing.T) {
 antidote_cures_poison :: proc(t: ^testing.T) {
 	pc := setup_target(10); defer destroy()
 	add_status(pc, .Poison)
-	r := do_skill(nil, pc, skills[Skill_Name.Antidote])
+	r := do_skill_character(nil, pc, skills[Skill_Name.Antidote])
 	testing.expect_value(t, r.status_result, Status_Result.Removed)
 	testing.expect(t, !pc.poison, "still poisoned")
 }
@@ -134,7 +134,7 @@ antidote_cures_poison :: proc(t: ^testing.T) {
 @(test)
 poisonous_mushroom_poisons_without_damage :: proc(t: ^testing.T) {
 	pc := setup_target(10); defer destroy()
-	r := do_skill(nil, pc, skills[Skill_Name.Poisonous_Mushroom])
+	r := do_skill_character(nil, pc, skills[Skill_Name.Poisonous_Mushroom])
 	testing.expect_value(t, r.hit, Hit_Result.Hit)
 	testing.expect_value(t, r.status_result, Status_Result.Added)
 	testing.expect(t, pc.poison, "not poisoned")
@@ -145,7 +145,7 @@ poisonous_mushroom_poisons_without_damage :: proc(t: ^testing.T) {
 level_up_adds_a_level :: proc(t: ^testing.T) {
 	pc := setup_target(10); defer destroy()
 	level := pc.level
-	r := do_skill(nil, pc, skills[Skill_Name.Level_Up])
+	r := do_skill_character(nil, pc, skills[Skill_Name.Level_Up])
 	testing.expect_value(t, r.levels, 1)
 	testing.expect_value(t, pc.level, level + 1)
 }
@@ -153,7 +153,7 @@ level_up_adds_a_level :: proc(t: ^testing.T) {
 @(test)
 suicide_downs_the_target :: proc(t: ^testing.T) {
 	pc := setup_target(10); defer destroy()
-	r := do_skill(nil, pc, skills[Skill_Name.Suicide])
+	r := do_skill_character(nil, pc, skills[Skill_Name.Suicide])
 	testing.expect(t, r.downed, "not downed")
 	testing.expect_value(t, r.hp_change, -10)
 	testing.expect_value(t, pc.hitpoints, 0)

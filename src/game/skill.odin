@@ -88,15 +88,15 @@ is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
 	return
 }
 
-// // `actor` is nil for an item.
-// do_skill_character :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
-// 	return do_effect_character(actor, target, skill.effect_data, skill.effect_type)
-// }
-//
-// do_skill_combatant :: proc(actor, target: ^Combatant, skill: Skill) -> Effect_Result {
-// 	return do_effect_combatant(actor, target, skill.effect_data, skill.effect_type)
-// }
-//
+// `actor` is nil for an item.
+do_skill_character :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
+	return do_effect_character(actor, target, skill.effect_data, skill.effect_type)
+}
+
+do_skill_combatant :: proc(actor, target: ^Combatant, skill: Skill) -> Effect_Result {
+	return do_effect_combatant(actor, target, skill.effect_data, skill.effect_type)
+}
+
 // do_skill :: proc {
 // 	do_skill_character,
 // 	do_skill_combatant,

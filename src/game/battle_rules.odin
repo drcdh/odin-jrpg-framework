@@ -194,7 +194,7 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	actor.windup = false
 
 	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
-		r := do_skill(actor, &battle.combatants[target_idx], skill)
+		r := do_skill_combatant(actor, &battle.combatants[target_idx], skill)
 		append(&battle.skill_result, Battle_Effect_Result{skill_play.actor_idx, target_idx, skill_play.skill_name, r})
 	}
 
