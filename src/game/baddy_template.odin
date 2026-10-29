@@ -1,4 +1,4 @@
-package rules
+package game
 
 Downed_Proc :: #type proc(c_idx: int, runner_idx: Maybe(int)) -> Maybe(int)
 

@@ -11,10 +11,7 @@ import passable
 
 ROOT = "./assets/tiled"
 TILESETS = "./assets/tilesets"
-# Level code goes in the game package; the Level and Chest_Datum enums are
-# saved game data, so they go in the (headless) rules package.
 DEST = "./src/game"
-RULES_DEST = "./src/rules"
 MAP_MODES = ("DEFAULT", "CLAMP", "WRAP")
 
 def orderedpair_to_tile(c):
@@ -302,23 +299,7 @@ def export_tilesets():
 		print(f"exporting {file}")
 		subprocess.check_call(["aseprite", "-b", str(file), "--save-as", str(file.with_suffix(".png"))])
 
-# Generated files are gitignored, so outputs of renamed or removed maps would
-# linger, as would outputs from the old package layout (src/engine and
-# src/content, now src/game; and level code that src/game held before it
-# became src/rules).
-def remove_stale_outputs():
-	for pattern in ("level_*_data.odin", "level_data.odin", "encounter_region_data.odin"):
-		for d in (DEST, RULES_DEST):
-			for f in pathlib.Path(d).glob(pattern):
-				f.unlink()
-	for d in ("./src/engine", "./src/content"):
-		for f in pathlib.Path(d).glob("*_data.odin"):
-			f.unlink()
-		if pathlib.Path(d).is_dir() and not any(pathlib.Path(d).iterdir()):
-			pathlib.Path(d).rmdir()
-
 def main():
-	remove_stale_outputs()
 	export_tilesets()
 	write_tileset_data()
 	for file in pathlib.Path(ROOT).rglob("*.tmx"):
@@ -329,24 +310,24 @@ def main():
 
 	# The Level enum is saved game data (save points name levels), so it goes in
 	# rules; the dispatch below runs level code, so it stays in game.
-	with open(f"{RULES_DEST}/levels_data.odin", "w") as f:
-		f.write("package rules\n\nLevel :: enum {\n")
+	with open(f"{DEST}/levels_data.odin", "w") as f:
+		f.write("package game\n\n")
+		f.write("Level :: enum {\n")
 		for lenum in level_enums + sorted(referenced_levels - set(level_enums)):
 			f.write(f"\t{lenum},\n")
 		f.write("}\n")
 
-	with open(f"{DEST}/level_data.odin", "w") as levels_data_f:
-		levels_data_f.write("package game\n")
+		f.write("package game\n")
 
-		write_case_proc(levels_data_f, "tiled_init")
-		write_case_proc(levels_data_f, "init")
-		write_case_proc(levels_data_f, "render")
+		write_case_proc(f, "tiled_init")
+		write_case_proc(f, "init")
+		write_case_proc(f, "render")
 
-		levels_data_f.write("player_spawn_level :: proc(l: Level) -> (Tile, Direction, bool) {\n")
-		levels_data_f.write("\t#partial switch l {\n")
+		f.write("player_spawn_level :: proc(l: Level) -> (Tile, Direction, bool) {\n")
+		f.write("\t#partial switch l {\n")
 		for lenum in level_enums:
-			levels_data_f.write(f"\tcase .{lenum}: return {lenum.lower()}_player_spawn()\n")
-		levels_data_f.write("\t}\n\treturn {}, .Down, false\n}\n\n")
+			f.write(f"\tcase .{lenum}: return {lenum.lower()}_player_spawn()\n")
+		f.write("\t}\n\treturn {}, .Down, false\n}\n\n")
 
 
 	with open(f"{DEST}/encounter_region_data.odin", "w") as regions_f:
@@ -371,8 +352,8 @@ def main():
 		regions_f.write("}\nreturn\n")
 		regions_f.write("}\n\n")
 
-	with open(f"{RULES_DEST}/chest_data.odin", "w") as f:
-		f.write("package rules\n\n")
+	with open(f"{DEST}/chest_data.odin", "w") as f:
+		f.write("package game\n\n")
 		f.write("Chest_Datum :: enum {\n")
 		for d in chest_data:
 			f.write(f"\t{d},\n")

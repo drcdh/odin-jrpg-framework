@@ -3,7 +3,7 @@ import csv
 from processing import name_to_enum, process_text
 
 ROOT = "./content"
-DEST = "./src/rules"
+DEST = "./src/game"
 
 items = []
 def odin_consumable(row):
@@ -67,7 +67,7 @@ with open(f"{ROOT}/equippables.csv") as f:
 		items.append(odin_equippable(row))
 
 with open(f"{DEST}/item_data.odin", "w") as f:
-	f.write("package rules\n\n")
+	f.write("package game\n\n")
 	f.write("Item_Name :: enum {\n")
 	for item in items:
 		enum = name_to_enum(item["name"])

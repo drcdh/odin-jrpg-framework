@@ -1,4 +1,4 @@
-package rules
+package game
 
 import "core:fmt"
 import "core:log"

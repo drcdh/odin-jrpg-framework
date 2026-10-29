@@ -3,8 +3,7 @@ import csv
 from processing import name_to_enum, process_text
 
 ROOT = "./content"
-DEST = "./src/rules"
-GAME_DEST = "./src/game"
+DEST = "./src/game"
 
 DEFAULTS = dict(
 	constant=0,
@@ -50,8 +49,7 @@ def odin_skill(row):
 		"description": process_text(row.get("description", "")),
 	}
 def write_skill(f, oskill):
-	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, \"{description}\" }},\n".format(**oskill))
-	# f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
+	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
 
 in_f = open(f"{ROOT}/skills.csv")
 reader = csv.DictReader(in_f, delimiter=",")
@@ -60,7 +58,7 @@ for row in reader:
 in_f.close()
 
 out_f = open(f"{DEST}/skill_data.odin", "w")
-out_f.write("package rules\n\n")
+out_f.write("package game\n\n")
 
 out_f.write("Skill_Name :: enum {\n")
 
@@ -75,21 +73,4 @@ for skill in skills:
 	write_skill(out_f, skill)
 out_f.write("}\n")
 
-out_f.close()
-
-
-out_f = open(f"{GAME_DEST}/skill_av_data.odin", "w")
-out_f.write("package game\n\n")
-out_f.write("import \"../rules\"\n\n")
-out_f.write("Skill_Name :: rules.Skill_Name\n\n")
-out_f.write("@(rodata)\n")
-out_f.write("skill_sounds := [Skill_Name]Maybe(Sound_Name) {\n")
-for skill in skills:
-	out_f.write(f"\t.{name_to_enum(skill['name'])} = {skill['sound']},\n")
-out_f.write("}\n\n")
-out_f.write("@(rodata)\n")
-out_f.write("skill_sprites := [Skill_Name]Maybe(Sprite_Name) {\n")
-for skill in skills:
-	out_f.write(f"\t.{name_to_enum(skill['name'])} = {skill['animation']},\n")
-out_f.write("}")
 out_f.close()

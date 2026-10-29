@@ -3,7 +3,7 @@ import csv
 from processing import name_to_enum
 
 ROOT = "./content"
-DEST = "./src/rules"
+DEST = "./src/game"
 
 MAX_ENCOUNTER_SIZE = 6
 
@@ -25,7 +25,7 @@ for row in reader:
 in_f.close()
 
 out_f = open(f"{DEST}/encounter_data.odin", "w")
-out_f.write("package rules\n\n")
+out_f.write("package game\n\n")
 
 out_f.write("Encounter_Name :: enum {\n")
 for name in encounters:
