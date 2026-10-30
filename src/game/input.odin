@@ -3,11 +3,9 @@ package game
 import "core:log"
 import rl "vendor:raylib"
 
-// Seconds a button must be held before get_input starts repeating it.
-HOLD_TIME :: 1
+HOLD_TIME :: 1 // seconds
+HOLD_PERIOD :: .25 // seconds between hold presses
 
-// The player inputs the game understands. Each maps to one keyboard key and
-// one gamepad button.
 Game_Input :: enum {
 	ENTER,
 	CANCEL,
@@ -88,27 +86,30 @@ next_input_state :: proc(s: Single_Input_State, down: bool, dt: f32) -> Single_I
 	return Input_Up{}
 }
 
-// True on the frame `k` is pressed and, once it has been held for HOLD_TIME,
-// on every frame after that. With `down`, true on every frame it's held.
 get_input :: proc(k: Game_Input, down := false, silent := false) -> (v: bool) {
-	switch s in game.input.state[k] {
+	switch &s in game.input.state[k] {
 	case Input_Up:      v = false
 	case Input_Pressed: v = true
-	case Input_Held:    v = down || s.t >= HOLD_TIME
+	case Input_Held:
+		if down {
+			v = true
+		} else{
+			if s.t >= HOLD_TIME {
+				s.t -= HOLD_PERIOD
+				v = true
+			}
+		}
 	}
 	if v && !silent do play_sound(.Ui_Blip)
 	return
 }
 
-// Swallows the current press of `k`, so it doesn't also count for whatever
-// reads input next (the press that opens a dialogue box mustn't skip its text).
-// The button counts again once released and pressed, or after HOLD_TIME.
 consume_input :: proc(k: Game_Input) {
 	if _, up := game.input.state[k].(Input_Up); !up do game.input.state[k] = Input_Held{}
 }
 
-// Held directions, as a tile offset; both axes can be set at once.
 get_direction_input :: proc() -> (m: Tile) {
+	// down and silent both true
 	if get_input(.UP, true, true)    do m.y -= 1
 	if get_input(.DOWN, true, true)  do m.y += 1
 	if get_input(.LEFT, true, true)  do m.x -= 1
@@ -116,7 +117,6 @@ get_direction_input :: proc() -> (m: Tile) {
 	return
 }
 
-// Pressed (or repeating) directions, for moving through menus.
 get_menu_input :: proc() -> (m: [2]int) {
 	if get_input(.UP)    do m.y -= 1
 	if get_input(.DOWN)  do m.y += 1
