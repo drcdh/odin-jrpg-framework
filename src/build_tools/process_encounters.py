@@ -1,8 +1,9 @@
 import csv
+import pathlib
 
 from processing import name_to_enum
 
-ROOT = "./content"
+ROOT = "./content/encounters"
 DEST = "./src/game"
 
 MAX_ENCOUNTER_SIZE = 6
@@ -18,11 +19,12 @@ def odin_encounter(row):
 		spots[i - 1] = f"{{ {{ {row[f'p{i}']} }}, .{baddy_id} }}"
 	return "{{ {{ {} }}, {} }}".format(", ".join(spots), int(row["exp"] or 0))
 
-in_f = open(f"{ROOT}/encounters.csv")
-reader = csv.DictReader(in_f, delimiter=",")
-for row in reader:
-	encounters[name_to_enum(row["name"])] = odin_encounter(row)
-in_f.close()
+for file in sorted(pathlib.Path(ROOT).rglob("*.csv")):
+	in_f = open(file)
+	reader = csv.DictReader(in_f, delimiter=",")
+	for row in reader:
+		encounters[name_to_enum(row["name"])] = odin_encounter(row)
+	in_f.close()
 
 out_f = open(f"{DEST}/encounter_data.odin", "w")
 out_f.write("package game\n\n")
