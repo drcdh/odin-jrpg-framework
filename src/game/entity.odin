@@ -87,6 +87,11 @@ entity_held :: proc(id: Entity_Id, by: Script_Id) -> bool {
 	return e.busy_by == {} || script_alive(e.busy_by)
 }
 
+entity_name :: proc(id: Entity_Id) -> string {
+	if e, ok := entity_get(id); ok do return e.name
+	return "MISSINGNO"
+}
+
 entity_pos :: proc(id: Entity_Id) -> [2]f32 {
 	if e, ok := entity_get(id); ok do return e.pos
 	return {}
