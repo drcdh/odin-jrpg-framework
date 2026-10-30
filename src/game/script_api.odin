@@ -63,6 +63,10 @@ set_visible :: proc(id: Entity_Id, visible: bool) {
 	if e, ok := entity_get(id); ok do e.sprite.hidden = !visible
 }
 
+set_light :: proc(id: Entity_Id, light: f32) {
+	if e, ok := entity_get(id); ok do e.light = light
+}
+
 // Removes `id`'s talk trigger, e.g. after a one-time gift. A script running
 // from it carries on.
 clear_trigger :: proc(id: Entity_Id) {

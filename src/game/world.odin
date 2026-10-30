@@ -24,10 +24,10 @@ world_shutdown :: proc() {
 	world = {}
 }
 
-// One simulation step, starting with the player's turn. Call after
-// clock_advance and input_update.
 update_world :: proc() {
 	player_update()
+	update_darkness()
+	update_overlay()
 	world_menu_update()
 }
 
@@ -37,13 +37,18 @@ draw_world :: proc() {
 	draw_entities()
 	draw_debug_world()
 	rl.EndMode2D()
-	draw_debug_world_hud()
+
+	draw_darkness()
+	draw_overlay()
+
 	if world_menu_active() {
 		// shade the world behind the menu
 		rl.BeginBlendMode(.MULTIPLIED)
 		rl.DrawRectangleV({}, {WINDOW_WIDTH, WINDOW_HEIGHT}, {120, 120, 165, 255})
 		rl.EndBlendMode()
 		draw_world_menu()
+	} else {
+		draw_debug_world_hud()
 	}
 }
 

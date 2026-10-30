@@ -23,6 +23,7 @@ Entity :: struct {
 	// how fast a Moving sprite animates: one loop per tile. 0 on spawn means
 	// the default, default_step_time.
 	step_time: f32,
+	light: f32,
 }
 
 DEFAULT_STEP_TIME :: 0.5 // seconds per tile for an entity without an animated sprite
