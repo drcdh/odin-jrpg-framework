@@ -18,7 +18,7 @@ init_quarry_main :: proc() {
 			name   = "Fella",
 			tile   = FELLA_PATH[0],
 			facing = .Up,
-			sprite = walker_sprite(.Man_Ps, palette=PC_PALETTES[0][:]),
+			sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
 		})
 		camera_follow(dude)
 		set_curtain(1)
@@ -31,7 +31,7 @@ init_quarry_main :: proc() {
 	spawn_entity({
 		name = "Fella",
 		facing = .Left,
-		sprite = walker_sprite(.Man_Ps, palette=PC_PALETTES[0][:]),
+		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
 		tile = QUARRY_MAIN_FELLA,
 		trigger = new_trigger(proc(self: Entity_Id) {
 			name := entity_name(self)

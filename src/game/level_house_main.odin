@@ -27,9 +27,10 @@ init_house_main :: proc() {
 	spawn_entity(
 		Entity {
 			name = "Guy",
+			facing = .Right,
 			sprite = walker_sprite(
 				.Man_Ps,
-				palette = {
+				{
 					{rl.GetColor(0xeeeeeeff), rl.PINK},
 					{rl.GetColor(0xddddddff), rl.BLUE},
 					{rl.GetColor(0xccccccff), rl.BROWN},
