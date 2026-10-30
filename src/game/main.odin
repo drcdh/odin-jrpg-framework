@@ -15,6 +15,7 @@ Game :: struct {
 	flash:           Screen_Flash,
 	images:          hm.Dynamic_Handle_Map(Image, Image_Handle),
 	input:           Input,
+	input_override:  proc(),
 	pending_destroy: [dynamic]Entity_Id,
 	quitting:				 bool, // set true by scripts to tell update to set running to false
 	running:				 bool, // set false to tell the main procedure to stop the game loop
