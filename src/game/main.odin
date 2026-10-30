@@ -122,7 +122,6 @@ update :: proc(frame_dt: f32) {
 	} else if shop_menu_active() {
 		shop_update()
 	} else {
-		update_overlay()
 		update_world()
 	}
 
@@ -155,7 +154,6 @@ draw :: proc() {
 		shop_draw()
 	} else {
 		draw_world()
-		draw_overlay()
 	}
 	draw_screen_effects()
 	draw_dialogue()

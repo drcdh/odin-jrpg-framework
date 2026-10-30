@@ -21,6 +21,7 @@ clear_level :: proc() {
 	world.player = {}
 	world.camera.focus = nil
 	world.camera.pan = {}
+	darkness = 0
 }
 
 // --- Level changes ---

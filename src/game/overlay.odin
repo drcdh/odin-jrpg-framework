@@ -1,6 +1,5 @@
 package game
 
-// import hm "core:container/handle_map"
 import "core:fmt"
 import rl "vendor:raylib"
 
@@ -50,37 +49,3 @@ update_overlay :: proc() {
 	if overlay == .None do return
 	overlay_offset -= tile_to_pixel(.2, 0) * game.clock.dt
 }
-
-@(private = "file")
-darkness_texture: rl.RenderTexture
-
-darkness: u8
-
-init_darkness :: proc() {
-	darkness_texture = rl.LoadRenderTexture(WINDOW_WIDTH, WINDOW_HEIGHT)
-}
-
-delete_darkness :: proc() {
-	rl.UnloadRenderTexture(darkness_texture)
-}
-
-// draw_darkness :: proc() {
-// 	if darkness > 0 {
-// 		rl.BeginTextureMode(darkness_texture)
-// 		rl.ClearBackground(rl.BLANK)
-// 		it := hm.iterator_make(&world_entities.entities)
-// 		for e, _ in hm.iterate(&it) {
-// 			if !e.disabled && e.light > 0 {
-// 				pos := get_entity_pixel(e^) - world.camera + TILE_SIZE / 2
-// 				radius := f32(e.light) * TILE_SIZE
-// 				rl.DrawCircleV(pos, radius, rl.WHITE)
-// 			}
-// 		}
-// 		rl.BeginBlendMode(.SUBTRACT_COLORS)
-// 		rl.DrawRectangleV({0, 0}, {WINDOW_WIDTH, WINDOW_HEIGHT}, rl.BLACK)
-// 		rl.EndBlendMode()
-// 		rl.EndTextureMode()
-// 	}
-// 	rect := rl.Rectangle{0, 0, WINDOW_WIDTH, -WINDOW_HEIGHT}
-// 	rl.DrawTexturePro(darkness_texture.texture, rect, rect, {}, 0, {255, 255, 255, darkness})
-// }

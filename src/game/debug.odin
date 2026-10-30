@@ -55,7 +55,7 @@ draw_debug_world :: proc() {
 draw_debug_world_hud :: proc() {
 	if !debug_overlay do return
 
-	FONT :: 16
+	FONT :: 10
 	x, y: i32 = 10, 10
 	line :: proc(x: i32, y: ^i32, text: cstring, color := rl.RAYWHITE) {
 		rl.DrawText(text, x, y^, FONT, color)
@@ -64,6 +64,7 @@ draw_debug_world_hud :: proc() {
 	line(x, &y, fmt.ctprintf("fps %d   time %.2f   frame %d", rl.GetFPS(), game.clock.time, game.clock.frame))
 	line(x, &y, fmt.ctprintf("entities %d   tweens %d   scripts %d",
 		hm.len(game.entities), hm.len(game.tweens), len(game.script_order)))
+	line(x, &y, fmt.ctprintf("darkness %d", darkness))
 	if p, ok := entity_get(world.player); ok {
 		line(x, &y, fmt.ctprintf("player tile %v   facing %v", p.tile, p.facing))
 	}
