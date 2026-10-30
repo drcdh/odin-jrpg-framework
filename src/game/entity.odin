@@ -3,14 +3,13 @@ package game
 import hm "core:container/handle_map"
 import "core:log"
 
-// idx 0 is the handle map's sentinel, so `Entity_Id{}` means "no entity".
 Entity_Id :: distinct hm.Handle32
 
 Entity :: struct {
-	handle:  Entity_Id, // required by the handle map; set by spawn_entity
+	handle:  Entity_Id,
 	name:    string,
-	tile:    Tile,      // logical cell; changes as soon as a move starts
-	pos:     [2]f32,    // visual position in world pixels; set from `tile` on spawn
+	tile:    Tile,
+	pos:     [2]f32,
 	facing:  Direction,
 	busy:    bool,      // other scripts than busy_by can't move or turn it; see set_busy
 	busy_by: Script_Id, // the script that set busy; {} = the main thread
@@ -40,8 +39,6 @@ entity_step_time :: proc(id: Entity_Id) -> f32 {
 	return DEFAULT_STEP_TIME
 }
 
-// Handles are the only references to keep around. An ^Entity from entity_get
-// must not be held across a script yield or a spawn/destroy.
 spawn_entity :: proc(e: Entity) -> Entity_Id {
 	e := e
 	e.pos = tile_center(e.tile)
@@ -59,9 +56,6 @@ entity_alive :: proc(id: Entity_Id) -> bool {
 	return hm.is_valid(&game.entities, id)
 }
 
-// Linear scan, so resolve once at the top of a script and keep the handle.
-// Returns `Entity_Id{}` and logs a warning if no entity has that name; with
-// duplicate names, the first in handle-map order wins.
 find :: proc(name: string, loc := #caller_location) -> Entity_Id {
 	it := hm.iterator_make(&game.entities)
 	for e, h in hm.iterate(&it) {

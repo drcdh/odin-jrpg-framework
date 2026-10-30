@@ -6,6 +6,9 @@ import rl "vendor:raylib"
 @(private = "file")
 FONT_ATLAS_DATA :: #load("../../assets/textures/font.png")
 
+@(private)
+font: rl.Font
+
 // The 8x8 bitmap font. `atlas_glyphs` is generated into font_data.odin by
 // src/build_tools/generate_font.py. Main thread, with a window.
 @(private)
@@ -28,7 +31,7 @@ font_init :: proc() {
 		}
 	}
 
-	game.ui.font = {
+	font = {
 		baseSize     = 8,
 		glyphCount   = i32(num_glyphs),
 		glyphPadding = 0,
@@ -40,10 +43,9 @@ font_init :: proc() {
 
 @(private)
 font_destroy :: proc() {
-	f := &game.ui.font
-	if f.texture.id == 0 do return
-	rl.UnloadTexture(f.texture)
-	delete(slice.from_ptr(f.glyphs, int(f.glyphCount)))
-	delete(slice.from_ptr(f.recs, int(f.glyphCount)))
-	f^ = {}
+	if font.texture.id == 0 do return
+	rl.UnloadTexture(font.texture)
+	delete(slice.from_ptr(font.glyphs, int(font.glyphCount)))
+	delete(slice.from_ptr(font.recs, int(font.glyphCount)))
+	font = {}
 }

@@ -4,22 +4,17 @@ import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
-// The dialogue box: a pane across the top of the screen that types out text
-// a character at a time, a page of `lines` lines at a time, with an optional
-// speaker line and a pane of choices below. Scripts drive it with say and
-// choose; it reads ENTER and UP/DOWN itself (input.odin).
-
 DIALOGUE_SPEED         :: f32(0.05) // seconds per character
 DEFAULT_DIALOGUE_LINES :: 4
 MAX_DIALOGUE_LINES     :: 24
-DIALOGUE_ORIGIN        :: [2]f32{0, 0} // UI tiles
+DIALOGUE_ORIGIN        :: [2]f32{0, 0}
 
 Dialogue_Hidden  :: struct {}
 Dialogue_Marquee :: struct { t: f32 } // typing; t is the time to the next character
-Dialogue_Pause   :: struct { t: f32 } // the page is out; waiting `pause` seconds
-Dialogue_Wait    :: struct {}         // the page is out; waiting for ENTER
-Dialogue_Choose  :: struct {}         // the text is out; picking a choice
-Dialogue_Done    :: struct {}         // finished; the speaking script resumes
+Dialogue_Pause   :: struct { t: f32 } // done typing; waiting `pause` seconds
+Dialogue_Wait    :: struct {}         // done typing; waiting for ENTER
+Dialogue_Choose  :: struct {}         // done typing; picking a choice
+Dialogue_Done    :: struct {}         // the script that called say or choose resumes
 
 Dialogue_State :: union #no_nil {
 	Dialogue_Hidden,
@@ -194,8 +189,9 @@ dialogue_update :: proc(dt: f32) {
 
 // Screen space: the dialogue pane, then the choice pane under it.
 draw_dialogue :: proc() {
+	assert(font.texture.id != 0, "font texture id is 0. Not loaded?")
 	d := &game.dialogue
-	if !dialogue_active() || game.ui.font.texture.id == 0 do return
+	if !dialogue_active() do return
 	o := DIALOGUE_ORIGIN
 	w := f32(VIEW_TILES_W)
 	draw_pane(o.x, o.y, w, f32(d.lines + 2) / 2)
@@ -217,7 +213,7 @@ draw_dialogue :: proc() {
 
 	#partial switch _ in d.state {
 	case Dialogue_Wait:
-		draw_sprite(game.ui.dialogue_icon, tile_to_pixel(o.x + w - 1, o.y + f32(d.lines / 2)))
+		draw_dialogue_icon(tile_to_pixel(o.x + w - 1, o.y + f32(d.lines / 2)))
 	case Dialogue_Choose:
 		draw_pane(o.x, o.y + f32(d.lines + 2) / 2, w, f32(len(d.choices) + 2) / 2)
 		for c, i in d.choices {

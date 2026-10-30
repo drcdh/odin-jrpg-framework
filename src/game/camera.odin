@@ -4,22 +4,17 @@ import "core:math/ease"
 import "core:math/linalg"
 import rl "vendor:raylib"
 
-// What the camera centers on: an entity it follows, or a fixed tile. nil
-// leaves the camera where it is.
 Camera_Focus :: union {
 	Entity_Id,
 	Tile,
 }
 
-// A pan from where the camera was to its focus, at `speed` tiles per second.
-// It lerps towards the focus as it is each frame, so a pan onto a moving
-// entity still lands on it.
 Camera_Pan :: struct {
-	from:     [2]f32,
-	speed:    f32, // tiles per second; 0 = no pan
+	duration: f32, // set on the pan's first update, from the clamped distance; 0 until then
 	easing:   Ease,
 	elapsed:  f32,
-	duration: f32, // set on the pan's first update, from the clamped distance; 0 until then
+	from:     [2]f32,
+	speed:    f32, // tiles per second; 0 = no pan
 }
 
 Camera :: struct {
@@ -30,37 +25,26 @@ Camera :: struct {
 
 camera :: proc() -> rl.Camera2D { return world.camera.camera }
 
-// Follows `id`. With `speed` 0 the camera snaps to it; otherwise it pans
-// there at `speed` tiles per second (game time), then follows. Immediate:
-// usable from scripts; pan_camera_follow waits for the pan.
 camera_follow :: proc(id: Entity_Id, speed: f32 = 0, easing := Ease.Linear) {
 	camera_focus_on(id, speed, easing)
 }
 
-// Fixes the camera on `tile`'s center: a snap with `speed` 0, otherwise a pan
-// at `speed` tiles per second. See camera_follow.
 camera_to_tile :: proc(tile: Tile, speed: f32 = 0, easing := Ease.Linear) {
 	camera_focus_on(tile, speed, easing)
 }
 
 camera_panning :: proc() -> bool { return world.camera.pan.speed > 0 }
 
-// The entity the camera follows (or is panning to), if any.
-camera_followed :: proc() -> Entity_Id {
-	id, _ := world.camera.focus.(Entity_Id)
-	return id
+camera_followed :: proc() -> (Entity_Id, bool) #optional_ok {
+	return world.camera.focus.(Entity_Id)
 }
 
 @(private = "file")
 camera_focus_on :: proc(focus: Camera_Focus, speed: f32, easing: Ease) {
 	world.camera.focus = focus
-	world.camera.pan = {}
-	if speed > 0 do world.camera.pan = {from = world.camera.target, speed = speed, easing = easing}
+	world.camera.pan = {} if speed <= 0 else {from = world.camera.target, speed = speed, easing = easing}
 }
 
-// Centers the focus on the screen, panning if a pan is under
-// way. In CLAMP mode the view stays inside the map, and a map smaller than the
-// view is centered.
 camera_update :: proc() {
 	world.camera.offset = [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2
 	focus, ok := camera_focus_point()

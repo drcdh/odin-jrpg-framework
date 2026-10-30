@@ -72,6 +72,6 @@ tile_to_pixel :: proc {
 	tile_to_pixel_f32_f32,
 }
 
-world_to_tile :: proc(p: [2]f32) -> Tile {
+pixel_to_tile :: proc(p: [2]f32) -> Tile {
 	return {i32(math.floor(p.x / TILE_SIZE)), i32(math.floor(p.y / TILE_SIZE))}
 }

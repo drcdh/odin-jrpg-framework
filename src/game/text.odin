@@ -3,7 +3,7 @@ package game
 import rl "vendor:raylib"
 
 draw_text_f32 :: proc(l, t: f32, text: cstring, tint := rl.WHITE) {
-	rl.DrawTextEx(game.ui.font, text, tile_to_pixel(l, t), TILE_SIZE / 2, 0, tint)
+	rl.DrawTextEx(font, text, tile_to_pixel(l, t), TILE_SIZE / 2, 0, tint)
 }
 
 draw_text_V :: proc(lt: [2]f32, text: cstring, tint := rl.WHITE) {
