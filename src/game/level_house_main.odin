@@ -38,7 +38,7 @@ init_house_main :: proc() {
 			),
 			tile = HOUSE_MAIN_GUY_SPAWN,
 			trigger = new_trigger(proc(self: Entity_Id) {
-					say("Erm, hello, player.", "Guy")
+					say("Erm, hello, player.", entity_name(self))
 					if get_game_data(Bool_Datum.Met_Dude) {
 						say("Have you met Dude yet? Very good.")
 					} else {
@@ -53,20 +53,21 @@ init_house_main :: proc() {
 	)
 
 	two := spawn_entity(
-		{sprite = pc_sprite(1), tile = HOUSE_MAIN_DOOR, trigger = new_trigger(door_knock)},
+		{name = "Two", sprite = pc_sprite(1), tile = HOUSE_MAIN_DOOR, trigger = new_trigger(door_knock)},
 	)
 	set_visible(two, false)
 }
 
 @(private = "file")
 door_knock :: proc(self: Entity_Id) {
+	name := entity_name(self)
 	pause(.5)
 	play_sound(.Door_Knock)
 	pause(1)
 	if quest_stage_current(.Two_Quest, Two_Quest.None) {
 		play_sound(.Door_Open)
 		set_visible(self, true)
-		say("We don't want any.", "Two")
+		say("We don't want any.", name)
 		pause(.5)
 		play_sound(.Door_Shut)
 		set_visible(self, false)
@@ -74,7 +75,7 @@ door_knock :: proc(self: Entity_Id) {
 	} else if quest_stage_current(.Two_Quest, Two_Quest.Knocked) {
 		play_sound(.Door_Open)
 		set_visible(self, true)
-		say("Oh, alright. Let's go.", "Two")
+		say("Oh, alright. Let's go.", name)
 		play_sound(.Fanfare)
 		say("Player Two joined your party!")
 		game_data.party_membership[1] = true

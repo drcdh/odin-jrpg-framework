@@ -16,19 +16,18 @@ init_grove_main :: proc() {
 	met := get_game_data(Bool_Datum.Met_Dude)
 	dude := spawn_entity(
 	{
-		name    = "dude",
+		name    = "Dude",
 		tile    = GROVE_MAIN_DUDE_SPAWN_MET if met else GROVE_MAIN_DUDE_SPAWN_NOT_MET,
 		sprite  = walker_sprite(.Dude),
 		// Faces the player and stops pacing while they talk.
 		trigger = new_trigger(
 			proc(self: Entity_Id) {
-				DUDE :: "Dude"
 				if !get_game_data(Bool_Datum.Met_Dude) {
 					set_game_data(Bool_Datum.Met_Dude, true)
 					// Switch to route 1. The new pacer waits until the talk ends (busy).
 					script_cancel(dude_pace)
 					dude_pace = spawn(pace_dude_route_1, self, "dude pace")
-					say("Oh, hey! What's up, player?", DUDE)
+					say("Oh, hey! What's up, player?", entity_name(self))
 					ok: bool
 					drink: int
 					if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}); !ok do return
@@ -58,11 +57,11 @@ init_grove_main :: proc() {
 				} else {
 					switch get_game_data(Int_Datum.Drink_Choice) {
 					case DRINK_TEA:
-						say("How's that tea?")
+						say("How's that tea?", entity_name(self))
 					case DRINK_COFFEE_BLACK, DRINK_COFFEE_CREAM:
-						say("You ever find a coffee shop?")
+						say("You ever find a coffee shop?", entity_name(self))
 					case:
-						say("Hi.")
+						say("Hi.", entity_name(self))
 					}
 				}
 			},

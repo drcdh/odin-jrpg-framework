@@ -34,8 +34,9 @@ init_quarry_main :: proc() {
 		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
 		tile = QUARRY_MAIN_FELLA,
 		trigger = new_trigger(proc(self: Entity_Id) {
+			name := entity_name(self)
 			if monster_fight_stage == 0 {
-				say("Oh, hey, $player. You wanna fight a special monster?", "Fella")
+				say("Oh, hey, $player. You wanna fight a special monster?", name)
 				ok: bool
 				choice: int
 				if choice, ok = choose("You'll get a prize if you win (maybe)!", {"I'm game.", "Nah, I'm good."}); !ok do return
@@ -50,11 +51,11 @@ init_quarry_main :: proc() {
 					}
 				}
 			} else if monster_fight_stage == 1 {
-				say("Go get 'em, tiger.", "Fella")
+				say("Go get 'em, tiger.", name)
 			} else if monster_fight_stage == 2 {
-				say("Good job! Your prize is on back-order. Sorry|", "Fella")
+				say("Good job! Your prize is on back-order. Sorry|", name)
 			} else if monster_fight_stage == 3 {
-				say("Oof, ouch. Come back another time.", "Fella")
+				say("Oof, ouch. Come back another time.", name)
 			}
 		})
 	})
@@ -64,18 +65,19 @@ init_quarry_main :: proc() {
 		sprite = walker_sprite(.Baddy_World),
 		tile = QUARRY_MAIN_BADDY,
 		trigger = new_trigger(proc(self: Entity_Id) {
+			name := entity_name(self)
 			ok: bool
 			choice: int
-			if choice, ok = choose("Hello there! Isn't it a lovely day?", {"Fight!", "I choose peace."}, speaker = "Monster"); !ok do return
+			if choice, ok = choose("Hello there! Isn't it a lovely day?", {"Fight!", "I choose peace."}, speaker = name); !ok do return
 			if choice == 0 {
 				start_encounter(.Mouse_Boss)
 				wait_battle()
 				pause(.5)
 				if battle_result() == .Win {
-					say("Well now the whole picnic is ruined.", speaker = "Monster")
+					say("Well now the whole picnic is ruined.", speaker = name)
 					monster_fight_stage = 2
 				} else if battle_result() == .Lose {
-					say("Looooooser.", speaker = "Monster")
+					say("Looooooser.", speaker = name)
 					monster_fight_stage = 3
 				}
 				fade_to(self, 0, 1)
