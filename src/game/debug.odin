@@ -5,11 +5,6 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-// Debug aids. F1 toggles the overlay (draw_debug_world, draw_debug_hud; the
-// key is read in player.odin). debug_update reads the other debug keys, from
-// the old game, and debug_draw draws what they toggle; both do nothing
-// outside debug builds (ODIN_DEBUG).
-
 DEBUG_FRAMERATE_PERIOD :: 5 // seconds
 THROTTLED_FPS :: #config(FPS, 60)
 
@@ -21,13 +16,11 @@ debug_grid: bool
 debug_overlay: bool
 debug_text: bool
 
-// TODO: battle-only flags, unused until battles are ported.
 force_drops: bool
 moogle_charm: bool
 
-throttle := true // vsync and SetTargetFPS(THROTTLED_FPS), as main sets up
+throttle := true // debug
 
-// World space (inside BeginMode2D): grid lines, trigger outlines, and the tile the player faces.
 draw_debug_world :: proc() {
 	if !debug_overlay do return
 
@@ -110,7 +103,6 @@ debug_draw :: proc() {
 	when !ODIN_DEBUG do return // debug builds only
 
 	view := [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT}
-	font := game.ui.font
 
 	if debug_framerate {
 		h: f32 = 8

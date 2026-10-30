@@ -251,8 +251,8 @@ start_menu_draw_title :: proc() {
 			tint2.a = u8(255 * start_menu.fade_t / FADE_IN_T)
 		}
 	}
-	rl.DrawTextEx(game.ui.font, SPLASH_TITLE, {1.25 * TILE_SIZE, 3 * TILE_SIZE}, 1.5 * TILE_SIZE, 0, tint)
-	rl.DrawTextEx(game.ui.font, SPLASH_TITLE, {1.35 * TILE_SIZE, 3.1 * TILE_SIZE}, 1.5 * TILE_SIZE, 0, tint2)
+	rl.DrawTextEx(font, SPLASH_TITLE, {1.25 * TILE_SIZE, 3 * TILE_SIZE}, 1.5 * TILE_SIZE, 0, tint)
+	rl.DrawTextEx(font, SPLASH_TITLE, {1.35 * TILE_SIZE, 3.1 * TILE_SIZE}, 1.5 * TILE_SIZE, 0, tint2)
 
 	if start_menu.ui_state == .Start {
 		draw_text(4, 10, "Press Z to Start")

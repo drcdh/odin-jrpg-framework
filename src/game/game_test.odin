@@ -195,7 +195,7 @@ spawn_centers_pos_on_tile :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	e := spawn_entity({tile = {2, 3}, pos = {999, 999}})
 	testing.expect_value(t, entity_pos(e), [2]f32{2 * 16 + 8, 3 * 16 + 8})
-	testing.expect_value(t, world_to_tile(entity_pos(e)), Tile{2, 3})
+	testing.expect_value(t, pixel_to_tile(entity_pos(e)), Tile{2, 3})
 }
 
 @(test)

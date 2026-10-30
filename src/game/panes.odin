@@ -27,17 +27,20 @@ Pane_Piece :: enum {
 	Bottom_Right,
 }
 
+@(private = "file")
+pane: rl.Texture
+
 @(private)
 panes_init :: proc() {
 	pane_image := rl.LoadImageFromMemory(".png", raw_data(PANE_IMAGE_DATA), i32(len(PANE_IMAGE_DATA)))
-	game.ui.pane = rl.LoadTextureFromImage(pane_image)
+	pane = rl.LoadTextureFromImage(pane_image)
 	rl.UnloadImage(pane_image)
 }
 
 @(private)
 panes_destroy :: proc() {
-	if game.ui.pane.id != 0 do rl.UnloadTexture(game.ui.pane)
-	game.ui.pane = {}
+	if pane.id != 0 do rl.UnloadTexture(pane)
+	pane = {}
 }
 
 @(private = "file")
@@ -63,7 +66,7 @@ draw_pane_piece :: proc(piece: Pane_Piece, l, t: f32) {
 		src.x = 2 * PANE_PIECE_SIZE
 		src.y = 2 * PANE_PIECE_SIZE
 	}
-	draw_ui_texture(game.ui.pane, src, tile_to_pixel(l, t))
+	draw_ui_texture(pane, src, tile_to_pixel(l, t))
 }
 
 // A pane at (l, t), w x h UI tiles, in half-tile steps.

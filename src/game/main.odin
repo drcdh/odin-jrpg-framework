@@ -25,7 +25,6 @@ Game :: struct {
 	swapped_sprites: map[Swap_Key]Sprite_Handle, // palette-swapped sprites
 	tilesets:        [Tileset_Id]rl.Texture, // loaded on first use
 	tweens:          hm.Dynamic_Handle_Map(Tween, Tween_Id),
-	ui:              UI, // font, pane texture, icons; loaded only with a window
 }
 
 @(private)

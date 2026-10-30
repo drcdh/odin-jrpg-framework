@@ -2,6 +2,10 @@ build/
 saves/
 *_data.odin
 .~lock.*
+src.bin
+jrpg
+jrpg-release
+test-jrpg
 
 .claude/
 
