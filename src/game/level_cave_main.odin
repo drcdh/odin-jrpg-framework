@@ -20,10 +20,10 @@ torch :: proc(_: Entity_Id) {
 
 init_cave_main :: proc() {
 	play_music(.Cave)
-	spawn_entity({name = "fire 0", tile = CAVE_MAIN_FIRE_0, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
-	spawn_entity({name = "fire 1", tile = CAVE_MAIN_FIRE_1, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
-	spawn_entity({name = "fire 2", tile = CAVE_MAIN_FIRE_2, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
-	spawn_entity({name = "fire 3", tile = CAVE_MAIN_FIRE_3, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
+	spawn_entity({name = "fire 0", light = 2, tile = CAVE_MAIN_FIRE_0, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
+	spawn_entity({name = "fire 1", light = 2, tile = CAVE_MAIN_FIRE_1, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
+	spawn_entity({name = "fire 2", light = 2, tile = CAVE_MAIN_FIRE_2, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
+	spawn_entity({name = "fire 3", light = 2, tile = CAVE_MAIN_FIRE_3, sprite = create_sprite_state(.Fire, play = true), trigger = new_trigger(torch)})
 
 	set_light(player(), PLAYER_LIGHT_MAX)
 	darkness = DARKNESS - PLAYER_LIGHT_MAX * DIM_FACT
