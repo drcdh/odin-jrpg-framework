@@ -29,7 +29,7 @@ init_house_main :: proc() {
 			name = "Guy",
 			sprite = walker_sprite(
 				.Man_Ps,
-				{
+				palette = {
 					{rl.GetColor(0xeeeeeeff), rl.PINK},
 					{rl.GetColor(0xddddddff), rl.BLUE},
 					{rl.GetColor(0xccccccff), rl.BROWN},

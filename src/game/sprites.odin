@@ -4,7 +4,7 @@ import rl "vendor:raylib"
 
 // A walking character that faces where it's going and, by default, takes one
 // stride per tile only while it moves (Anim_When.Moving).
-walker_sprite :: proc(name: Sprite_Name, palette: Palette_Swap = {}, layer: i32 = 0, tag: Sprite_Tag = .Down, anim_when := Anim_When.Moving) -> Sprite_State {
+walker_sprite :: proc(name: Sprite_Name, tag: Sprite_Tag = .Down, palette: Palette_Swap = {}, layer: i32 = 0, anim_when := Anim_When.Moving) -> Sprite_State {
 	return create_sprite_state(name, tag, palette = palette, play = true, follow_facing = true, layer = layer, anim_when = anim_when)
 }
 
@@ -26,9 +26,9 @@ PC_PALETTES := [NUM_PC - 1][4]Color_Swap {
 }
 
 // A playable character's walking sprite.
-pc_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
+pc_sprite :: proc(pc_idx: int, tag: Sprite_Tag = .Down, layer: i32 = 0) -> Sprite_State {
 	if pc_idx == 0 do return walker_sprite(.Player_World, layer = layer)
-	return walker_sprite(.Man_Ps, PC_PALETTES[pc_idx - 1][:], layer)
+	return walker_sprite(.Man_Ps, tag=tag, palette=PC_PALETTES[pc_idx - 1][:], layer=layer)
 }
 
 // A playable character's battle sprite, idling.
