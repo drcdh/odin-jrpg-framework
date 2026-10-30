@@ -1,8 +1,9 @@
 #+private file
 package game
 
-
 dude_pace: Script_Id
+player_id: Entity_Id
+robot_id: Entity_Id
 
 @(private)
 init_grove_main :: proc() {
@@ -152,6 +153,30 @@ init_grove_main :: proc() {
 		},
 	)
 
+	player_id = player()
+
+	// FIXME: walking the robot onto the warp tile should do nothing
+	robot_id = spawn_entity({
+		name = "robot",
+		tile = GROVE_MAIN_ROBOT,
+		sprite = create_sprite_state(.Robot),
+		step_time = DEFAULT_STEP_TIME/2,
+		trigger = new_trigger(proc(_: Entity_Id) {
+			say("Cool! It's a highly sophisticated robot, fully functional (no, not like that).")
+			choice: int
+			ok: bool
+			if choice, ok = choose("Control it for a while?", {"Yes", "No"}); !ok do return
+			if choice == 0 {
+				play_anim(robot_id)
+				say("Press Z when you're done")
+				set_player(robot_id)
+				camera_follow(robot_id, 1)
+				set_input_override(robot_input)
+				world.level_map.open_edges = false
+			}
+		})
+	})
+
 	if !get_game_data(Bool_Datum.Introduction) {
 		spawn(proc(self: Entity_Id) {
 			say("You're new in town|\nPress Z to start!")
@@ -173,5 +198,16 @@ pace_route :: proc(self: Entity_Id, route_idx: int) {
 	for {
 		pause(PAUSE) or_break
 		walk_route(self, route, STEP, PAUSE) or_break
+	}
+}
+
+robot_input :: proc() {
+	consume_input(.MENU) // effectively disable menu
+	if get_input(.ENTER) {
+		stop_anim(robot_id)
+		set_player(player_id)
+		camera_follow(player_id, 4)
+		set_input_override(nil)
+		world.level_map.open_edges = true
 	}
 }

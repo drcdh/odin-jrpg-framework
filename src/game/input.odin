@@ -170,3 +170,7 @@ grid_change :: proc(i, dx, dy, W, H: int) -> int {
 	}
 	return _i
 }
+
+set_input_override :: proc(f: proc()) {
+	game.input_override = f
+}

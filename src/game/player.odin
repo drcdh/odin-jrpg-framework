@@ -49,6 +49,8 @@ player_update :: proc() {
 	// A script holds the player (set_busy_player): no walking or talking.
 	if is_busy(p) do return
 
+	if game.input_override != nil do game.input_override()
+
 	if get_input(.MENU) {
 		// Only at rest: a script may be moving the player without holding it.
 		if e, _ := entity_get(p); e.pos == tile_center(e.tile) do world_menu_enter()
