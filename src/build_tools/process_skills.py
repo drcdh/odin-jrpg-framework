@@ -1,8 +1,9 @@
 import csv
+import pathlib
 
 from processing import name_to_enum, process_text
 
-ROOT = "./content"
+ROOT = "./content/skills"
 DEST = "./src/game"
 
 DEFAULTS = dict(
@@ -51,11 +52,13 @@ def odin_skill(row):
 def write_skill(f, oskill):
 	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
 
-in_f = open(f"{ROOT}/skills.csv")
-reader = csv.DictReader(in_f, delimiter=",")
-for row in reader:
-	skills.append(odin_skill(row))
-in_f.close()
+
+for file in sorted(pathlib.Path(ROOT).rglob("*.csv")):
+	in_f = open(file)
+	reader = csv.DictReader(in_f, delimiter=",")
+	for row in reader:
+		skills.append(odin_skill(row))
+	in_f.close()
 
 out_f = open(f"{DEST}/skill_data.odin", "w")
 out_f.write("package game\n\n")

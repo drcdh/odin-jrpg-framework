@@ -1,8 +1,10 @@
 import csv
+import pathlib
 
 from processing import name_to_enum, process_text
 
-ROOT = "./content"
+ROOT_C = "./content/consumables"
+ROOT_E = "./content/equippables"
 DEST = "./src/game"
 
 items = []
@@ -56,15 +58,19 @@ def write_item(f, oitem):
 	else:
 		f.write("\t{{ \"{name}\", Equippable{{ {stats_add}, {stats_mul}, {slot} }}, \"{description}\", {price} }},\n".format(**oitem))
 
-with open(f"{ROOT}/consumables.csv") as f:
+for file in sorted(pathlib.Path(ROOT_C).rglob("*.csv")):
+	f = open(file)
 	reader = csv.DictReader(f, delimiter=",")
 	for row in reader:
 		items.append(odin_consumable(row))
+	f.close()
 
-with open(f"{ROOT}/equippables.csv") as f:
+for file in sorted(pathlib.Path(ROOT_E).rglob("*.csv")):
+	f = open(file)
 	reader = csv.DictReader(f, delimiter=",")
 	for row in reader:
 		items.append(odin_equippable(row))
+	f.close()
 
 with open(f"{DEST}/item_data.odin", "w") as f:
 	f.write("package game\n\n")

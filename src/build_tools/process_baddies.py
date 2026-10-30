@@ -1,8 +1,9 @@
 import csv
+import pathlib
 
 from processing import name_to_enum
 
-ROOT = "./content"
+ROOT = "./content/baddies"
 DEST = "./src/game"
 SPRITE_ROOT = "./assets/sprites"
 
@@ -11,7 +12,8 @@ baddy_templates = [""]
 
 n = 1
 
-with open(f"{ROOT}/baddies.csv") as f:
+for file in sorted(pathlib.Path(ROOT).rglob("*.csv")):
+	f = open(file)
 	reader = csv.DictReader(f, delimiter=",")
 	for row in reader:
 		baddy_id_enum = name_to_enum(row["name"])
@@ -51,6 +53,7 @@ with open(f"{ROOT}/baddies.csv") as f:
 		spoils[1] = "{{ .{}, {} }}".format(row["s2"] or "None", row["s2p"] or "0")
 		template_str += "spoils = {" + ",".join(spoils) + "},"
 		baddy_templates.append(template_str)
+	f.close()
 
 out_f = open(f"{DEST}/baddy_data.odin", "w")
 
@@ -73,3 +76,4 @@ out_f.write("}\n")
 out_f.write(f"NUM_BADDY_TEMPLATES :: {len(baddy_id_enums)}")
 
 out_f.close()
+
