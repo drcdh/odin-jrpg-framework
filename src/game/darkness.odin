@@ -17,7 +17,7 @@ delete_darkness :: proc() {
 }
 
 draw_darkness :: proc() {
-	src := rl.Rectangle{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}
+	src := rl.Rectangle{0, 0, WINDOW_WIDTH, -WINDOW_HEIGHT}
 	dest := rl.Rectangle{0, 0, WINDOW_WIDTH, WINDOW_HEIGHT}
 	rl.DrawTexturePro(darkness_texture.texture, src, dest, {}, 0, {255, 255, 255, darkness})
 }
