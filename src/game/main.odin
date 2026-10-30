@@ -45,13 +45,7 @@ init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 
 	game.clock = {time_scale = time_scale}
 
-	// TODO: use #load, preload (as here) at runtime, or lazy-load
-	for bt in baddy_templates {
-		preload_sprite(bt.texture)
-	}
-	for skill in skills {
-		preload_sprite(skill.animation)
-	}
+	for s in Sprite_Name do preload_sprite(s) // TODO: use #load, preload (as here) at runtime, or lazy-load
 
 	init_darkness()
 	init_overlays()
