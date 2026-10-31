@@ -82,8 +82,14 @@ with open(f"{DEST}/item_data.odin", "w") as f:
 	f.write("}\n\n")
 
 	f.write("// TODO @(rodata)\n")
+	f.write("// TODO @(private = \"file\")\n")
 	f.write(f"items := [{len(items)}]Item {{\n")
 	for item in items:
 		write_item(f, item)
 	f.write("}\n")
 
+	f.write("""
+// get_item :: proc(item_name: Item_Name) -> Item {
+// 	return items[item_name]
+// }
+	""")
