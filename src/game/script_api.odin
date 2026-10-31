@@ -281,17 +281,10 @@ pan_camera_to_tile :: proc(tile: Tile, speed: f32, easing := Ease.Linear, loc :=
 	return wait_until(proc(_: rawptr) -> bool { return !camera_panning() }, loc = loc)
 }
 
-// Walks route[0] → route[1] → … tile by tile. By default it closes the loop
-// back to route[0] (one lap); with `once` it stops on the last vertex, and the
-// route needn't close. Every leg walked must be straight: its two vertices
-// differ in only one dimension. The entity should start on route[0].
-// `pause_between` waits between tiles and at each corner, but not after the
-// final tile. A non-nil `seconds_per_tile` overwrites the entity's step_time,
-// as in walk_entity.
-walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, once := false, loc := #caller_location) -> bool {
+walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, close := false, loc := #caller_location) -> bool {
 	assert(len(route) >= 2, "a route needs at least two vertices", loc)
 	if s, ok := seconds_per_tile.?; ok do set_step_time(id, s)
-	legs := once ? len(route) - 1 : len(route)
+	legs := close ? len(route) : len(route) - 1
 	for i in 0..<legs {
 		from, to := route[i], route[(i + 1) % len(route)]
 		assert(from.x == to.x || from.y == to.y, "route legs must be straight: adjacent vertices may differ in x or y, not both", loc)
@@ -300,6 +293,31 @@ walk_route :: proc(id: Entity_Id, route: []Tile, seconds_per_tile: Maybe(f32) = 
 	}
 	return true
 }
+
+walk_map_route :: proc(id: Entity_Id, route_idx: int, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, close := false, repeat := false, loc := #caller_location) -> bool {
+	// if repeat && !close do log.warning("walk_map_route called with repeat=true and close=false")
+	route := map_route(route_idx)
+	if !walk_to(id, route[0], seconds_per_tile, pause_between, loc) do return false
+	for {
+		if !pause(pause_between, loc) do return false
+		if !walk_route(id, route, seconds_per_tile, pause_between, close || repeat, loc) do return false
+		if !repeat do break
+	}
+	return true
+}
+
+// TODO: go back and forth along route that may not be closed
+// walk_map_route_bounce :: proc(id: Entity_Id, route_idx: int, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, loc := #caller_location) {
+// 	route := map_route(route_idx)
+// 	reverse_route := route[:]; slice.reverse(reverse_route)
+// 	if !walk_to(id, route[0], seconds_per_tile, pause_between, loc) do return
+// 	for {
+// 		pause(pause_between, loc) or_break
+// 		walk_route(id, route, seconds_per_tile, pause_between, true, loc) or_break
+// 		pause(pause_between, loc) or_break
+// 		walk_route(id, reverse_route, seconds_per_tile, pause_between, true, loc) or_break
+// 	}
+// }
 
 tint_to :: proc(id: Entity_Id, tint: rl.Color, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
 	return wait_tween(tween_tint(id, tint, duration, easing), loc)
