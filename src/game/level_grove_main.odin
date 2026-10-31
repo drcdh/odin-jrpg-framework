@@ -184,22 +184,11 @@ init_grove_main :: proc() {
 	}
 }
 
-pace_dude_route_0 :: proc(self: Entity_Id) {pace_route(self, GROVE_MAIN_DUDE_ROUTE_0)}
-pace_dude_route_1 :: proc(self: Entity_Id) {pace_route(self, GROVE_MAIN_DUDE_ROUTE_1)}
+pace_dude_route_0 :: proc(self: Entity_Id) {walk_map_route(self, GROVE_MAIN_DUDE_ROUTE_0, repeat=true)}
+pace_dude_route_1 :: proc(self: Entity_Id) {walk_map_route(self, GROVE_MAIN_DUDE_ROUTE_1, repeat=true)}
 
 // Walks to the start of the route, then paces it forever. walk_route closes
 // the loop, so a two-point route goes out and back.
-pace_route :: proc(self: Entity_Id, route_idx: int) {
-	STEP :: 0.4
-	PAUSE :: 0.25
-	route := map_route(route_idx)
-	if !walk_to(self, route[0], STEP, PAUSE) do return
-	for {
-		pause(PAUSE) or_break
-		walk_route(self, route, STEP, PAUSE) or_break
-	}
-}
-
 robot_input :: proc() {
 	consume_input(.MENU) // effectively disable menu
 	if get_input(.ENTER) {

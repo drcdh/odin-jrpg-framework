@@ -594,7 +594,7 @@ create_sprite_state_without_window :: proc(t: ^testing.T) {
 walk_route_loops_back_to_start :: proc(t: ^testing.T) {
 	init(); defer shutdown()
 	e := spawn_entity({tile = test_route[0]})
-	s := spawn(proc(self: Entity_Id) { walk_route(self, test_route[:], 0.1, pause_between = 0.05) }, e)
+	s := spawn(proc(self: Entity_Id) { walk_route(self, test_route[:], 0.1, pause_between = 0.05, close = true) }, e)
 
 	visited := make([dynamic]Tile, context.temp_allocator)
 	append(&visited, entity_tile(e))
@@ -618,7 +618,7 @@ walk_route_once_stops_at_last_vertex :: proc(t: ^testing.T) {
 	test_open_route_ok = false
 	e := spawn_entity({tile = test_open_route[0]})
 	s := spawn(proc(self: Entity_Id) {
-		test_open_route_ok = walk_route(self, test_open_route[:], 0.1, pause_between = 0.05, once = true)
+		test_open_route_ok = walk_route(self, test_open_route[:], 0.1, pause_between = 0.05, close = false)
 	}, e)
 
 	visited := make([dynamic]Tile, context.temp_allocator)

@@ -92,8 +92,8 @@ intro_cutscene :: proc(_: Entity_Id) {
 	dude, fella := find("Dude"), find("Fella")
 
 	walkers := [2]Script_Id {
-		spawn(proc(self: Entity_Id) { walk_route(self, DUDE_PATH, once = true) }, dude, "intro: Dude"),
-		spawn(proc(self: Entity_Id) { walk_route(self, FELLA_PATH, once = true) }, fella, "intro: Fella"),
+		spawn(proc(self: Entity_Id) { walk_route(self, DUDE_PATH) }, dude, "intro: Dude"),
+		spawn(proc(self: Entity_Id) { walk_route(self, FELLA_PATH) }, fella, "intro: Fella"),
 	}
 	pause(.5)
 	fade_screen(0, 1.5)
