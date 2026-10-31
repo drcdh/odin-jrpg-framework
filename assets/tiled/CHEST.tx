@@ -5,6 +5,7 @@
    <property name="encounter" value=""/>
    <property name="hidden" type="bool" value="false"/>
    <property name="items" value=""/>
+   <property name="money" type="int" value="0"/>
   </properties>
   <point/>
  </object>

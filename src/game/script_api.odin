@@ -342,7 +342,7 @@ rotate_by :: proc(id: Entity_Id, degrees: f32, duration: f32, easing := Ease.Lin
 // Adds `items` to the inventory and says so: "Got Potion x2, Tea!". Does
 // nothing without items.
 get_items :: proc(items_: ..Item_Name, loc := #caller_location) -> bool {
-	if len(items) == 0 do return true
+	if len(items_) == 0 do return true
 	counts: [Item_Name]int
 	for item in items_ {
 		add_item(item)
@@ -356,4 +356,13 @@ get_items :: proc(items_: ..Item_Name, loc := #caller_location) -> bool {
 		counts[item] = 0
 	}
 	return say(strings.concatenate({"Got ", strings.join(names[:], ", ", context.temp_allocator), "!"}, context.temp_allocator), loc = loc)
+}
+
+get_money :: proc(money: Money) -> bool {
+	if money <= 0 {
+		log.warnf("get_money called with money = %v <= 0", money)
+		return true
+	}
+	inc_money(money)
+	return say(fmt.tprintf("Got money: $%d", money))
 }

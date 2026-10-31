@@ -94,19 +94,20 @@ vanish :: proc(self: Entity_Id) {
 // A chest's trigger script: opens the box, gives `items` and says so. The box
 // can't be opened again: its trigger is cleared and the datum is set, so the
 // level spawns it opened from then on.
-items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name) {
+items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name, money: Money = 0) {
 	set_game_data(datum, true)
 	clear_trigger(self)
 	set_sprite_tag_of(self, .Opened)
-	if len(items) == 0 {
+	if len(items) == 0 && money <= 0 {
 		say("Ooh, nothing!")
 	} else {
 		get_items(..items)
+		get_money(money)
 	}
 }
 
 // this gets called inside a trigger script, so stuff can block
-monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encounter_Name, items: ..Item_Name) {
+monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encounter_Name, items: ..Item_Name, money: Money = 0) {
 	log.infof("monster-in-a-box %v encounter %v", datum, encounter)
 	set_game_data(datum, true)
 	clear_trigger(self)
@@ -117,7 +118,8 @@ monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encount
 	pause(.5) // wait for fade_screen in show_skill_results
 	log.infof("monster-in-a-box %v items %v", datum, items)
 	// say nothing if no items in this case
-	if len(items) > 0 do get_items(..items)
+	get_items(..items)
+	get_money(money)
 }
 
 // should get called inside a script, so stuff can block

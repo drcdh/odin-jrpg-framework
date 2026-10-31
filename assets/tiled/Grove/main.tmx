@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="64">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="64">
  <properties>
   <property name="background" value="Grass"/>
   <property name="edge_level" value="Overworld"/>
@@ -131,6 +131,10 @@
     <property name="items" value="Potion"/>
    </properties>
   </object>
-  <object id="60" template="../CHEST.tx" x="184" y="156"/>
+  <object id="60" template="../CHEST.tx" x="184" y="156">
+   <properties>
+    <property name="money" type="int" value="123"/>
+   </properties>
+  </object>
  </objectgroup>
 </map>
