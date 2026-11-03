@@ -355,7 +355,7 @@ get_items :: proc(items_: ..Item_Name, loc := #caller_location) -> bool {
 		append(&names, n == 1 ? items[item].name : fmt.tprintf("%s x%d", items[item].name, n))
 		counts[item] = 0
 	}
-	return say(strings.concatenate({"Got ", strings.join(names[:], ", ", context.temp_allocator), "!"}, context.temp_allocator), loc = loc)
+	return say(strings.concatenate({len(items_) > 1 ? "Got items: " : "Got item: ", strings.join(names[:], ", ", context.temp_allocator)}, context.temp_allocator), loc = loc)
 }
 
 get_money :: proc(money: Money) -> bool {
