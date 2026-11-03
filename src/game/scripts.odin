@@ -2,8 +2,6 @@ package game
 
 import "core:fmt"
 import "core:log"
-import "core:math/rand"
-import rl "vendor:raylib"
 
 // this gets called inside a trigger script, so stuff can block
 items_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, items: ..Item_Name, money: Money = 0) {
