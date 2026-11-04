@@ -155,6 +155,7 @@ spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 	sprite := walker_sprite(.Player_World, layer = 1)
 	player := spawn_entity({
 		name      = "player",
+		autotag   = true,
 		tile      = tile,
 		facing    = face,
 		sprite    = sprite,

@@ -11,6 +11,7 @@ Entity :: struct {
 	tile:    Tile,
 	pos:     [2]f32,
 	facing:  Direction,
+	autotag: bool,      // when moving, automatically change sprite within walking_tags_groups (without resetting animation)
 	busy:    bool,      // other scripts than busy_by can't move or turn it; see set_busy
 	busy_by: Script_Id, // the script that set busy; {} = the main thread
 	ghost:   bool,      // neither blocks nor is blocked by other entities
@@ -46,6 +47,29 @@ spawn_entity :: proc(e: Entity) -> Entity_Id {
 	h, err := hm.add(&game.entities, e)
 	assert(err == nil, "out of memory spawning entity")
 	return h
+}
+
+spawn_walker :: proc(
+	name:      string,
+	facing:    Direction,
+	sprite:    Sprite_State,
+	tile:      Tile,
+	ghost:=    false,
+	light:     f32=0,
+	step_time: f32=DEFAULT_STEP_TIME,
+	talk:      Script_Proc=nil,
+) -> Entity_Id {
+	return spawn_entity({
+		name=name,
+		tile=tile,
+		facing=facing,
+		autotag = true,
+		ghost = ghost,
+		sprite = sprite,
+		trigger = new_trigger(talk),
+		step_time = DEFAULT_STEP_TIME,
+		light = light,
+	})
 }
 
 entity_get :: proc(id: Entity_Id) -> (^Entity, bool) #optional_ok {

@@ -27,6 +27,7 @@ init_house_main :: proc() {
 	spawn_entity(
 		Entity {
 			name = "Guy",
+			autotag = true,
 			facing = .Right,
 			sprite = walker_sprite(
 				.Man_Ps,

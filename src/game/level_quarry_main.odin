@@ -13,9 +13,10 @@ init_quarry_main :: proc() {
 	play_music(.Town)
 
 	if !get_game_data(Bool_Datum.Introduction) {
-		dude := spawn_entity({name = "Dude", tile = DUDE_PATH[0], facing = .Right, sprite = walker_sprite(.Dude)})
+		dude := spawn_entity({name = "Dude", tile = DUDE_PATH[0], autotag=true, facing = .Right, sprite = walker_sprite(.Dude)})
 		spawn_entity({
 			name   = "Fella",
+			autotag = true,
 			tile   = FELLA_PATH[0],
 			facing = .Up,
 			sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
@@ -30,6 +31,7 @@ init_quarry_main :: proc() {
 
 	spawn_entity({
 		name = "Fella",
+		autotag = true,
 		facing = .Left,
 		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
 		tile = QUARRY_MAIN_FELLA,
@@ -62,6 +64,7 @@ init_quarry_main :: proc() {
 
 	spawn_entity({
 		name = "Baddy",
+		autotag = true,
 		sprite = walker_sprite(.Baddy_World),
 		tile = QUARRY_MAIN_BADDY,
 		trigger = new_trigger(proc(self: Entity_Id) {

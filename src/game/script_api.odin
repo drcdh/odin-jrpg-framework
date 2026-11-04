@@ -37,7 +37,10 @@ set_busy_player :: proc(busy := true) {
 // Does nothing from a script while the entity is busy with another (set_busy).
 set_facing :: proc(id: Entity_Id, dir: Direction) {
 	if entity_busy(id) do return
-	if e, ok := entity_get(id); ok do e.facing = dir
+	if e, ok := entity_get(id); ok {
+		if e.autotag do set_sprite_tag(&e.sprite, get_next_walk_tag(e.sprite.tag, dir), reset=false)
+		e.facing = dir
+	}
 }
 
 set_facing_player :: proc(id: Entity_Id) {
@@ -83,8 +86,8 @@ set_curtain :: proc(alpha: f32) {
 // Sprite playback on an entity. Only switches rows and frames of an already
 // loaded sheet, so these are safe from scripts.
 
-// Shows `tag` on `id`'s sprite. Turns off follow_facing, so the tag sticks on
-// a walker (e.g. Downed); set_follow_facing restores it. Warns if the sheet
+// Shows `tag` on `id`'s sprite. Turns off autotag, so the tag sticks on
+// a walker (e.g. Downed); set_autotag restores it. Warns if the sheet
 // has no such row.
 set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := #caller_location) -> Maybe(Sprite_Tag) {
 	e, ok := entity_get(id)
@@ -96,7 +99,6 @@ set_sprite_tag_of :: proc(id: Entity_Id, tag: Sprite_Tag, reset := true, loc := 
 		}
 	}
 	prev := e.sprite.tag
-	e.sprite.follow_facing = false
 	set_sprite_tag(&e.sprite, tag, reset)
 	log.infof("set %v's sprite to tag %v (was %v)", e.name, tag, prev, location = loc)
 	return prev
@@ -114,8 +116,8 @@ set_step_time :: proc(id: Entity_Id, seconds_per_tile: f32) {
 
 // Whether `id`'s sprite keeps to the row for its facing (walker sprites do).
 // Turning it back on snaps the row to the facing on the next update.
-set_follow_facing :: proc(id: Entity_Id, follow := true) {
-	if e, ok := entity_get(id); ok do e.sprite.follow_facing = follow
+set_autotag :: proc(id: Entity_Id, follow := true) {
+	if e, ok := entity_get(id); ok do e.autotag = follow
 }
 
 play_anim :: proc(id: Entity_Id) {

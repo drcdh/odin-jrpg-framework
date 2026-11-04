@@ -17,6 +17,7 @@ init_grove_main :: proc() {
 	dude := spawn_entity(
 	{
 		name    = "Dude",
+		autotag = true,
 		tile    = GROVE_MAIN_DUDE_SPAWN_MET if met else GROVE_MAIN_DUDE_SPAWN_NOT_MET,
 		sprite  = walker_sprite(.Dude),
 		// Faces the player and stops pacing while they talk.

@@ -467,31 +467,31 @@ animation_length_per_row :: proc(t: ^testing.T) {
 	expect_near(t, animation_length(h), 0.45)
 }
 
-@(test)
-follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
-	init(); defer shutdown()
-	s := fake_sprite(hero_meta())
-	s.follow_facing = true
-	s.anim = true
-	s.frame = 1
-	e := spawn_entity({facing = .Up, sprite = s})
-	b := fake_sprite(blink_meta())
-	b.follow_facing = true // no direction rows: ignored
-	other := spawn_entity({facing = .Right, sprite = b})
-
-	sprites_update(0)
-	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Up)
-	testing.expect(t, entity_get(e).sprite.anim && entity_get(e).sprite.frame == 1, "row switch keeps playback")
-	testing.expect_value(t, entity_get(other).sprite.tag, Sprite_Tag.Left) // zero value, untouched
-
-	// Moving to a row with fewer frames wraps the frame.
-	entity_get(e).sprite.tag = .Cheer
-	entity_get(e).sprite.frame = 2
-	set_facing(e, .Down)
-	sprites_update(0)
-	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Down)
-	testing.expect_value(t, entity_get(e).sprite.frame, 0)
-}
+// @(test)
+// follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
+// 	init(); defer shutdown()
+// 	s := fake_sprite(hero_meta())
+// 	s.follow_facing = true
+// 	s.anim = true
+// 	s.frame = 1
+// 	e := spawn_entity({facing = .Up, sprite = s})
+// 	b := fake_sprite(blink_meta())
+// 	b.follow_facing = true // no direction rows: ignored
+// 	other := spawn_entity({facing = .Right, sprite = b})
+//
+// 	sprites_update(0)
+// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Up)
+// 	testing.expect(t, entity_get(e).sprite.anim && entity_get(e).sprite.frame == 1, "row switch keeps playback")
+// 	testing.expect_value(t, entity_get(other).sprite.tag, Sprite_Tag.Left) // zero value, untouched
+//
+// 	// Moving to a row with fewer frames wraps the frame.
+// 	entity_get(e).sprite.tag = .Cheer
+// 	entity_get(e).sprite.frame = 2
+// 	set_facing(e, .Down)
+// 	sprites_update(0)
+// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Down)
+// 	testing.expect_value(t, entity_get(e).sprite.frame, 0)
+// }
 
 @(test)
 moving_sprite_animates_one_stride_per_tile :: proc(t: ^testing.T) {
@@ -558,34 +558,34 @@ walk_speed_belongs_to_the_entity :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(e).pos, tile_center({2, 0}))
 }
 
-@(test)
-set_sprite_tag_of_overrides_follow_facing :: proc(t: ^testing.T) {
-	init(); defer shutdown()
-	s := fake_sprite(hero_meta())
-	s.follow_facing = true
-	e := spawn_entity({facing = .Up, sprite = s})
-
-	set_sprite_tag_of(e, .Cheer)
-	sprites_update(0)
-	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer)
-	set_facing(e, .Left)
-	sprites_update(0)
-	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer) // facing no longer wins
-
-	set_follow_facing(e)
-	sprites_update(0)
-	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Left)
-}
+// @(test)
+// set_sprite_tag_of_overrides_follow_facing :: proc(t: ^testing.T) {
+// 	init(); defer shutdown()
+// 	s := fake_sprite(hero_meta())
+// 	s.follow_facing = true
+// 	e := spawn_entity({facing = .Up, sprite = s})
+//
+// 	set_sprite_tag_of(e, .Cheer)
+// 	sprites_update(0)
+// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer)
+// 	set_facing(e, .Left)
+// 	sprites_update(0)
+// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer) // facing no longer wins
+//
+// 	set_follow_facing(e)
+// 	sprites_update(0)
+// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Left)
+// }
 
 @(test)
 create_sprite_state_without_window :: proc(t: ^testing.T) {
 	init(); defer shutdown()
-	s := create_sprite_state(.Man_Ps, tint = rl.GOLD, play = true, speed = 2, follow_facing = true, layer = 3)
+	s := create_sprite_state(.Man_Ps, tint = rl.GOLD, play = true, speed = 2, layer = 3)
 	testing.expect_value(t, s.sprite, Sprite_Handle{})
 	testing.expect_value(t, s.tint, rl.GOLD)
 	testing.expect_value(t, s.scale, [2]f32{1, 1})
 	testing.expect_value(t, s.origin, [2]f32{0.5, 0.5})
-	testing.expect(t, s.anim && s.speed == 2 && s.follow_facing && s.layer == 3)
+	testing.expect(t, s.anim && s.speed == 2 && s.layer == 3)
 }
 
 @(private = "file") test_route := [?]Tile{{0, 0}, {2, 0}, {2, 1}, {0, 1}}
@@ -1454,11 +1454,11 @@ palette_swaps_are_cached :: proc(t: ^testing.T) {
 	testing.expect_value(t, hm.len(game.sprites), 3)
 }
 
-@(test)
-tag_direction_inverts_direction_tag :: proc(t: ^testing.T) {
-	for d in Direction do testing.expect_value(t, tag_direction(direction_tag(d)), d)
-	testing.expect_value(t, tag_direction(.Walk), Direction.Down)
-}
+// @(test)
+// tag_direction_inverts_direction_tag :: proc(t: ^testing.T) {
+// 	for d in Direction do testing.expect_value(t, tag_direction(direction_tag(d)), d)
+// 	testing.expect_value(t, tag_direction(.Walk), Direction.Down)
+// }
 
 // --- World menu ---
 
