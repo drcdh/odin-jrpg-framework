@@ -73,24 +73,32 @@ init_house_main :: proc() {
 				autoboat_met = true
 			} else {
 				set_control(false); defer set_control(true)
-				// TODO: boat-mode passability
 				r := u8(rand.uint_max(256))
 				g := u8(rand.uint_max(256))
 				b := u8(rand.uint_max(256))
 				palette := Palette_Swap{{{156, 39, 176, 255}, {r, g, b, 255}}}
-				tile := HOUSE_MAIN_AUTOBOAT + {0, -1} // TODO: random between three tiles
+				d: Tile = rand.choice([]Tile{{-1, 0}, {0, -1}, {0, 1}})
+				tile := HOUSE_MAIN_AUTOBOAT + d
 				new_boat := spawn_entity({
 					name = "boat",
 					autotag = true,
+					ghost = true,
 					sprite = create_sprite_state(.Boat, palette=palette, play=true, anim_when=.Always), // requires lazy-loading
 					tile = tile,
 				})
 				spawn(proc(self: Entity_Id) {
-					// TODO: check starting tile to know what direction to go
-					walk_entity(self, {0, -20})
+					d: Tile
+					if entity_tile(self).y > HOUSE_MAIN_AUTOBOAT.y {
+						d = rand.choice([]Tile{{0, 20}, {-20, 0}}) // down or left
+					} else if entity_tile(self).y < HOUSE_MAIN_AUTOBOAT.y {
+						d = rand.choice([]Tile{{0, -20}, {-20, 0}}) // up or left
+					} else {
+						d = rand.choice([]Tile{{0, -20}, {0, 20}, {-20, 0}}) // up, down, or left
+					}
+					walk_entity(self, d)
 					destroy_entity(self)
 				}, new_boat)
-				pause(1)
+				pause(.25)
 			}
 		})
 	})
