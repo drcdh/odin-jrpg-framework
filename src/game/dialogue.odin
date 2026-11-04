@@ -85,19 +85,37 @@ dialogue_active :: proc() -> bool {
 // false if the script was cancelled; a cancelled speaker's box closes. The box
 // closes once the speaking script stops talking (doesn't say or choose again
 // on the frame it resumes), so a run of says reads as one conversation.
-say :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
+say_str :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
 	log.infof("say %v", text)
 	return dialogue_show(text, speaker, nil, hurry, pause, clear, loc)
 }
 
+say_eid :: proc(text: string, speaker: Entity_Id, hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
+	return say_str(text, entity_name(speaker), hurry, pause, clear, loc)
+}
+
+say :: proc {
+	say_eid,
+	say_str,
+}
+
 // Like say, then offers `choices` in a pane below the text. UP and DOWN move
 // the highlight (wrapping around), ENTER picks. Returns the chosen index.
-choose :: proc(text: string, choices: []string, speaker := "", loc := #caller_location) -> (choice: int, ok: bool) {
+choose_str :: proc(text: string, choices: []string, speaker := "", loc := #caller_location) -> (choice: int, ok: bool) {
 	assert(len(choices) > 0, "choose needs at least one choice", loc)
 	log.infof("given prompt \"%s\" with choices %v", text, choices)
 	ok = dialogue_show(text, speaker, choices, false, 0, true, loc)
 	log.infof("made choice %d of %d: \"%s\"", game.dialogue.choice+1, len(choices), choices[game.dialogue.choice])
 	return game.dialogue.choice, ok
+}
+
+choose_eid :: proc(text: string, choices: []string, speaker: Entity_Id, loc := #caller_location) -> (choice: int, ok: bool) {
+	return choose_str(text, choices, entity_name(speaker), loc)
+}
+
+choose :: proc {
+	choose_eid,
+	choose_str,
 }
 
 @(private)

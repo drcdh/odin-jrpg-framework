@@ -25,14 +25,14 @@ init_grove_main :: proc() {
 				set_game_data(Bool_Datum.Met_Dude, true)
 				// Switch to route 1. The new pacer waits until the talk ends (busy).
 				script_cancel(dude_pace)
-				say("Oh, hey! What's up, player?", entity_name(self))
+				say("Oh, hey! What's up, player?", self)
 				ok: bool
 				drink: int
-				if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}); !ok do return
+				if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}, self); !ok do return
 				if drink == 0 {
 					say("Ooh, sludgy!")
 					cream: int
-					if cream, ok = choose("With or without cream?", {"With", "Without"}); !ok do return
+					if cream, ok = choose("With or without cream?", {"With", "Without"}, self); !ok do return
 					if cream == 0 {
 						set_game_data(Int_Datum.Drink_Choice, DRINK_COFFEE_CREAM)
 						say(
@@ -57,11 +57,11 @@ init_grove_main :: proc() {
 				script_pause(dude_pace); defer script_unpause(dude_pace)
 				switch get_game_data(Int_Datum.Drink_Choice) {
 				case DRINK_TEA:
-					say("How's that tea?", entity_name(self))
+					say("How's that tea?", self)
 				case DRINK_COFFEE_BLACK, DRINK_COFFEE_CREAM:
-					say("You ever find a coffee shop?", entity_name(self))
+					say("You ever find a coffee shop?", self)
 				case:
-					say("Hi.", entity_name(self))
+					say("Hi.", self)
 				}
 			}
 		},
