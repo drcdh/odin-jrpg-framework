@@ -163,4 +163,5 @@ spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 	})
 	set_player(player)
 	camera_follow(player) // before init_*, so a level can point the camera elsewhere
+	set_control(true)
 }

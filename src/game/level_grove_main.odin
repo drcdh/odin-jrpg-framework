@@ -116,7 +116,7 @@ init_grove_main :: proc() {
 			tile    = GROVE_MAIN_JUKEBOX,
 			trigger = new_trigger(
 				proc(_: Entity_Id) {
-					set_player_busy(); defer free_player()
+					set_control(false); defer set_control(true)
 					say(
 						"This may look like an ol'-timey jukebox, but it's actually a subtemporal meso-reconstructive bio-phasmatron! Use it, and almost instantaneously you'll feel like you've had a good long rest.",
 					)

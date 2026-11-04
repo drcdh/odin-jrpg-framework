@@ -16,7 +16,7 @@ Player_Control :: struct {
 }
 
 @(private = "file")
-player_busy: bool
+control_enabled: bool
 
 // The player's turn, first thing in update: level changes, then walking (held
 // arrows) and talking (ENTER) for the player entity. Doors fire on their own
@@ -50,7 +50,7 @@ player_update :: proc() {
 		if level_transition_update() do return
 	}
 
-	if player_busy do return
+	if !control_enabled do return
 
 	if game.input_override != nil do game.input_override()
 
@@ -73,18 +73,14 @@ player_update :: proc() {
 	}
 }
 
-player_busy :: proc() -> bool {
-	return player_busy
+control_enabled :: proc() -> bool {
+	return control_enabled
 }
 
-set_player_busy :: proc(busy := true) {
-	prev := player_busy
-	player_busy = busy
-	log.infof("set_player_busy %v (was %v)", busy, prev)
-}
-
-free_player :: proc() {
-	set_player_busy(false)
+set_control :: proc(enable := true) {
+	prev := control_enabled
+	control_enabled = enable
+	log.infof("control %s (was %s)", control_enabled ? "ON" : "OFF", prev ? "ON" : "OFF")
 }
 
 // First held direction in a fixed order.
