@@ -65,7 +65,7 @@ spawn_walker :: proc(
 		ghost = ghost,
 		sprite = sprite,
 		trigger = {script = talk},
-		step_time = DEFAULT_STEP_TIME,
+		step_time = step_time,
 		light = light,
 	})
 }
