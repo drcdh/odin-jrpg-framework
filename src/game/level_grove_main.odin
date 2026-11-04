@@ -23,7 +23,7 @@ init_grove_main :: proc() {
 			set_facing_player(self)
 			if !get_game_data(Bool_Datum.Met_Dude) {
 				set_game_data(Bool_Datum.Met_Dude, true)
-				// Switch to route 1. The new pacer waits until the talk ends (busy).
+				// Switch to route 1.
 				script_cancel(dude_pace)
 				say("Oh, hey! What's up, player?", self)
 				ok: bool

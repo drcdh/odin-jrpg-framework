@@ -135,11 +135,11 @@ dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pau
 		strings.builder_reset(&d.buffer)
 		d.buffer_end = 0
 	}
-	strings.write_string(&d.buffer, text)
+	strings.write_string(&d.buffer, replace_keynames(text))
 	strings.builder_reset(&d.speaker)
 	strings.write_string(&d.speaker, speaker)
 	dialogue_clear_choices()
-	for c in choices do append(&d.choices, strings.clone(c, d.buffer.buf.allocator))
+	for c in choices do append(&d.choices, replace_keynames(strings.clone(c, d.buffer.buf.allocator)))
 	d.choice = 0
 	d.hurry = hurry
 	d.pause = pause
@@ -342,4 +342,16 @@ dialogue_clear_choices :: proc() {
 	d := &game.dialogue
 	for c in d.choices do delete(c, d.buffer.buf.allocator)
 	clear(&d.choices)
+}
+
+@(private = "file")
+replace_keynames :: proc(text: string) -> string {
+	text := text
+	text, _ = strings.replace(text, "$one",   playable_characters[0].name, -1, context.temp_allocator)
+	text, _ = strings.replace(text, "$two",   playable_characters[1].name, -1, context.temp_allocator)
+	text, _ = strings.replace(text, "$three", playable_characters[2].name, -1, context.temp_allocator)
+	text, _ = strings.replace(text, "$four",  playable_characters[3].name, -1, context.temp_allocator)
+	text, _ = strings.replace(text, "$five",  playable_characters[4].name, -1, context.temp_allocator)
+	text, _ = strings.replace(text, "$six",	  playable_characters[5].name, -1, context.temp_allocator)
+	return text
 }

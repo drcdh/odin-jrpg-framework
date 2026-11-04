@@ -35,7 +35,11 @@ init_quarry_main :: proc() {
 		talk = proc(self: Entity_Id) {
 			name := entity_name(self)
 			if monster_fight_stage == 0 {
-				say("Oh, hey, $player. You wanna fight a special monster?", name)
+				if game_data.party_membership[1] {
+					say("Oh, hey, $one. Hi, $two. You two wanna fight a special monster?", name)
+				} else {
+					say("Oh, hey, $one. You wanna fight a special monster?", name)
+				}
 				ok: bool
 				choice: int
 				if choice, ok = choose("You'll get a prize if you win (maybe)!", {"I'm game.", "Nah, I'm good."}); !ok do return

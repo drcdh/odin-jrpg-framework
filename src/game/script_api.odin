@@ -17,7 +17,6 @@ set_tile :: proc(id: Entity_Id, tile: Tile) {
 }
 
 set_facing :: proc(id: Entity_Id, dir: Direction) {
-	// if entity_busy(id) do return
 	if e, ok := entity_get(id); ok {
 		if e.autotag do set_sprite_tag(&e.sprite, get_next_walk_tag(e.sprite.tag, dir), reset=false)
 		e.facing = dir
@@ -148,16 +147,11 @@ wait_until :: proc(pred: proc(data: rawptr) -> bool, data: rawptr = nil, loc := 
 	return yield_until(Wait_Pred{pred, data}, loc)
 }
 
-// One slide of `delta` tiles. The logical tile jumps to the destination at the
-// start, so for long moves prefer walk_entity. Waits first while the entity is
-// busy with another script (set_busy).
 move_entity :: proc(id: Entity_Id, delta: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
-	// if !wait_not_busy(id, loc) do return false
 	return wait_tween(tween_to_tile(id, entity_tile(id) + delta, duration, easing), loc)
 }
 
 move_entity_to :: proc(id: Entity_Id, to: Tile, duration: f32, easing := Ease.Linear, loc := #caller_location) -> bool {
-	// if !wait_not_busy(id, loc) do return false
 	return wait_tween(tween_to_tile(id, to, duration, easing), loc)
 }
 
@@ -171,24 +165,12 @@ wait_tile_clear :: proc(id: Entity_Id, tile: Tile, loc := #caller_location) -> b
 	}, &b, loc)
 }
 
-// Blocks while `id` is busy with another script (see set_busy).
-// wait_not_busy :: proc(id: Entity_Id, loc := #caller_location) -> bool {
-// 	assert(current_script != nil, "wait_not_busy called outside of a script", loc)
-// 	Held :: struct { id: Entity_Id, by: Script_Id }
-// 	h := Held{id, current_script.handle} // on this script's stack, which outlives the wait
-// 	return wait_until(proc(data: rawptr) -> bool {
-// 		held := (^Held)(data)
-// 		return !entity_held(held.id, held.by)
-// 	}, &h, loc)
-// }
-
 // Walks one tile at a time, x first and then y, facing each step's direction.
 // The entity's tile always matches the cell it's drawn in. Each step takes the
 // entity's step_time; a non-nil `seconds_per_tile` overwrites it first (and
 // it sticks). `pause_between` waits that long between tiles (not after the
 // last one).
-// Before each step it waits for the next tile to be clear of solid entities,
-// and while the entity is busy with another script (set_busy).
+// Before each step it waits for the next tile to be clear of solid entities.
 walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: Maybe(f32) = nil, pause_between: f32 = 0, loc := #caller_location) -> bool {
 	if s, ok := seconds_per_tile.?; ok do set_step_time(id, s)
 	first := true
@@ -203,11 +185,9 @@ walk_entity :: proc(id: Entity_Id, delta: Tile, seconds_per_tile: Maybe(f32) = n
 			if !first && pause_between > 0 && !pause(pause_between, loc) do return false
 			first = false
 			for {
-				// if !wait_not_busy(id, loc) do return false
 				set_facing(id, dir)
 				if !wait_tile_clear(id, entity_tile(id) + step, loc) do return false
-				// It may have been made busy, or moved, while it waited.
-				if /*!entity_busy(id) && */ !tile_occupied(entity_tile(id) + step, id) do break
+				if !tile_occupied(entity_tile(id) + step, id) do break
 			}
 			if !move_entity_to(id, entity_tile(id) + step, entity_step_time(id), loc = loc) do return false
 		}

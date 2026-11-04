@@ -62,7 +62,7 @@ init_house_main :: proc() {
 
 @(private = "file")
 door_knock :: proc(self: Entity_Id) {
-	// set_player_busy(); defer free_player()
+	set_control(false); defer set_control(true)
 	name := entity_name(self)
 	pause(.5)
 	play_sound(.Door_Knock)
