@@ -27,8 +27,6 @@ init_house_main :: proc() {
 	spawn_entity(
 		Entity {
 			name = "Guy",
-			autotag = true,
-			facing = .Right,
 			sprite = walker_sprite(
 				.Man_Ps,
 				{
@@ -40,17 +38,18 @@ init_house_main :: proc() {
 			),
 			tile = HOUSE_MAIN_GUY_SPAWN,
 			trigger = new_trigger(proc(self: Entity_Id) {
-					say("Erm, hello, player.", entity_name(self))
-					if get_game_data(Bool_Datum.Met_Dude) {
-						say("Have you met Dude yet? Very good.")
-					} else {
-						say("Have you met Dude yet? No? Well!")
-					}
-					choice: int
-					ok: bool
-					if choice, ok = choose("Care to buy something?", {"Whatcha got?", "I'm good."}); !ok do return
-					if choice == 0 do shop_enter(&GUY_SHOP)
-				}),
+				set_facing_player(self); defer set_facing(self, .Down)
+				say("Erm, hello, player.", entity_name(self))
+				if get_game_data(Bool_Datum.Met_Dude) {
+					say("Have you met Dude yet? Very good.")
+				} else {
+					say("Have you met Dude yet? No? Well!")
+				}
+				choice: int
+				ok: bool
+				if choice, ok = choose("Care to buy something?", {"Whatcha got?", "I'm good."}); !ok do return
+				if choice == 0 do shop_enter(&GUY_SHOP)
+			}),
 		},
 	)
 
@@ -62,6 +61,7 @@ init_house_main :: proc() {
 
 @(private = "file")
 door_knock :: proc(self: Entity_Id) {
+	// set_player_busy(); defer free_player()
 	name := entity_name(self)
 	pause(.5)
 	play_sound(.Door_Knock)

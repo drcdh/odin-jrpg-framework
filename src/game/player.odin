@@ -1,5 +1,6 @@
 package game
 
+import "core:log"
 import rl "vendor:raylib"
 
 _ :: rl // only used in debug builds
@@ -13,6 +14,9 @@ Player_Control :: struct {
 	step:     Tween_Id, // the current step; while it runs, input is ignored
 	stepping: bool,     // `step` hasn't been checked for an edge exit yet
 }
+
+@(private = "file")
+player_busy: bool
 
 // The player's turn, first thing in update: level changes, then walking (held
 // arrows) and talking (ENTER) for the player entity. Doors fire on their own
@@ -46,8 +50,7 @@ player_update :: proc() {
 		if level_transition_update() do return
 	}
 
-	// A script holds the player (set_busy_player): no walking or talking.
-	if is_busy(p) do return
+	if player_busy do return
 
 	if game.input_override != nil do game.input_override()
 
@@ -68,6 +71,20 @@ player_update :: proc() {
 	} else if get_input(.ENTER) {
 		interact(p)
 	}
+}
+
+player_busy :: proc() -> bool {
+	return player_busy
+}
+
+set_player_busy :: proc(busy := true) {
+	prev := player_busy
+	player_busy = busy
+	log.infof("set_player_busy %v (was %v)", busy, prev)
+}
+
+free_player :: proc() {
+	set_player_busy(false)
 }
 
 // First held direction in a fixed order.

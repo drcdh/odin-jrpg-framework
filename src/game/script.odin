@@ -38,6 +38,7 @@ Script :: struct {
 	wait:             Wait,      // nil = ready to run
 	done:             bool,
 	cancel_requested: bool,
+	paused:           bool,
 }
 
 Wait :: union {
@@ -88,6 +89,14 @@ script_cancel :: proc(h: Script_Id) {
 	if s, ok := hm.get(&game.scripts, h); ok do s.cancel_requested = true
 }
 
+script_pause :: proc(h: Script_Id) {
+	if s, ok := hm.get(&game.scripts, h); ok do s.paused = true
+}
+
+script_unpause :: proc(h: Script_Id) {
+	if s, ok := hm.get(&game.scripts, h); ok do s.paused = false
+}
+
 scripts_cancel_for_entity :: proc(id: Entity_Id) {
 	it := hm.iterator_make(&game.scripts)
 	for s, _ in hm.iterate(&it) {
@@ -113,7 +122,7 @@ scripts_update :: proc() {
 	// Indexed loop: scripts spawned by scripts are appended and run this frame too.
 	for i := 0; i < len(game.script_order); i += 1 {
 		s, ok := hm.get(&game.scripts, game.script_order[i])
-		if !ok || s.done do continue
+		if !ok || s.done || s.paused do continue
 		if s.cancel_requested || wait_satisfied(s.wait) {
 			s.wait = nil
 			script_resume(s)
@@ -125,11 +134,6 @@ scripts_update :: proc() {
 		s, ok := hm.get(&game.scripts, h)
 		if !ok do continue
 		if s.done {
-			// A finished trigger script frees its entity, whoever made it busy.
-			if e, has := entity_get(s.self); has && e.trigger.running == h {
-				e.busy = false
-				e.busy_by = {}
-			}
 			thread.destroy(s.thread) // joins
 			hm.remove(&game.scripts, h)
 		} else {

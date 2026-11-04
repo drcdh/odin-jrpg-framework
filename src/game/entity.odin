@@ -12,8 +12,6 @@ Entity :: struct {
 	pos:     [2]f32,
 	facing:  Direction,
 	autotag: bool,      // when moving, automatically change sprite within walking_tags_groups (without resetting animation)
-	busy:    bool,      // other scripts than busy_by can't move or turn it; see set_busy
-	busy_by: Script_Id, // the script that set busy; {} = the main thread
 	ghost:   bool,      // neither blocks nor is blocked by other entities
 	battle:  bool,      // a combatant or skill animation; drawn by draw_battle, not draw_world
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
@@ -50,14 +48,14 @@ spawn_entity :: proc(e: Entity) -> Entity_Id {
 }
 
 spawn_walker :: proc(
-	name:      string,
-	facing:=   Direction.Down,
-	sprite:    Sprite_State,
-	tile:      Tile,
-	ghost:=    false,
-	light:     f32=0,
-	step_time: f32=DEFAULT_STEP_TIME,
-	talk:      Script_Proc=nil,
+	name:        string,
+	sprite:      Sprite_State,
+	tile:        Tile,
+	facing    := Direction.Down,
+	ghost     := false,
+	light     := f32(0),
+	step_time := f32(DEFAULT_STEP_TIME),
+	talk: Script_Proc = nil,
 ) -> Entity_Id {
 	return spawn_entity({
 		name=name,
@@ -66,7 +64,7 @@ spawn_walker :: proc(
 		autotag = true,
 		ghost = ghost,
 		sprite = sprite,
-		trigger = new_trigger(talk),
+		trigger = {script = talk},
 		step_time = DEFAULT_STEP_TIME,
 		light = light,
 	})
@@ -87,28 +85,6 @@ find :: proc(name: string, loc := #caller_location) -> Entity_Id {
 	}
 	log.warnf("find: no entity named %q", name, location = loc)
 	return {}
-}
-
-// True while `id` is busy (set_busy) with something other than the running
-// script, which may then not move or turn it. Always false on the main thread.
-entity_busy :: proc(id: Entity_Id) -> bool {
-	return current_script != nil && entity_held(id, current_script.handle)
-}
-
-// Whether `id` is busy (set_busy) with anything, as the game sees it: the
-// flag is set and its script, if any, is still running. The game checks this
-// for the player (set_busy_player) to ignore movement and interact input.
-is_busy :: proc(id: Entity_Id) -> bool {
-	e, ok := entity_get(id)
-	return ok && e.busy && (e.busy_by == {} || script_alive(e.busy_by))
-}
-
-// Whether script `by` is held off `id`. Busy lapses when its script ends.
-@(private)
-entity_held :: proc(id: Entity_Id, by: Script_Id) -> bool {
-	e, ok := entity_get(id)
-	if !ok || !e.busy || by == e.busy_by do return false
-	return e.busy_by == {} || script_alive(e.busy_by)
 }
 
 entity_name :: proc(id: Entity_Id) -> string {

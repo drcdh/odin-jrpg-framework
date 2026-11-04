@@ -30,7 +30,7 @@ init_quarry_main :: proc() {
 	spawn_walker(
 		name = "Fella",
 		facing = .Left,
-		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
+		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:], tag=.Left),
 		tile = QUARRY_MAIN_FELLA,
 		talk = proc(self: Entity_Id) {
 			name := entity_name(self)
@@ -49,12 +49,15 @@ init_quarry_main :: proc() {
 						say("Hmm, I appreciate your spunk, but you're way too whimpy. Come back after you've {leveled up}, so to speak.")
 					}
 				}
-			} else if monster_fight_stage == 1 {
-				say("Go get 'em, tiger.", name)
-			} else if monster_fight_stage == 2 {
-				say("Good job! Your prize is on back-order. Sorry|", name)
-			} else if monster_fight_stage == 3 {
-				say("Oof, ouch. Come back another time.", name)
+			} else {
+				set_facing_player(self); defer set_facing(self, .Down)
+				if monster_fight_stage == 1 {
+					say("Go get 'em, tiger.", name)
+				} else if monster_fight_stage == 2 {
+					say("Good job! Your prize is on back-order. Sorry|", name)
+				} else if monster_fight_stage == 3 {
+					say("Oof, ouch. Come back another time.", name)
+				}
 			}
 		},
 	)
@@ -64,6 +67,7 @@ init_quarry_main :: proc() {
 		sprite = walker_sprite(.Baddy_World),
 		tile = QUARRY_MAIN_BADDY,
 		talk = proc(self: Entity_Id) {
+			set_facing_player(self); defer set_facing(self, .Down)
 			name := entity_name(self)
 			ok: bool
 			choice: int

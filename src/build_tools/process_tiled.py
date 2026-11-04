@@ -225,7 +225,7 @@ render_{lr_lower} :: proc() {{
 		ghost = {ghost},{sprite}
 		trigger = {opened} ? {{}} : new_trigger(proc(self: Entity_Id) {{
 			{script}
-		}}, autoface = false),
+		}}),
 	}})""")
 
 	# EGRESSES

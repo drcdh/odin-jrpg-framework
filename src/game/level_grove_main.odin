@@ -20,11 +20,11 @@ init_grove_main :: proc() {
 		sprite  = walker_sprite(.Dude),
 		// Faces the player and stops pacing while they talk.
 		talk = proc(self: Entity_Id) {
+			set_facing_player(self)
 			if !get_game_data(Bool_Datum.Met_Dude) {
 				set_game_data(Bool_Datum.Met_Dude, true)
 				// Switch to route 1. The new pacer waits until the talk ends (busy).
 				script_cancel(dude_pace)
-				dude_pace = spawn(pace_dude_route_1, self, "dude pace")
 				say("Oh, hey! What's up, player?", entity_name(self))
 				ok: bool
 				drink: int
@@ -52,7 +52,9 @@ init_grove_main :: proc() {
 					)
 					get_items(.Tea)
 				}
+				dude_pace = spawn(pace_dude_route_1, self, "dude pace")
 			} else {
+				script_pause(dude_pace); defer script_unpause(dude_pace)
 				switch get_game_data(Int_Datum.Drink_Choice) {
 				case DRINK_TEA:
 					say("How's that tea?", entity_name(self))
@@ -114,7 +116,7 @@ init_grove_main :: proc() {
 			tile    = GROVE_MAIN_JUKEBOX,
 			trigger = new_trigger(
 				proc(_: Entity_Id) {
-					set_busy_player()
+					set_player_busy(); defer free_player()
 					say(
 						"This may look like an ol'-timey jukebox, but it's actually a subtemporal meso-reconstructive bio-phasmatron! Use it, and almost instantaneously you'll feel like you've had a good long rest.",
 					)
