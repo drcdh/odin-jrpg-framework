@@ -14,60 +14,55 @@ init_grove_main :: proc() {
 	DRINK_COFFEE_CREAM :: 3
 
 	met := get_game_data(Bool_Datum.Met_Dude)
-	dude := spawn_entity(
-	{
+	dude := spawn_walker(
 		name    = "Dude",
-		autotag = true,
 		tile    = GROVE_MAIN_DUDE_SPAWN_MET if met else GROVE_MAIN_DUDE_SPAWN_NOT_MET,
 		sprite  = walker_sprite(.Dude),
 		// Faces the player and stops pacing while they talk.
-		trigger = new_trigger(
-			proc(self: Entity_Id) {
-				if !get_game_data(Bool_Datum.Met_Dude) {
-					set_game_data(Bool_Datum.Met_Dude, true)
-					// Switch to route 1. The new pacer waits until the talk ends (busy).
-					script_cancel(dude_pace)
-					dude_pace = spawn(pace_dude_route_1, self, "dude pace")
-					say("Oh, hey! What's up, player?", entity_name(self))
-					ok: bool
-					drink: int
-					if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}); !ok do return
-					if drink == 0 {
-						say("Ooh, sludgy!")
-						cream: int
-						if cream, ok = choose("With or without cream?", {"With", "Without"}); !ok do return
-						if cream == 0 {
-							set_game_data(Int_Datum.Drink_Choice, DRINK_COFFEE_CREAM)
-							say(
-								"So that's a coffee with cream? Cool, I dunno where a coffee shop is, though. Sorry!",
-							)
-						} else {
-							set_game_data(Int_Datum.Drink_Choice, DRINK_COFFEE_BLACK)
-							say(
-								"So that's a black coffee? Cool, I dunno where a coffee shop is, though. Sorry!",
-							)
-						}
-					} else {
-						set_game_data(Int_Datum.Drink_Choice, DRINK_TEA)
-						say("Ooh, grassy!")
+		talk = proc(self: Entity_Id) {
+			if !get_game_data(Bool_Datum.Met_Dude) {
+				set_game_data(Bool_Datum.Met_Dude, true)
+				// Switch to route 1. The new pacer waits until the talk ends (busy).
+				script_cancel(dude_pace)
+				dude_pace = spawn(pace_dude_route_1, self, "dude pace")
+				say("Oh, hey! What's up, player?", entity_name(self))
+				ok: bool
+				drink: int
+				if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}); !ok do return
+				if drink == 0 {
+					say("Ooh, sludgy!")
+					cream: int
+					if cream, ok = choose("With or without cream?", {"With", "Without"}); !ok do return
+					if cream == 0 {
+						set_game_data(Int_Datum.Drink_Choice, DRINK_COFFEE_CREAM)
 						say(
-							"Y'know what? I actually have an extra cup of hot tea right here. How about that?",
+							"So that's a coffee with cream? Cool, I dunno where a coffee shop is, though. Sorry!",
 						)
-						get_items(.Tea)
+					} else {
+						set_game_data(Int_Datum.Drink_Choice, DRINK_COFFEE_BLACK)
+						say(
+							"So that's a black coffee? Cool, I dunno where a coffee shop is, though. Sorry!",
+						)
 					}
 				} else {
-					switch get_game_data(Int_Datum.Drink_Choice) {
-					case DRINK_TEA:
-						say("How's that tea?", entity_name(self))
-					case DRINK_COFFEE_BLACK, DRINK_COFFEE_CREAM:
-						say("You ever find a coffee shop?", entity_name(self))
-					case:
-						say("Hi.", entity_name(self))
-					}
+					set_game_data(Int_Datum.Drink_Choice, DRINK_TEA)
+					say("Ooh, grassy!")
+					say(
+						"Y'know what? I actually have an extra cup of hot tea right here. How about that?",
+					)
+					get_items(.Tea)
 				}
-			},
-		),
-	},
+			} else {
+				switch get_game_data(Int_Datum.Drink_Choice) {
+				case DRINK_TEA:
+					say("How's that tea?", entity_name(self))
+				case DRINK_COFFEE_BLACK, DRINK_COFFEE_CREAM:
+					say("You ever find a coffee shop?", entity_name(self))
+				case:
+					say("Hi.", entity_name(self))
+				}
+			}
+		},
 	)
 	dude_pace = spawn(pace_dude_route_1 if met else pace_dude_route_0, dude, "dude pace")
 

@@ -51,7 +51,7 @@ spawn_entity :: proc(e: Entity) -> Entity_Id {
 
 spawn_walker :: proc(
 	name:      string,
-	facing:    Direction,
+	facing:=   Direction.Down,
 	sprite:    Sprite_State,
 	tile:      Tile,
 	ghost:=    false,

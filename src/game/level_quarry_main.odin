@@ -13,14 +13,12 @@ init_quarry_main :: proc() {
 	play_music(.Town)
 
 	if !get_game_data(Bool_Datum.Introduction) {
-		dude := spawn_entity({name = "Dude", tile = DUDE_PATH[0], autotag=true, facing = .Right, sprite = walker_sprite(.Dude)})
-		spawn_entity({
+		dude := spawn_walker(name = "Dude", tile = DUDE_PATH[0], sprite = walker_sprite(.Dude))
+		spawn_walker(
 			name   = "Fella",
-			autotag = true,
 			tile   = FELLA_PATH[0],
-			facing = .Up,
 			sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
-		})
+		)
 		camera_follow(dude)
 		set_curtain(1)
 		spawn(intro_cutscene, name = "intro")
@@ -29,13 +27,12 @@ init_quarry_main :: proc() {
 
 	monster_fight_stage = 0 // reset level-quest
 
-	spawn_entity({
+	spawn_walker(
 		name = "Fella",
-		autotag = true,
 		facing = .Left,
 		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:]),
 		tile = QUARRY_MAIN_FELLA,
-		trigger = new_trigger(proc(self: Entity_Id) {
+		talk = proc(self: Entity_Id) {
 			name := entity_name(self)
 			if monster_fight_stage == 0 {
 				say("Oh, hey, $player. You wanna fight a special monster?", name)
@@ -59,15 +56,14 @@ init_quarry_main :: proc() {
 			} else if monster_fight_stage == 3 {
 				say("Oof, ouch. Come back another time.", name)
 			}
-		})
-	})
+		},
+	)
 
-	spawn_entity({
+	spawn_walker(
 		name = "Baddy",
-		autotag = true,
 		sprite = walker_sprite(.Baddy_World),
 		tile = QUARRY_MAIN_BADDY,
-		trigger = new_trigger(proc(self: Entity_Id) {
+		talk = proc(self: Entity_Id) {
 			name := entity_name(self)
 			ok: bool
 			choice: int
@@ -86,8 +82,8 @@ init_quarry_main :: proc() {
 				fade_to(self, 0, 1)
 				destroy_entity(self)
 			}
-		})
-	})
+		},
+	)
 }
 
 @(private = "file")
