@@ -5,6 +5,8 @@ import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
 
+PRELOAD_SPRITES :: #config(PRELOAD_SPRITES, false)
+
 // general game system stuff
 Game :: struct {
 	audio:           Audio, // sound effects; see sound.odin
@@ -45,7 +47,10 @@ init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 
 	game.clock = {time_scale = time_scale}
 
-	for s in Sprite_Name do preload_sprite(s) // TODO: use #load, preload (as here) at runtime, or lazy-load
+	when PRELOAD_SPRITES {
+		log.infof("preloading sprites")
+		for s in Sprite_Name do preload_sprite(s)
+	}
 
 	init_darkness()
 	init_overlays()

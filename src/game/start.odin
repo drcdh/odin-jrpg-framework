@@ -14,8 +14,8 @@ start_game :: proc() {
 new_game :: proc() {
 	init_new_game()
 	when SKIP_INTRO {
-		start_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO)
+		change_level(.Grove_Main, at = GROVE_MAIN_PLAYER_SPAWN_INTRO, fade = 1)
 	} else {
-		start_level(.Quarry_Main, with_player = false)
+		change_level(.Quarry_Main, fade = 1)
 	}
 }

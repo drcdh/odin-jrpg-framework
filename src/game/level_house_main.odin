@@ -1,5 +1,6 @@
 package game
 
+import "core:math/rand"
 import rl "vendor:raylib"
 
 @(rodata)
@@ -20,6 +21,9 @@ GUY_SHOP := Shop {
 		.Speed_Ring,
 	},
 }
+
+@(private = "file")
+autoboat_met: bool
 
 init_house_main :: proc() {
 	play_music(.Town)
@@ -58,6 +62,38 @@ init_house_main :: proc() {
 		{name = "Two", sprite = pc_sprite(1), tile = HOUSE_MAIN_DOOR, trigger = new_trigger(door_knock)},
 	)
 	set_visible(two, false)
+
+	spawn_entity({
+		name = "autoboat",
+		sprite = create_sprite_state(.Warp, palette = {{{48, 81, 130, 255}, {121, 65, 0, 255}}}, play=true, anim_when=.Always),
+		tile = HOUSE_MAIN_AUTOBOAT,
+		trigger = new_trigger(proc(_: Entity_Id) {
+			if !autoboat_met {
+				say("Ooh, neat. It's an automatic boat generator. {Talk} to it again to generate a boat (automatically).")
+				autoboat_met = true
+			} else {
+				set_control(false); defer set_control(true)
+				// TODO: boat-mode passability
+				r := u8(rand.uint_max(256))
+				g := u8(rand.uint_max(256))
+				b := u8(rand.uint_max(256))
+				palette := Palette_Swap{{{156, 39, 176, 255}, {r, g, b, 255}}}
+				tile := HOUSE_MAIN_AUTOBOAT + {0, -1} // TODO: random between three tiles
+				new_boat := spawn_entity({
+					name = "boat",
+					autotag = true,
+					sprite = create_sprite_state(.Boat, palette=palette, play=true, anim_when=.Always), // requires lazy-loading
+					tile = tile,
+				})
+				spawn(proc(self: Entity_Id) {
+					// TODO: check starting tile to know what direction to go
+					walk_entity(self, {0, -20})
+					destroy_entity(self)
+				}, new_boat)
+				pause(1)
+			}
+		})
+	})
 }
 
 @(private = "file")

@@ -7,6 +7,8 @@ import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
 
+LAZY_LOAD :: #config(LAZY_LOAD, true)
+
 SPRITE_DIR :: "assets/sprites"
 
 // Rows of a Tagged sheet. A sheet uses a subset, listed in its metadata.
@@ -74,10 +76,12 @@ Image :: struct {
 // have their own image. `meta` is copied from sprite_metadata on load, so
 // lookups don't go back to the table.
 Sprite :: struct {
-	handle: Sprite_Handle,
-	name:   Sprite_Name,
-	img_h:  Image_Handle,
-	meta:   Sprite_Metadata,
+	handle:  Sprite_Handle,
+	name:    Sprite_Name,
+	lazy:    bool,
+	palette: Palette_Swap,
+	img_h:   Image_Handle,
+	meta:    Sprite_Metadata,
 }
 
 Color_Swap :: struct {
@@ -143,14 +147,30 @@ preload_sprite :: proc(name: Sprite_Name) {
 
 @(private)
 load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
+	add_sprite :: proc(sprite: Sprite) -> Sprite_Handle {
+		h, err := hm.add(&game.sprites, sprite)
+		assert(err == nil, "out of memory loading sprite")
+		return h
+	}
+
 	if len(palette) > 0 {
 		log.infof("loading sprite %v with palette swap %v", name, palette)
 	} else {
 		log.infof("loading sprite %v", name)
 	}
-	assert(!in_script(), "sprites must be loaded on the main thread")
 	m := sprite_metadata[name]
-	sprite := Sprite{name = name, meta = m}
+	sprite := Sprite{name = name, meta = m, palette = palette}
+
+	if in_script() {
+		if LAZY_LOAD {
+			log.infof("tried to load sprite %v not on main thread (LAZY_LOAD=%v)", name, LAZY_LOAD)
+			sprite.lazy = true
+			return add_sprite(sprite)
+		} else {
+			log.errorf("tried to load sprite %v not on main thread (LAZY_LOAD=%v)", name, LAZY_LOAD)
+			assert(false, "sprites must be loaded on the main thread")
+		}
+	}
 
 	// Headless (tests, tools): a sprite record with no image, which draws nothing.
 	if !rl.IsWindowReady() {
@@ -159,18 +179,31 @@ load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 		return h
 	}
 
-	img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, m.filename))
+	load_sprite_img(&sprite)
+
+	return add_sprite(sprite)
+}
+
+load_sprite_img :: proc(sprite: ^Sprite) {
+	palette := sprite.palette
+	filename := sprite.meta.filename
+	name := sprite.name
+	img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, filename))
 	defer rl.UnloadImage(img)
 	if img.data == nil {
-		log.errorf("could not load %s/%s.png for sprite %v (run process_sprites.py?)", SPRITE_DIR, m.filename, name)
+		log.errorf("could not load %s/%s.png for sprite %v (run process_sprites.py?)", SPRITE_DIR, filename, name)
 	} else {
 		for cs in palette do rl.ImageColorReplace(&img, cs.from, cs.to)
 		sprite.img_h, _ = hm.add(&game.images, Image{texture = rl.LoadTextureFromImage(img)})
 	}
+}
 
-	h, err := hm.add(&game.sprites, sprite)
-	assert(err == nil, "out of memory loading sprite")
-	return h
+lazy_load_sprite_img :: proc(sprite: ^Sprite) {
+	assert(!in_script(), "lazy_load_sprite_img called not on main thread")
+	if !sprite.lazy do return
+	log.infof("lazy-loading sprite %v%s", sprite.name, len(sprite.palette) > 0 ? " (with palette)" : "")
+	load_sprite_img(sprite)
+	sprite.lazy = false
 }
 
 // --- Sprite_State ---
@@ -318,18 +351,10 @@ sprite_size :: proc {
 }
 
 sprites_update :: proc(dt: f32) {
+	lazy_load_sprites()
 	it := hm.iterator_make(&game.entities)
 	for e, _ in hm.iterate(&it) {
 		s := &e.sprite
-		// if s.follow_facing {
-		// 	want := direction_tag(e.facing)
-		// 	if m, ok := state_metadata(s^); ok && want != s.tag {
-		// 		if _, has := tag_index(m.tags, want); has {
-		// 			s.tag = want
-		// 			if n := frame_count(m, want); n > 0 do s.frame %= n
-		// 		}
-		// 	}
-		// }
 		switch s.anim_when {
 		case .Always:
 			update_sprite(dt, s)
@@ -345,6 +370,13 @@ sprites_update :: proc(dt: f32) {
 			}
 		case .Never:
 		}
+	}
+}
+
+lazy_load_sprites :: proc() {
+	it := hm.iterator_make(&game.sprites)
+	for s, _ in hm.iterate(&it) {
+		if s.lazy do lazy_load_sprite_img(s)
 	}
 }
 

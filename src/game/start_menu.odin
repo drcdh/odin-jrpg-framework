@@ -198,14 +198,11 @@ start_menu_update :: proc() {
 				}
 			case 1: // New Game
 				start_menu.ui_state = .Working
-				start_menu_exit()
-				new_game()
-				// TODO: this should work when sprites are preloaded or lazy-loaded
-				// spawn(proc(_: Entity_Id) {
-				// 	fade_screen(1, 1)
-				// 	start_menu_exit()
-				// 	new_game()
-				// })
+				spawn(proc(_: Entity_Id) {
+					new_game() // starts fade
+					pause(1)
+					start_menu_exit()
+				})
 			case 2: // New Game+
 				play_sound(.Blerp)
 			case 3:
@@ -219,16 +216,12 @@ start_menu_update :: proc() {
 	case .Load:
 		if get_input(.ENTER) {
 			start_menu.ui_state = .Working
-			start_menu_exit()
-			m := metadata[start_menu.load_sel.select_idx]
-			load_save_file(m.filepath)
-				// TODO: this should work when sprites are preloaded or lazy-loaded
-			// spawn(proc(_: Entity_Id) {
-			// 	fade_screen(1, 1)
-			// 	start_menu_exit()
-			// 	m := metadata[start_menu.load_sel.select_idx]
-			// 	load_save_file(m.filepath)
-			// })
+			spawn(proc(_: Entity_Id) {
+				m := metadata[start_menu.load_sel.select_idx]
+				load_save_file(m.filepath, fade=1)
+				pause(1)
+				start_menu_exit()
+			})
 		} else if get_input(.CANCEL) {
 			start_menu.ui_state = .Top
 		} else if dy, ok := get_y_input().?; ok {

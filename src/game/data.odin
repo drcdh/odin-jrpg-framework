@@ -182,12 +182,16 @@ load_save_data :: proc(save_data: Save_Data) {
 // Reads SAVE_DIR/`filename` into game_data and returns where the player was.
 // Entering that level is the game package's job (game.load_game). Returns false
 // (and logs why) if it couldn't.
-load_save_file :: proc(filename: string) -> (save_point: Save_Point, ok: bool) {
+load_save_file :: proc(filename: string, fade: f32 = 0) -> (save_point: Save_Point, ok: bool) {
 	log.infof("reading saved game from %s/%s", SAVE_DIR, filename)
 	save_data := read_saved_game_data(filename) or_return
 	load_save_data(save_data)
 	save_point = save_data.save_point
-	start_level(save_point.level, at = save_point.tile, face = .Down)
+	if fade == 0 {
+		start_level(save_point.level, at = save_point.tile, face = .Down)
+	} else {
+		change_level(save_point.level, at = save_point.tile, face = .Down, fade=fade)
+	}
 	return save_data.save_point, true
 }
 
