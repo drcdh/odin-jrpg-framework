@@ -152,7 +152,7 @@ spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 		log.errorf("%v has no entrance for %v door %d facing %v; spawning the player at the map center %v",
 			l, lv.prev, lv.egress_idx, lv.prev_face, tile)
 	}
-	sprite := walker_sprite(.Player_World, layer = 1)
+	sprite := walker_sprite(.Player_World, layer = 1, tag = direction_tag(face))
 	player := spawn_entity({
 		name      = "player",
 		autotag   = true,
