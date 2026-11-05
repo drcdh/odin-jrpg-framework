@@ -7,8 +7,6 @@ import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
 
-LAZY_LOAD :: #config(LAZY_LOAD, true)
-
 SPRITE_DIR :: "assets/sprites"
 
 // Rows of a Tagged sheet. A sheet uses a subset, listed in its metadata.
@@ -162,7 +160,7 @@ load_sprite :: proc(name: Sprite_Name, palette: Palette_Swap) -> Sprite_Handle {
 	sprite := Sprite{name = name, meta = m, palette = palette}
 
 	if in_script() {
-		if LAZY_LOAD {
+		when LAZY_LOAD {
 			log.infof("tried to load sprite %v not on main thread (LAZY_LOAD=%v)", name, LAZY_LOAD)
 			sprite.lazy = true
 			return add_sprite(sprite)
@@ -188,7 +186,11 @@ load_sprite_img :: proc(sprite: ^Sprite) {
 	palette := sprite.palette
 	filename := sprite.meta.filename
 	name := sprite.name
-	img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, filename))
+	when COMPILE_LOAD {
+		img := rl.LoadImageFromMemory(".png", raw_data(sprite_raw_data[name]), i32(len(sprite_raw_data[name])))
+	} else {
+		img := rl.LoadImage(fmt.ctprintf("%s/%s.png", SPRITE_DIR, filename))
+	}
 	defer rl.UnloadImage(img)
 	if img.data == nil {
 		log.errorf("could not load %s/%s.png for sprite %v (run process_sprites.py?)", SPRITE_DIR, filename, name)

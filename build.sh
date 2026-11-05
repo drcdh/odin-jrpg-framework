@@ -8,6 +8,7 @@ case "${1:-build}" in
 	run)     odin run   src -debug -vet -out:jrpg ;;
 	build)   odin build src -debug -vet -out:jrpg ;;
 	release) odin build src -o:speed -vet -out:jrpg-release ;;
+	loaded)  odin build src -o:speed -out:jrpg-release-loaded -define:COMPILE_LOAD=true ;;
 	test)    odin test  src/game -debug -vet -define:ODIN_TEST_THREADS=1 -out:test-jrpg ;;
 	*)       echo "unknown target: $1" >&2; exit 1 ;;
 esac

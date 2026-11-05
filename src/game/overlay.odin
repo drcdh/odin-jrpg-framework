@@ -18,7 +18,11 @@ overlay_offset: [2]f32
 init_overlays :: proc() {
 	for overlay in Overlay {
 		if overlay == .None do continue
-		image := rl.LoadImage(fmt.ctprintf("%s/%s", OVERLAY_DIR, overlay_paths[overlay]))
+		when COMPILE_LOAD {
+			image := rl.LoadImageFromMemory(".png", raw_data(overlay_raw_data[overlay]), i32(len(overlay_raw_data[overlay])))
+		} else {
+			image := rl.LoadImage(fmt.ctprintf("%s/%s", OVERLAY_DIR, overlay_paths[overlay]))
+		}
 		overlay_textures[overlay] = rl.LoadTextureFromImage(image)
 		rl.UnloadImage(image)
 	}

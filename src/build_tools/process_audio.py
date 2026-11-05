@@ -28,7 +28,17 @@ def write_audio_data(folder, enum, table, out_name, none=False):
 		out_f.write("\t.None = \"\",\n")
 	for name, f in zip(names, files):
 		out_f.write(f"\t.{name} = \"{f}\",\n")
-	out_f.write("}\n")
+	out_f.write("}\n\n")
+
+	out_f.write("when COMPILE_LOAD {\n")
+	out_f.write("\t@(rodata)\n")
+	out_f.write(f"\t{table}_raw_data := [{enum}][]u8 {{ \n")
+	if none:
+		out_f.write("\t\t.None = {},\n")
+	for name, f in zip(names, files):
+		out_f.write(f"\t\t.{name} = #load(\"../../{ROOT}/{folder}/{f}\"),\n")
+	out_f.write("\t}\n")
+	out_f.write("}")
 	out_f.close()
 
 write_audio_data("sounds", "Sound_Name", "sound_files", "sound_data.odin")

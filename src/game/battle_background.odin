@@ -10,7 +10,11 @@ bb_textures: [Battle_Background]rl.Texture
 bb_init :: proc() {
 	for bb in Battle_Background {
 		if bb == .None do continue // TODO create debug image, like checker pattern
-		bb_image := rl.LoadImage(fmt.ctprintf("%s/%s", BB_DIR, battle_background_paths[bb]))
+		when COMPILE_LOAD {
+			bb_image := rl.LoadImageFromMemory(".png", raw_data(battle_background_raw_data[bb]), i32(len(battle_background_raw_data[bb])))
+		} else {
+			bb_image := rl.LoadImage(fmt.ctprintf("%s/%s", BB_DIR, battle_background_paths[bb]))
+		}
 		bb_textures[bb] = rl.LoadTextureFromImage(bb_image)
 		rl.UnloadImage(bb_image)
 	}

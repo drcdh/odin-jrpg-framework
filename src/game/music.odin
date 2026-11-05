@@ -125,12 +125,18 @@ music_thread :: proc(t: ^thread.Thread) {
 @(private = "file")
 load_music :: proc(m: Music_Name) -> rl.Music {
 	// No temp allocator: it belongs to the main thread.
-	buf: [512]u8
-	path := fmt.bprintf(buf[:len(buf) - 1], "%s/%s", MUSIC_DIR, music_files[m])
-	mus := rl.LoadMusicStream(cstring(&buf[0]))
-	if mus.frameCount == 0 {
-		log.warnf("Couldn't load music %v from %s", m, path)
-		return mus
+	mus: rl.Music
+	when COMPILE_LOAD {
+		mus = rl.LoadMusicStreamFromMemory(".mp3", raw_data(music_files_raw_data[m]), i32(len(music_files_raw_data[m])))
+	} else {
+		buf: [512]u8
+		path := fmt.bprintf(buf[:len(buf) - 1], "%s/%s", MUSIC_DIR, music_files[m])
+		mus = rl.LoadMusicStream(cstring(&buf[0]))
+
+		if mus.frameCount == 0 {
+			log.warnf("Couldn't load music %v from %s", m, path)
+			return mus
+		}
 	}
 	mus.looping = true
 	rl.PlayMusicStream(mus)

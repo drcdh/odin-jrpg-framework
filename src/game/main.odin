@@ -5,6 +5,8 @@ import "core:log"
 import "core:slice"
 import rl "vendor:raylib"
 
+COMPILE_LOAD :: #config(COMPILE_LOAD, false)
+LAZY_LOAD :: #config(LAZY_LOAD, true)
 PRELOAD_SPRITES :: #config(PRELOAD_SPRITES, false)
 
 // general game system stuff

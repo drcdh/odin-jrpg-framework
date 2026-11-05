@@ -219,9 +219,15 @@ map_gid_tile :: proc(m: Level_Map, gid: int) -> (Tileset_Id, int) {
 @(private)
 tileset_texture :: proc(ts: Tileset_Id) -> rl.Texture {
 	if game.tilesets[ts].id == 0 {
-		path := fmt.ctprintf("%s/%s.png", TILESET_DIR, tileset_files[ts])
-		game.tilesets[ts] = rl.LoadTexture(path)
-		if game.tilesets[ts].id == 0 do log.errorf("could not load %s (run process_tiled.py?)", path)
+		when COMPILE_LOAD {
+			img := rl.LoadImageFromMemory(".png", raw_data(tileset_raw_data[ts]), i32(len(tileset_raw_data[ts])))
+			game.tilesets[ts] = rl.LoadTextureFromImage(img)
+			if game.tilesets[ts].id == 0 do log.errorf("could not load %v from raw data", ts)
+		} else {
+			path := fmt.ctprintf("%s/%s.png", TILESET_DIR, tileset_files[ts])
+			game.tilesets[ts] = rl.LoadTexture(path)
+			if game.tilesets[ts].id == 0 do log.errorf("could not load %s (run process_tiled.py?)", path)
+		}
 	}
 	return game.tilesets[ts]
 }

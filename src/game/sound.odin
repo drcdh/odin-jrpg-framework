@@ -68,9 +68,15 @@ sounds_update :: proc(dt: f32) {
 get_sound :: proc(n: Sound_Name) -> rl.Sound {
 	s := &game.audio.sounds[n]
 	if s.frameCount == 0 {
-		path := fmt.tprintf("%s/%s", SOUND_DIR, sound_files[n])
-		s^ = rl.LoadSound(strings.clone_to_cstring(path, context.temp_allocator))
-		if s.frameCount == 0 do log.warnf("Couldn't load sound %v from %s", n, path)
+		when COMPILE_LOAD {
+			wave := rl.LoadWaveFromMemory(".wav", raw_data(sound_files_raw_data[n]), i32(len(sound_files_raw_data[n])))
+			s^ = rl.LoadSoundFromWave(wave)
+			if s.frameCount == 0 do log.warnf("Couldn't load sound %v", n)
+		} else {
+			path := fmt.tprintf("%s/%s", SOUND_DIR, sound_files[n])
+			s^ = rl.LoadSound(strings.clone_to_cstring(path, context.temp_allocator))
+			if s.frameCount == 0 do log.warnf("Couldn't load sound %v from %s", n, path)
+		}
 	}
 	return s^
 }

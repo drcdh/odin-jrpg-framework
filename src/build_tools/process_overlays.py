@@ -28,6 +28,17 @@ def write_odin(f):
 	f.write("overlay_paths := [Overlay]cstring{\n")
 	for enum, s in overlays.items():
 		f.write(f"\t.{enum} = \"{s}\",\n")
+	f.write("}\n\n")
+
+	f.write("when COMPILE_LOAD {\n")
+	f.write("\t@(rodata)\n")
+	f.write("\toverlay_raw_data := [Overlay][]u8 { \n")
+	for i, (enum, s) in enumerate(overlays.items()):
+		if i == 0:
+			f.write(f"\t\t.{enum} = {{}},\n")
+		else:
+			f.write(f"\t\t.{enum} = #load(\"../../{ROOT}/{s}\"),\n")
+	f.write("\t}\n")
 	f.write("}")
 
 def main():

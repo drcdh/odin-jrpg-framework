@@ -24,6 +24,17 @@ def write_odin(f):
 	f.write("battle_background_paths := [Battle_Background]cstring{\n")
 	for enum, s in bb.items():
 		f.write(f"\t.{enum} = \"{s}\",\n")
+	f.write("}\n\n")
+
+	f.write("when COMPILE_LOAD {\n")
+	f.write("\t@(rodata)\n")
+	f.write("\tbattle_background_raw_data := [Battle_Background][]u8 { \n")
+	for i, (enum, s) in enumerate(bb.items()):
+		if i == 0:
+			f.write(f"\t\t.{enum} = {{}},\n")
+		else:
+			f.write(f"\t\t.{enum} = #load(\"../../{ROOT}/{s}\"),\n")
+	f.write("\t}\n")
 	f.write("}")
 
 def main():

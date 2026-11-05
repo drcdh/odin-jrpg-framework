@@ -297,7 +297,15 @@ def write_tileset_data():
 		f.write("}\n\n@(rodata)\ntileset_files := [Tileset_Id]string {\n")
 		for name, stem in tilesets:
 			f.write(f"\t.{name} = \"{stem}\",\n")
-		f.write("}\n")
+		f.write("}\n\n")
+		f.write("when COMPILE_LOAD {\n")
+		f.write("\t@(rodata)\n")
+		f.write("\ttileset_raw_data := [Tileset_Id][]u8 {\n")
+		for name, stem in tilesets:
+			f.write(f"\t\t.{name} = #load(\"../../{TILESETS}/{stem}.png\"),\n")
+		f.write("\t}\n")
+		f.write("}")
+
 
 def export_tilesets():
 	for file in pathlib.Path(TILESETS).glob("*.ase"):

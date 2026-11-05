@@ -11,6 +11,7 @@ DEST = "./src/game"
 
 sprite_names = []
 sprites = []
+sprite_filenames = []
 
 def process_ase(name):
 	sprite_names.append(processing.name_to_enum(name))
@@ -21,6 +22,8 @@ def process_ase(name):
 	metadata = dict()
 	data = json.loads(subprocess.check_output(f"aseprite -b --sheet {ROOT}/{name}.png --sheet-type rows --split-tags {ROOT}/{name}.ase".split()))
 	frames = data["frames"]
+
+	sprite_filenames.append(f"{name}.png")
 
 	metadata["name"] = processing.name_to_enum(name)
 	metadata["filename"] = name
@@ -56,6 +59,8 @@ def process_ase_tagged(name):
 		metadata["frame_height"] = v["sourceSize"]["h"]
 		metadata["frame_t"] = v["duration"]
 
+	sprite_filenames.append(f"{name}.png")
+
 	metadata["name"] = processing.name_to_enum(name)
 	metadata["filename"] = name
 	metadata["frames_str"] = f"{{ {','.join(str(c) for c in tag_frame_counts.values())} }}"
@@ -74,16 +79,21 @@ def write_sprite_data(f):
 	for i in sort_order:
 		s = sprite_names[i]
 		f.write(s + ",\n")
-	f.write("}")
-
-	f.write("\n\n")
+	f.write("}\n\n")
 
 	f.write("@(rodata)\n")
 	f.write("sprite_metadata := [Sprite_Name]Sprite_Metadata {\n")
 	for i in sort_order:
 		s = sprites[i]
 		f.write(s)
+	f.write("}\n\n")
 
+	f.write("when COMPILE_LOAD {\n")
+	f.write("\t@(rodata)\n")
+	f.write("\tsprite_raw_data := [Sprite_Name][]u8 { \n")
+	for name, filename in zip(sprite_names, sprite_filenames):
+		f.write(f"\t\t.{name} = #load(\"../../{ROOT}/{filename}\"),\n")
+	f.write("\t}\n")
 	f.write("}")
 
 def main():
