@@ -105,9 +105,9 @@ intro_cutscene :: proc(_: Entity_Id) {
 	pause(.5)
 	fade_screen(0, 1.5)
 
-	say("Did you hear? Somebody new is coming to the Grove today.", "Dude")
-	say("Somebody new? Nobody new has come to town in years.", "Fella")
-	say("That's what I said! I'm going to go and say hi.", "Dude")
+	say("Did you hear? We're in a demo of Daniel's JRPG engine.", dude)
+	say("Wow! Is it written in Odin using just the core and Raylib packages?", fella)
+	say("Darn tootin'. I'm going to go and say hi.", dude)
 
 	for w in walkers do wait_script(w)
 
@@ -117,12 +117,12 @@ intro_cutscene :: proc(_: Entity_Id) {
 		set_facing(find("Dude"), .Up)
 	}, fella, "Fella move up")
 
-	say("That's cool. I'm going to take a nap.", "Fella")
-	say("Weirdo. Anyway, tea time!", "Dude")
+	say("That's cool. I'm going to take a nap.", fella)
+	say("Weirdo. Anyway, tea time!", dude)
 
 	camera_to_tile(DUDE_PATH[1])
 	spawn(proc(self: Entity_Id) { if !walk_to(self, {0, 9}) do return }, dude, "Dude leave")
-	say("Caio.", "Fella")
+	say("Caio.", fella)
 
 	spawn(proc(self: Entity_Id) {
 		if !pause(1) do return

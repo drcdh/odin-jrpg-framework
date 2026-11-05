@@ -25,7 +25,7 @@ init_grove_main :: proc() {
 				set_game_data(Bool_Datum.Met_Dude, true)
 				// Switch to route 1.
 				script_cancel(dude_pace)
-				say("Oh, hey! What's up, player?", self)
+				say("Oh, hey! What's up, $one?", self)
 				ok: bool
 				drink: int
 				if drink, ok = choose("Coffee or tea?", {"Coffee", "Tea"}, self); !ok do return
