@@ -68,7 +68,7 @@ start_menu_enter :: proc() {
 	start_menu.ui_state = .Fade_In
 	start_menu_set_stale(.Top)
 	metadata_load()
-	// set_curtain(1)
+	if len(metadata) == 0 do start_menu.top_idx = 1
 }
 
 @(private)
