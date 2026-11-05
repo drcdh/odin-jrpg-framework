@@ -79,6 +79,7 @@ shutdown :: proc() {
 	delete_darkness()
 	delete_overlays()
 
+	battle_destroy()
 	dialogue_destroy()
 	music_shutdown()
 	shop_unload()

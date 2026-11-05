@@ -319,6 +319,7 @@ battle_deactivate :: proc() {
 }
 
 battle_destroy :: proc() {
+	battle_clear()
 	delete(battle.allies)
 	delete(battle.baddies)
 	delete(battle.combatants)
