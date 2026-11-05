@@ -1,5 +1,7 @@
 package game
 
+import "core:log"
+
 @(private = "file")
 DARKNESS :: 255
 
@@ -14,6 +16,7 @@ PLAYER_LIGHT_MIN :: 1
 
 @(private = "file")
 torch :: proc(_: Entity_Id) {
+	log.info("activated torch")
 	set_light(player(), 3)
 	darkness = 215
 }

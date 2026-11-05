@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2-2-geb83ddb9" orientation="orthogonal" renderorder="right-down" width="60" height="50" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="28">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="60" height="50" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="29">
  <properties>
   <property name="edge_level" value=""/>
   <property name="map_mode" value="WRAP"/>
@@ -359,6 +359,14 @@
   <object id="26" template="../DOOR.tx" x="88" y="664">
    <properties>
     <property name="level" value="Grove"/>
+   </properties>
+  </object>
+  <object id="28" template="../DOOR.tx" name="DOOR-OUT" x="760" y="216">
+   <properties>
+    <property name="door_idx" type="int" value="3"/>
+    <property name="iFace" value=""/>
+    <property name="level" value="Grove"/>
+    <property name="warp" type="bool" value="true"/>
    </properties>
   </object>
  </objectgroup>

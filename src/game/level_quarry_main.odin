@@ -33,6 +33,7 @@ init_quarry_main :: proc() {
 		sprite = walker_sprite(.Man_Ps, PC_PALETTES[0][:], tag=.Left),
 		tile = QUARRY_MAIN_FELLA,
 		talk = proc(self: Entity_Id) {
+			set_control(false); defer set_control(true)
 			name := entity_name(self)
 			if monster_fight_stage == 0 {
 				if game_data.party_membership[1] {
