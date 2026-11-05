@@ -148,9 +148,8 @@ spawn_player :: proc(l: Level, at: Maybe(Tile), at_face: Direction) {
 		tile, face = t2, f
 	} else {
 		lv := &world.levels
-		tile = world.level_map.size / 2
-		log.errorf("%v has no entrance for %v door %d facing %v; spawning the player at the map center %v",
-			l, lv.prev, lv.egress_idx, lv.prev_face, tile)
+		log.warnf("%v has no entrance for %v door %d facing %v; not spawning party entity", l, lv.prev, lv.egress_idx, lv.prev_face)
+		return
 	}
 	sprite := walker_sprite(.Player_World, layer = 1, tag = direction_tag(face))
 	player := spawn_entity({
