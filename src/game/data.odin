@@ -41,6 +41,7 @@ Game_Data :: struct {
 Character_Save_Data :: struct {
 	equipment:   Equipment,
 	exp_to_next: Maybe(int),
+	health:      Stat, // only used for displaying metadata
 	hitpoints:   int,
 	level:       int,
 	name:        string,
@@ -50,16 +51,15 @@ Character_Save_Data :: struct {
 Party_Save_Data :: [NUM_PC]Character_Save_Data
 
 Save_Data :: struct {
-	game_data:      Game_Data,
+	game_data:  Game_Data,
 	party_data: Party_Save_Data,
-	save_point:     Save_Point,
-	// time_loaded:      i64,
-	time_saved:     i64,
+	save_point: Save_Point,
+	time_saved: i64,
 }
 
 Save_Point :: struct {
 	level: Level,
-	tile:  [2]i32, // Tile
+	tile:  Tile,
 }
 
 game_data: Game_Data
@@ -98,6 +98,7 @@ encode_party_data :: proc() -> (d: Party_Save_Data) {
 	for pc, pc_idx in playable_characters {
 		d[pc_idx].equipment = pc.equipment
 		d[pc_idx].exp_to_next = pc.exp_to_next
+		d[pc_idx].health = Stat(pc.hitpoints)/get_stat(pc, .Hitpoints)
 		d[pc_idx].hitpoints = pc.hitpoints
 		d[pc_idx].level = pc.level
 		d[pc_idx].name = pc.name

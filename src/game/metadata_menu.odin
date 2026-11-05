@@ -12,8 +12,8 @@ SLOT_HEIGHT :: (VIEW_TILES_H - TITLE_HEIGHT) / SAVES_ROWS
 draw_metadata :: proc(save_idx, r: int) {
 	md := metadata[save_idx]
 	j0 := f32(TITLE_HEIGHT + r * SLOT_HEIGHT)
-	// draw_text(1, j0 + .5, fmt.ctprintf("%s", md.name))
-	// draw_text(1, j0 + 1.25, fmt.ctprintf("Lvl %d", md.level))
+	draw_text(1, j0 + .5, fmt.ctprintf("%s", md.name))
+	draw_text(1, j0 + 1.25, fmt.ctprintf("Lvl %d", md.level))
 	draw_text(1, j0 + 1.75, fmt.ctprintf("T. % 6d", md.time))
 	draw_text(1, j0 + 2.25, fmt.ctprintf("S. % 6d", md.steps))
 
@@ -31,11 +31,11 @@ draw_metadata :: proc(save_idx, r: int) {
 		),
 	)
 
-	// party_idx := 0
-	// for pc_idx in 0 ..< NUM_PC {
-	// 	if md.party_membership[pc_idx] {
-	// 		draw_sprite(create_pc_sprite_state(pc_idx), tile_to_pixel(6.5 + 1.5 * f32(party_idx), j0 + 1))
-	// 		party_idx += 1
-	// 	}
-	// }
+	party_idx := 0
+	for pc_idx in 0 ..< NUM_PC {
+		if md.party_membership[pc_idx] {
+			draw_sprite(pc_menu_sprite(pc_idx, md.party_health[pc_idx]), tile_to_pixel(6.5 + 1.5 * f32(party_idx), j0 + 1))
+			party_idx += 1
+		}
+	}
 }

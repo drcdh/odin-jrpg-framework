@@ -23,24 +23,27 @@ PC_PALETTES := [NUM_PC - 1][4]Color_Swap {
 	{{TEMPLATE_HAIR, {170, 170, 175, 255}}, {TEMPLATE_SHIRT, {220, 120, 30, 255}}, {TEMPLATE_SKIN, {120, 76, 50, 255}},  {TEMPLATE_TROUSERS, {90, 90, 40, 255}}},
 }
 
-// A playable character's walking sprite.
 pc_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
 	if pc_idx == 0 do return walker_sprite(.Player_World, layer = layer)
 	return walker_sprite(.Man_Ps, PC_PALETTES[pc_idx - 1][:], layer)
 }
 
-// A playable character's battle sprite, idling.
+health_tag :: proc(health: Stat) -> Sprite_Tag {
+	if health > .25 do return .Idle
+	if health > 0 do return .Kneeled
+	return .Downed
+}
+
 pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
 	c := playable_characters[pc_idx]
-	t := Sprite_Tag.Idle if Stat(c.hitpoints) > get_stat(c, .Hitpoints)/4 else (c.hitpoints == 0 ? Sprite_Tag.Downed : Sprite_Tag.Kneeled)
+	t := health_tag(Stat(c.hitpoints)/get_stat(c, .Hitpoints))
 	if pc_idx == 0 do return create_sprite_state(.Player_Battle, t, play = true, layer = layer)
 	return create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
 }
 
-// A playable character's sprite for menus (its battle sprite): screen space,
-// from its top-left corner, scaled to the zoom.
-pc_menu_sprite :: proc(pc_idx: int) -> Sprite_State {
+pc_menu_sprite :: proc(pc_idx: int, health: Maybe(Stat) = nil) -> Sprite_State {
 	s := pc_battle_sprite(pc_idx)
 	s.origin = {0, 0}
+	if health, ok := health.?; ok do set_sprite_tag(&s, health_tag(health))
 	return s
 }

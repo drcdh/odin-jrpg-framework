@@ -107,8 +107,6 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 	return hp_loss, true
 }
 
-// The hit roll, damage and status. `actor` may be nil (an item), which deals no
-// damage.
 effect_attack_character :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
 	acc := Stat(effect.hit_acc) // percentage
 	roll := Stat(rand.int_max(100)) // [0, n)
@@ -123,6 +121,7 @@ effect_attack_character :: proc(actor, target: ^Character, effect: Effect_Data) 
 		return
 	}
 
+	// TODO: "actor-agnostic" calc_damage for items
 	if actor != nil {
 		if hp_loss, ok := calc_damage(actor^, target^, effect); ok {
 			take_damage(target, hp_loss)

@@ -205,8 +205,12 @@ start_menu_update :: proc() {
 				})
 			case 2: // New Game+
 				play_sound(.Blerp)
-			case 3:
-				game.quitting = true
+			case 3: // Quit
+				start_menu.ui_state = .Working
+				spawn(proc(_: Entity_Id) {
+					fade_screen(1, .25)
+					game.quitting = true
+				})
 			}
 		} else if dy, ok := get_y_input().?; ok {
 			start_menu.top_idx += dy

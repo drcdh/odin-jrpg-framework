@@ -18,6 +18,7 @@ Game :: struct {
 	images:          hm.Dynamic_Handle_Map(Image, Image_Handle),
 	input:           Input,
 	input_override:  proc(),
+	paused:          bool,
 	pending_destroy: [dynamic]Entity_Id,
 	quitting:				 bool, // set true by scripts to tell update to set running to false
 	running:				 bool, // set false to tell the main procedure to stop the game loop
@@ -114,6 +115,21 @@ running :: proc() -> bool {
 update :: proc(frame_dt: f32) {
 	clock_advance(frame_dt)
 
+	if get_input(.PAUSE) {
+		game.paused = !game.paused
+		log.infof("game is %s", game.paused ? "PAUSED" : "UNPAUSED")
+	}
+
+	if game.paused do return
+
+	@(static) timer: f32
+	timer += frame_dt
+	if timer >= 1 {
+		game_data.time += 1
+		timer -= 1
+		world_menu_clock_update()
+	}
+
 	if battle_active() {
 		update_battle(game.clock.dt)
 	} else if start_menu_active() {
@@ -156,6 +172,14 @@ draw :: proc() {
 	}
 	draw_screen_effects()
 	draw_dialogue()
+
+	if game.paused {
+		rl.BeginBlendMode(.MULTIPLIED)
+		rl.DrawRectangleV({}, {WINDOW_WIDTH, WINDOW_HEIGHT}, {80, 80, 155, 255})
+		rl.EndBlendMode()
+		draw_text(7, 7, "Paused")
+	}
+
 	debug_draw()
 	rl.EndTextureMode()
 }
