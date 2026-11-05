@@ -55,4 +55,7 @@ draw_world :: proc() {
 player     :: proc() -> Entity_Id { return world.player }
 set_player :: proc(id: Entity_Id) { world.player = id }
 
-toggle_debug :: proc() { debug_overlay = !debug_overlay }
+toggle_debug :: proc() {
+	debug_overlay = !debug_overlay
+	log.debugf("debug_overly is %s", debug_overlay ? "ON" : "OFF")
+}

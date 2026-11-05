@@ -23,18 +23,8 @@ control_enabled: bool
 // when a step finishes (step triggers); the map edge is checked here.
 @(private)
 player_update :: proc() {
-	when ODIN_DEBUG do if rl.IsKeyPressed(.F1) do toggle_debug()
 	if world_menu_active() do return // it reads its own input
 	if level_transition_update() do return
-
-	// Test keys, debug builds only; saving also goes through the world menu.
-	when ODIN_DEBUG {
-		if rl.IsKeyPressed(.F4) do save_game_now(TEST_SAVE)
-		if rl.IsKeyPressed(.F5) {
-			load_save_file(TEST_SAVE)
-			return
-		}
-	}
 
 	// The dialogue box reads its own input; the player waits.
 	if dialogue_active() do return

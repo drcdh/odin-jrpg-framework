@@ -13,7 +13,7 @@ debug_framerate_count: int
 debug_framerate_sum: f32
 
 debug_grid: bool
-debug_overlay: bool
+debug_overlay: bool // toggled with .F1
 debug_text: bool
 
 force_drops: bool
@@ -76,6 +76,7 @@ draw_debug_battle :: proc() {
 	for c in battle.combatants {
 		e := hm.get(&game.entities, c.eid)
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, rl.GREEN)
+		rl.DrawText(fmt.ctprintf("%.0f", c.ticks), i32(e.pos.x), i32(e.pos.y), 10, rl.PURPLE)
 	}
 }
 
@@ -154,18 +155,28 @@ debug_draw :: proc() {
 	}
 }
 
-// Reads the debug keys. Lines for things not ported yet (battles, shops,
-// darkness, runners, sounds, player speed) are commented out.
 debug_update :: proc() {
 	when !ODIN_DEBUG do return // debug builds only
 
-	// if rl.IsKeyPressed(.B) {
-	// 	if battle.active {
-	// 		fmt.printfln("%#v", battle)
-	// 	}
-	// }
+	if rl.IsKeyPressed(.F1) do toggle_debug()
+
+	if rl.IsKeyPressed(.F4) do save_game_now(TEST_SAVE)
+	if rl.IsKeyPressed(.F5) {
+		load_save_file(TEST_SAVE)
+		return
+	}
+
+	if rl.IsKeyPressed(.B) {
+		if battle.active {
+			fmt.println("VVV BATTLE VVV")
+			fmt.printfln("%#v", battle)
+			fmt.println("^^^ BATTLE ^^^")
+		}
+	}
 	if rl.IsKeyPressed(.C) {
+		fmt.println("VVV CHARACTERS VVV")
 		fmt.printfln("%#v", playable_characters)
+		fmt.println("^^^ CHARACTERS ^^^")
 	}
 	// if rl.IsKeyPressed(.D) {
 	// 	if darkness < 250 {

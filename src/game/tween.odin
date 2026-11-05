@@ -36,6 +36,7 @@ Tween_Target :: union {
 
 Tween_Mode :: enum u8 {
 	Once,      // finishes at `to` and is removed
+	Bounce,    // returns to `from` and is removed
 	Loop,      // restarts from `from`; never finishes
 	Ping_Pong, // goes back and forth; never finishes
 }
@@ -101,6 +102,17 @@ tween_to_tile :: proc(id: Entity_Id, tile: Tile, duration: f32, easing := Ease.L
 	h := tween_pos(id, tile_center(tile), duration, easing)
 	if t, has := hm.get(&game.tweens, h); has do t.arrive = true
 	return h
+}
+
+tween_jump :: proc(id: Entity_Id, distance, height: f32, duration: f32, delay: f32 = 0) -> (x, y: Tween_Id) {
+	e, ok := entity_get(id)
+	if !ok do return
+	e.tile += {i32(distance), 0}
+	x = tween_by(id, .Pos_X, {distance*TILE_SIZE, 0, 0, 0}, duration, delay = delay)
+	y = tween_by(id, .Pos_Y, {-height*TILE_SIZE, 0, 0, 0}, duration/2, .Quadratic_Out, mode = .Bounce, delay = delay)
+	if t, has := hm.get(&game.tweens, x); has do t.arrive = true
+	if t, has := hm.get(&game.tweens, y); has do t.arrive = true
+	return
 }
 
 tween_scale :: proc(id: Entity_Id, to: [2]f32, duration: f32, easing := Ease.Linear, mode := Tween_Mode.Once, delay: f32 = 0) -> Tween_Id {
@@ -186,6 +198,13 @@ tween_step :: proc(t: ^Tween, dt: f32) -> bool {
 			p = 1
 			done = true
 		}
+	case .Bounce:
+		if p >= 2 {
+			p = 2
+			done = true
+		}
+		c := p
+		p = c if c <= 1 else 2 - c
 	case .Loop:
 		p -= math.floor(p)
 	case .Ping_Pong:

@@ -6,7 +6,9 @@ import "core:log"
 
 import rl "vendor:raylib"
 
-BATTLE_SPEED :: 2 // ticks per second per speed
+BATTLE_SPEED :: 30 // combatant ticks per second. TODO: player-configurable in System menu
+BATTLE_TICK_TIME :: 0.1 // seconds per battle tick
+SPEED_PAR :: 30
 
 TAKE_TURN_DELAY :: .5 // seconds
 
@@ -70,6 +72,7 @@ Battle :: struct {
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
 	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
+	results_actor:  int,
 	results_script: Script_Id,
 	skill_plays:    [dynamic]Battle_Skill_Play,
 	skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
@@ -152,11 +155,10 @@ battle_tick :: proc() {
 	clear(&battle.skill_result)
 	take_turns()
 
-	TICK :: 1 // FIXME
 	for &c in battle.combatants {
 		if combatant_downed(c) do continue
 		if combatant_winding_up(c) do continue
-		c.ticks += TICK * f32(get_stat(c, .Speed))
+		c.ticks += (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c, .Speed))/SPEED_PAR
 		if c.ticks > READY_TICKS do c.ticks = READY_TICKS
 		charge_skills(&c.skills, battle = true)
 	}
@@ -173,7 +175,7 @@ battle_tick :: proc() {
 	}
 
 	for &s in battle.skill_plays {
-		s.windup -= TICK * f32(get_stat(battle.combatants[s.actor_idx], .Speed))
+		s.windup -= (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx], .Speed))/SPEED_PAR
 	}
 
 	for i := 0; i < len(battle.skill_plays); {
@@ -240,6 +242,8 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	skill := skills[skill_play.skill_name]
 	actor := &battle.combatants[skill_play.actor_idx]
 	actor.windup = false
+
+	battle.results_actor = skill_play.actor_idx
 
 	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
 		r := do_skill_combatant(actor, &battle.combatants[target_idx], skill)
@@ -464,11 +468,10 @@ draw_battle_popups :: proc() {
 }
 
 battle_time_tick :: proc(dt: f32) {
-	TICK_TIME :: .5
 	@(static) time_since_tick: f32
 	time_since_tick += dt
-	if time_since_tick >= TICK_TIME {
-		time_since_tick -= TICK_TIME
+	if time_since_tick >= BATTLE_TICK_TIME {
+		time_since_tick -= BATTLE_TICK_TIME
 		battle_tick()
 		process_skill_results()
 	}
@@ -509,6 +512,21 @@ process_skill_results :: proc() {
 
 @(private = "file")
 show_skill_results :: proc(_: Entity_Id) {
+	ATTACK_TIME :: .25 // time to animate approach and retreat
+	ALLY_DX :: 2 // distance allies move horizontally in tiles
+
+	actor := battle.combatants[battle.results_actor]
+	actor_eid := actor.eid
+	if actor.team == BADDY_TEAM {
+		move_entity(actor_eid, {1, 0}, ATTACK_TIME)
+	} else {
+		set_sprite_tag_of(actor_eid, .RArm)
+		freeze_anim(actor_eid, 1)
+		wait_all(tween_jump(actor_eid, -ALLY_DX, 1, ATTACK_TIME))
+		set_sprite_tag_of(actor_eid, .Walk)
+		freeze_anim(actor_eid, 1)
+	}
+
 	scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
 	for r, i in battle.results {
 		if i > 0 && !pause(MULTI_TARGET_DELAY) do return
@@ -517,6 +535,16 @@ show_skill_results :: proc(_: Entity_Id) {
 	for s in sa.slice(&scripts) {
 		if !wait_script(s) do return
 	}
+
+	if actor.team == BADDY_TEAM {
+		move_entity(actor_eid, {-1, 0}, ATTACK_TIME)
+	} else {
+		set_sprite_tag_of(actor_eid, .Walk)
+		play_anim(actor_eid)
+		move_entity(actor_eid, {ALLY_DX, 0}, ATTACK_TIME)
+		set_sprite_tag_of(actor_eid, .Idle)
+	}
+
 	battle_menu_set_stale(.Baddies)
 	battle_menu_set_stale(.Party)
 	if result, over := check_win().?; over {
