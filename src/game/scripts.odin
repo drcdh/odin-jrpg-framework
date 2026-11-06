@@ -62,16 +62,16 @@ character_get_experience :: proc(pc_idx, exp: int) {
 	}
 
 	if c.level > prev_level {
-		say(fmt.tprintf("%s got to level %d", c.name, c.level))
+		say(fmt.tprintf("%s got to level %d", c.name, c.level), lines=1, hurry=true, pause=1.5)
 		for k in new_skills {
-			say(fmt.tprintf("%s learned %s", c.name, skills[k].name))
+			say(fmt.tprintf("%s learned %s", c.name, skills[k].name), lines=1, hurry=true, pause=1.5)
 		}
 	}
 }
 
 party_get_experience :: proc(exp: int) {
 	log.infof("party gets experience %d", exp)
-	say(fmt.tprintf("Got %d experience points", exp))
+	say(fmt.tprintf("Got %d experience points", exp), lines=1, hurry=true, pause=1.5)
 
 	for pc_idx in 0 ..< NUM_PC {
 		if !game_data.party_membership[pc_idx] do continue

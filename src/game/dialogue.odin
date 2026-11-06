@@ -8,6 +8,7 @@ DIALOGUE_SPEED         :: f32(0.05) // seconds per character
 DEFAULT_DIALOGUE_LINES :: 4
 MAX_DIALOGUE_LINES     :: 24
 DIALOGUE_ORIGIN        :: [2]f32{0, 0}
+DEFAULT_LINE_WIDTH     :: 2 * VIEW_TILES_W - 2
 
 Dialogue_Hidden  :: struct {}
 Dialogue_Marquee :: struct { t: f32 } // typing; t is the time to the next character
@@ -33,7 +34,7 @@ Dialogue :: struct {
 	state:      Dialogue_State,
 	owner:      Script_Id,
 	lines:      int, // per page, including the speaker line
-	line_width: int, // characters
+	line_width: int, // characters. if -1 draw pane fit to width of text, if 0 uses DEFAULT_LINE_WIDTH
 
 	buffer:     strings.Builder, // the text since the box was last cleared
 	page_start: int,             // where the current page starts
@@ -46,7 +47,14 @@ Dialogue :: struct {
 	choices:    [dynamic]string, // cloned
 	choice:     int,             // the highlighted choice; the result once Done
 	hurry:      bool,            // finish without waiting for ENTER
+	justify:    Justify,
 	pause:      f32,             // seconds to hold the finished text first
+}
+
+Justify :: enum {
+	Left,
+	Center,
+	Right,
 }
 
 @(private)
@@ -55,7 +63,7 @@ dialogue_init :: proc(allocator := context.allocator) {
 	d.state = Dialogue_Hidden{}
 	d.lines = DEFAULT_DIALOGUE_LINES
 	// The old game's width: the screen less a tile of border.
-	d.line_width = 2 * VIEW_TILES_W - 2
+	d.line_width = DEFAULT_LINE_WIDTH
 	strings.builder_init(&d.buffer, allocator)
 	strings.builder_init(&d.speaker, allocator)
 	d.choices = make([dynamic]string, allocator)
@@ -81,17 +89,42 @@ dialogue_active :: proc() -> bool {
 // false, the text carries on from what's in the box, on the same page. A non-empty `speaker`
 // takes the first line in gold. Words wrap at spaces; "\n" breaks a line.
 //
+// `lines` is the pane's height in lines, speaker included. `line_width` is its
+// width in characters: 0 for the full screen, -1 to fit the text (both at most
+// DEFAULT_LINE_WIDTH). `justify` aligns the text in the pane and the pane on
+// the screen.
+//
 // If another script's dialogue is up, waits for it to close first. Returns
 // false if the script was cancelled; a cancelled speaker's box closes. The box
 // closes once the speaking script stops talking (doesn't say or choose again
 // on the frame it resumes), so a run of says reads as one conversation.
-say_str :: proc(text: string, speaker := "", hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
+say_str :: proc(
+	text: string,
+	speaker := "",
+	hurry := false,
+	pause: f32 = 0,
+	clear := true,
+	justify := Justify.Left,
+	lines := DEFAULT_DIALOGUE_LINES,
+	line_width: int = 0,
+	loc := #caller_location,
+) -> bool {
 	log.infof("say %v", text)
-	return dialogue_show(text, speaker, nil, hurry, pause, clear, loc)
+	return dialogue_show(text, speaker, nil, hurry, pause, clear, justify, lines, line_width, loc)
 }
 
-say_eid :: proc(text: string, speaker: Entity_Id, hurry := false, pause: f32 = 0, clear := true, loc := #caller_location) -> bool {
-	return say_str(text, entity_name(speaker), hurry, pause, clear, loc)
+say_eid :: proc(
+	text: string,
+	speaker: Entity_Id,
+	hurry := false,
+	pause: f32 = 0,
+	clear := true,
+	justify := Justify.Left,
+	lines := DEFAULT_DIALOGUE_LINES,
+	line_width: int = 0,
+	loc := #caller_location,
+) -> bool {
+	return say_str(text, entity_name(speaker), hurry, pause, clear, justify, lines, line_width, loc)
 }
 
 say :: proc {
@@ -101,16 +134,33 @@ say :: proc {
 
 // Like say, then offers `choices` in a pane below the text. UP and DOWN move
 // the highlight (wrapping around), ENTER picks. Returns the chosen index.
-choose_str :: proc(text: string, choices: []string, speaker := "", loc := #caller_location) -> (choice: int, ok: bool) {
+// Choices wrap like the text, in a pane of the same width.
+choose_str :: proc(
+	text: string,
+	choices: []string,
+	speaker := "",
+	justify := Justify.Left,
+	lines := DEFAULT_DIALOGUE_LINES,
+	line_width: int = 0,
+	loc := #caller_location,
+) -> (choice: int, ok: bool) {
 	assert(len(choices) > 0, "choose needs at least one choice", loc)
 	log.infof("given prompt \"%s\" with choices %v", text, choices)
-	ok = dialogue_show(text, speaker, choices, false, 0, true, loc)
+	ok = dialogue_show(text, speaker, choices, false, 0, true, justify, lines, line_width, loc)
 	log.infof("made choice %d of %d: \"%s\"", game.dialogue.choice+1, len(choices), choices[game.dialogue.choice])
 	return game.dialogue.choice, ok
 }
 
-choose_eid :: proc(text: string, choices: []string, speaker: Entity_Id, loc := #caller_location) -> (choice: int, ok: bool) {
-	return choose_str(text, choices, entity_name(speaker), loc)
+choose_eid :: proc(
+	text: string,
+	choices: []string,
+	speaker: Entity_Id,
+	justify := Justify.Left,
+	lines := DEFAULT_DIALOGUE_LINES,
+	line_width: int = 0,
+	loc := #caller_location,
+) -> (choice: int, ok: bool) {
+	return choose_str(text, choices, entity_name(speaker), justify, lines, line_width, loc)
 }
 
 choose :: proc {
@@ -118,10 +168,33 @@ choose :: proc {
 	choose_str,
 }
 
+// Waits until the dialogue box closes, e.g. after a hurried say. Returns false
+// if the script was cancelled.
+wait_dialogue :: proc(loc := #caller_location) -> bool {
+	return wait_until(proc(_: rawptr) -> bool { return !dialogue_active() }, nil, loc)
+}
+
 @(private)
-dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pause: f32, clear: bool, loc := #caller_location) -> bool {
+dialogue_show :: proc(
+	text, speaker: string,
+	choices: []string,
+	hurry: bool,
+	pause: f32,
+	clear: bool,
+	justify := Justify.Left,
+	lines := DEFAULT_DIALOGUE_LINES,
+	line_width: int = 0,
+	loc := #caller_location,
+) -> bool {
 	s := current_script
 	assert(s != nil, "say/choose called outside of a script", loc)
+	assert(lines > 0, "say/choose lines must be strictly positive", loc)
+	assert(line_width >= -1, "say/choose line_width must be -1, 0 or positive", loc)
+	lines := lines
+	if lines > MAX_DIALOGUE_LINES {
+		log.warnf("too many lines in say/choose, got %d > %d", lines, MAX_DIALOGUE_LINES)
+		lines = MAX_DIALOGUE_LINES
+	}
 
 	// Wait for the box unless it's free or this script is mid-conversation.
 	free := wait_until(proc(data: rawptr) -> bool {
@@ -142,6 +215,19 @@ dialogue_show :: proc(text, speaker: string, choices: []string, hurry: bool, pau
 	for c in choices do append(&d.choices, replace_keynames(strings.clone(c, d.buffer.buf.allocator)))
 	d.choice = 0
 	d.hurry = hurry
+	d.justify = justify
+	d.lines = lines
+	switch {
+	case line_width == -1:
+		d.line_width = min(dialogue_fit_width(), DEFAULT_LINE_WIDTH)
+	case line_width == 0:
+		d.line_width = DEFAULT_LINE_WIDTH
+	case line_width > DEFAULT_LINE_WIDTH:
+		log.warnf("line_width too wide in say/choose, got %d > %d", line_width, DEFAULT_LINE_WIDTH)
+		d.line_width = DEFAULT_LINE_WIDTH
+	case:
+		d.line_width = line_width
+	}
 	d.pause = pause
 	d.owner = s.handle
 	if carry_on {
@@ -211,12 +297,17 @@ draw_dialogue :: proc() {
 	d := &game.dialogue
 	if !dialogue_active() do return
 	o := DIALOGUE_ORIGIN
-	w := f32(VIEW_TILES_W)
+	w := f32(d.line_width + 2) / 2 // a character is half a tile
+	switch d.justify {
+	case .Left:
+	case .Center: o.x += (VIEW_TILES_W - w) / 2
+	case .Right:  o.x += VIEW_TILES_W - w
+	}
 	draw_pane(o.x, o.y, w, f32(d.lines + 2) / 2)
 
 	row := 0
-	if strings.builder_len(d.speaker) > 0 {
-		draw_text(o.x + .5, o.y + .5, strings.clone_to_cstring(strings.to_string(d.speaker), context.temp_allocator), rl.GOLD)
+	if speaker := strings.to_string(d.speaker); len(speaker) > 0 {
+		draw_text(dialogue_line_x(o.x, len(speaker)), o.y + .5, strings.clone_to_cstring(speaker, context.temp_allocator), rl.GOLD)
 		row = 1
 	}
 	text := strings.to_string(d.buffer)
@@ -225,7 +316,8 @@ draw_dialogue :: proc() {
 		n := min(l.end - l.start, remaining)
 		remaining -= n
 		line := strings.clone_to_cstring(text[l.start:][:n], context.temp_allocator)
-		draw_text(o.x + .5, o.y + f32(row + 1) / 2, line)
+		// Placed by the whole line, so it doesn't slide as it types.
+		draw_text(dialogue_line_x(o.x, l.end - l.start), o.y + f32(row + 1) / 2, line)
 		row += 1
 	}
 
@@ -233,12 +325,49 @@ draw_dialogue :: proc() {
 	case Dialogue_Wait:
 		draw_dialogue_icon(tile_to_pixel(o.x + w - 1, o.y + f32(d.lines / 2)))
 	case Dialogue_Choose:
-		draw_pane(o.x, o.y + f32(d.lines + 2) / 2, w, f32(len(d.choices) + 2) / 2)
+		wrapped: [MAX_DIALOGUE_LINES]Dialogue_Line
+		rows := 0
+		for c in d.choices {
+			n, _ := wrap_page(c, 0, MAX_DIALOGUE_LINES, d.line_width, wrapped[:])
+			rows += n
+		}
+		t := o.y + f32(d.lines + 2) / 2
+		draw_pane(o.x, t, w, f32(rows + 2) / 2)
+		row = 0
 		for c, i in d.choices {
 			color := rl.YELLOW if i == d.choice else rl.GRAY
-			draw_text(o.x + .5, o.y + f32(i + d.lines + 2) / 2 + .5, strings.clone_to_cstring(c, context.temp_allocator), color)
+			n, _ := wrap_page(c, 0, MAX_DIALOGUE_LINES, d.line_width, wrapped[:])
+			for l in wrapped[:n] {
+				line := strings.clone_to_cstring(c[l.start:l.end], context.temp_allocator)
+				draw_text(dialogue_line_x(o.x, l.end - l.start), t + f32(row + 1) / 2, line, color)
+				row += 1
+			}
 		}
 	}
+}
+
+// Where a line `length` characters long starts in the pane at `pane_x`.
+@(private = "file")
+dialogue_line_x :: proc(pane_x: f32, length: int) -> f32 {
+	d := &game.dialogue
+	slack := f32(d.line_width - length) / 2 // tiles
+	switch d.justify {
+	case .Left:   return pane_x + .5
+	case .Center: return pane_x + .5 + slack / 2
+	case .Right:  return pane_x + .5 + slack
+	}
+	return pane_x + .5
+}
+
+// The width that fits the box's text, speaker and choices on unwrapped lines.
+@(private = "file")
+dialogue_fit_width :: proc() -> int {
+	d := &game.dialogue
+	width := max(1, strings.builder_len(d.speaker))
+	text := strings.to_string(d.buffer)
+	for line in strings.split_lines_iterator(&text) do width = max(width, len(line))
+	for c in d.choices do width = max(width, len(c))
+	return width
 }
 
 // Splits `text` from `start` into at most `lines` lines of at most `width`

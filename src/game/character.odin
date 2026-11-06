@@ -87,14 +87,6 @@ gain_level :: proc(c: ^Character) -> Skill_Set {
 	return new_skills
 }
 
-// party_get_experience :: proc(exp: int) {
-// 	if exp <= 0 do return
-// 	for party_idx in 0 ..< party_size() {
-// 		pc := get_party_member(party_idx)
-// 		get_experience(pc, exp)
-// 	}
-// }
-
 Status_Name :: enum {
 	Confuse,
 	Control,

@@ -74,6 +74,7 @@ Battle :: struct {
 	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
 	results_actor:  int,
 	results_script: Script_Id,
+	results_skill:  Skill_Name,
 	skill_plays:    [dynamic]Battle_Skill_Play,
 	skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
 	ui_disabled:    bool, // don't draw the menu or accept input while true
@@ -244,6 +245,7 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	actor.windup = false
 
 	battle.results_actor = skill_play.actor_idx
+	battle.results_skill = skill_play.skill_name
 
 	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
 		r := do_skill_combatant(actor, &battle.combatants[target_idx], skill)
@@ -516,6 +518,8 @@ show_skill_results :: proc(_: Entity_Id) {
 	ATTACK_TIME :: .25 // time to animate approach and retreat
 	ALLY_DX :: 2 // distance allies move horizontally in tiles
 
+	say(skills[battle.results_skill].name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+
 	actor := battle.combatants[battle.results_actor]
 	actor_eid := actor.eid
 	if actor.team == BADDY_TEAM {
@@ -562,7 +566,7 @@ show_skill_results :: proc(_: Entity_Id) {
 					play_anim(c.eid)
 				}
 			}
-			say("Victory!")
+			say("Victory!", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
 			party_get_experience(battle.encounter.exp) // blocks with say
 			// get_spoils()
 			fade_screen(1, .5)
