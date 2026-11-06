@@ -377,5 +377,8 @@
   <object id="12" name="Orthros_Spawn" x="896" y="752">
    <point/>
   </object>
+  <object id="28" name="suspicious_pebble" x="184" y="568">
+   <point/>
+  </object>
  </objectgroup>
 </map>
