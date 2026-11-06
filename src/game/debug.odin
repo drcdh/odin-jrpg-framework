@@ -143,15 +143,15 @@ debug_draw :: proc() {
 		h0 :: TILE_SIZE
 		h : f32 = h0
 		rl.DrawLineV({0, h0}, {view.x, h0}, rl.WHITE)
-		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, 0}, h0, 0, rl.WHITE)
+		rl.DrawTextEx(font, FONT_LETTERS, {0, 0}, h0, 0, rl.WHITE)
 		h1 :: TILE_SIZE / 2
 		h += h1
 		rl.DrawLineV({0, h}, {view.x, h}, rl.WHITE)
-		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, h - h1}, h1, 0, rl.WHITE)
+		rl.DrawTextEx(font, FONT_LETTERS, {0, h - h1}, h1, 0, rl.WHITE)
 		h2 :: TILE_SIZE / 4
 		h += h2
 		rl.DrawLineV({0, h}, {view.x, h}, rl.WHITE)
-		rl.DrawTextEx(font, LETTERS_IN_FONT, {0, h - h2}, h2, 0, rl.WHITE)
+		rl.DrawTextEx(font, FONT_LETTERS, {0, h - h2}, h2, 0, rl.WHITE)
 	}
 }
 

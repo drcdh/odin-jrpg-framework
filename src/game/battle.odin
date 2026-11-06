@@ -516,7 +516,7 @@ draw_battle_popups :: proc() {
 		color := p.color
 		color.a = u8(255 * (1 - k))
 		at := p.pos / TILE_SIZE
-		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color)
+		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color, p.dmg)
 	}
 }
 

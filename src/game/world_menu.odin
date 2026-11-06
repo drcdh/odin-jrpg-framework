@@ -68,6 +68,7 @@ Popup :: struct {
 	text:  [16]u8, // NUL-terminated
 	color: rl.Color,
 	t:     f32, // seconds since it appeared; negative while it waits
+	dmg:   bool, // use damage_font
 }
 
 @(private = "file")
@@ -130,8 +131,8 @@ world_menu_exit :: proc() {
 
 // Shows `text` rising from party slot `slot` in the Targeting pane after
 // `delay` seconds (UI time, so it runs while the menu pauses the world).
-world_menu_popup :: proc(slot: int, color: rl.Color, delay: f32, text: string) {
-	p := Popup{slot = slot, color = color, t = -delay}
+world_menu_popup :: proc(slot: int, color: rl.Color, delay: f32, text: string, dmg := false) {
+	p := Popup{slot = slot, color = color, t = -delay, dmg = dmg}
 	copy(p.text[:len(p.text) - 1], text)
 	if !sa.push(&menu.popups, p) do log.warnf("Too many world menu popups; dropped %q", text)
 }
@@ -163,7 +164,7 @@ draw_popups :: proc() {
 		// Over the sprite in the Targeting pane (draw_targeting), rising half a
 		// tile towards the target cursor as it fades.
 		w := sprite_size(pc_menu_sprite(get_pc_idx(p.slot))).x / TILE_SIZE
-		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color)
+		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color, dmg=p.dmg)
 	}
 }
 

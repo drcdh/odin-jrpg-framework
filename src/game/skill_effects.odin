@@ -304,6 +304,7 @@ POPUP_GAP :: f32(0.4)
 Effect_Popup :: struct {
 	text:  [16]u8, // NUL-terminated
 	color: rl.Color,
+	dmg: bool, // use damage_font
 }
 
 Effect_Popups :: sa.Small_Array(4, Effect_Popup)
@@ -311,28 +312,28 @@ Effect_Popups :: sa.Small_Array(4, Effect_Popup)
 // The popups for `r`, in order: the hit or HP change, then levels, then
 // status (unless `status` is false).
 effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Effect_Popups) {
-	popup :: proc(popups: ^Effect_Popups, color: rl.Color, format: string, args: ..any) {
-		p := Effect_Popup{color = color}
+	popup :: proc(popups: ^Effect_Popups, color: rl.Color, format: string, args: ..any, dmg := false) {
+		p := Effect_Popup{color = color, dmg = dmg}
 		fmt.bprintf(p.text[:len(p.text) - 1], format, ..args)
 		sa.push(popups, p)
 	}
 
 	switch r.hit {
-	case .Miss:  popup(&popups, rl.GRAY, "Miss!")
-	case .Evade: popup(&popups, rl.GRAY, "Evade!")
+	case .Miss:  popup(&popups, rl.GRAY, "Mi", dmg=true)
+	case .Evade: popup(&popups, rl.GRAY, "Eva", dmg=true)
 	case .Hit:
 	}
-	if r.hp_change < 0 do popup(&popups, rl.WHITE, "%d", -r.hp_change)
-	if r.hp_change > 0 do popup(&popups, rl.GREEN, "%d", r.hp_change)
-	if r.levels > 0 do popup(&popups, rl.PURPLE, "+%d LV", r.levels)
+	if r.hp_change < 0 do popup(&popups, rl.WHITE, "%d", -r.hp_change, dmg=true)
+	if r.hp_change > 0 do popup(&popups, rl.GREEN, "%d", r.hp_change, dmg=true)
+	if r.levels > 0 do popup(&popups, rl.PURPLE, "%d", r.levels, dmg=true)
 	if s, ok := r.status.?; ok && status {
 		switch r.status_result {
 		case .None:
-		case .Added:         popup(&popups, rl.RED, "%v", s)
-		case .Ineffective:   popup(&popups, rl.PURPLE, "Ineff!")
-		case .Resisted:      popup(&popups, rl.PURPLE, "Resist!")
-		case .Removed:       popup(&popups, rl.GREEN, "Cured")
-		case .Remove_Missed: popup(&popups, rl.PURPLE, "Miss")
+		case .Added:         popup(&popups, rl.RED, "%v", s) // TODO: status animations?
+		case .Ineffective:   popup(&popups, rl.PURPLE, "Ine", dmg=true)
+		case .Resisted:      popup(&popups, rl.PURPLE, "Res", dmg=true)
+		case .Removed:       popup(&popups, rl.GREEN, "Cur", dmg=true)
+		case .Remove_Missed: popup(&popups, rl.PURPLE, "Mi", dmg=true)
 		}
 	}
 	return
@@ -342,5 +343,5 @@ effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Effect_Popup
 @(private = "file")
 show_effect_in_world_menu :: proc(slot: int, r: Effect_Result) {
 	popups := effect_popups(r)
-	for &p, i in sa.slice(&popups) do world_menu_popup(slot, p.color, f32(i) * POPUP_GAP, string(cstring(&p.text[0])))
+	for &p, i in sa.slice(&popups) do world_menu_popup(slot, p.color, f32(i) * POPUP_GAP, string(cstring(&p.text[0])), p.dmg)
 }

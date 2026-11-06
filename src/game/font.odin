@@ -6,14 +6,18 @@ import rl "vendor:raylib"
 @(private = "file")
 FONT_ATLAS_DATA :: #load("../../assets/textures/font.png")
 
+@(private = "file")
+DAMAGE_FONT_ATLAS_DATA :: #load("../../assets/textures/font_damage.png")
+
 @(private)
 font: rl.Font
 
-// The 8x8 bitmap font. `atlas_glyphs` is generated into font_data.odin by
-// src/build_tools/generate_font.py. Main thread, with a window.
 @(private)
-font_init :: proc() {
-	font_atlas_image := rl.LoadImageFromMemory(".png", raw_data(FONT_ATLAS_DATA), i32(len(FONT_ATLAS_DATA)))
+damage_font: rl.Font
+
+@(private = "file")
+font_init_ :: proc(raw_data_: [^]u8, length: i32, atlas_glyphs: []Atlas_Glyph, font: ^rl.Font) {
+	font_atlas_image := rl.LoadImageFromMemory(".png", raw_data_, length)
 	font_atlas := rl.LoadTextureFromImage(font_atlas_image)
 	rl.UnloadImage(font_atlas_image)
 
@@ -31,7 +35,7 @@ font_init :: proc() {
 		}
 	}
 
-	font = {
+	font^ = {
 		baseSize     = 8,
 		glyphCount   = i32(num_glyphs),
 		glyphPadding = 0,
@@ -42,10 +46,22 @@ font_init :: proc() {
 }
 
 @(private)
-font_destroy :: proc() {
+font_init :: proc() {
+	font_init_(raw_data(FONT_ATLAS_DATA), i32(len(FONT_ATLAS_DATA)), atlas_glyphs, &font)
+	font_init_(raw_data(DAMAGE_FONT_ATLAS_DATA), i32(len(DAMAGE_FONT_ATLAS_DATA)), damage_atlas_glyphs, &damage_font)
+}
+
+@(private = "file")
+font_destroy_ :: proc(font: ^rl.Font) {
 	if font.texture.id == 0 do return
 	rl.UnloadTexture(font.texture)
 	delete(slice.from_ptr(font.glyphs, int(font.glyphCount)))
 	delete(slice.from_ptr(font.recs, int(font.glyphCount)))
-	font = {}
+	font^ = {}
+}
+
+@(private)
+font_destroy :: proc() {
+	font_destroy_(&font)
+	font_destroy_(&damage_font)
 }
