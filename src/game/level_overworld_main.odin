@@ -13,12 +13,22 @@ init_overworld_main :: proc() {
 			say("There is a pebble here, and not just any pebble, but a suspicious pebble.")
 			choice, _ := choose("Poke the suspicious pebble?", {"Yes.", "No."})
 			if choice == 1 do return
-			start_encounter(.Pebble)
+			start_encounter(
+				.Pebble,
+				start_proc = proc(self: Entity_Id) {
+					default_start_proc(self)
+					battle.paused = true
+					say("WHO HAS AWAKENED ME?!", lines=1, hurry=true, pause=3)
+					battle.paused = false
+				},
+				lose_proc = continue_lose_proc,
+			)
 			wait_battle()
 			pause(.5)
 			if battle_result() == .Win {
 				say("The powerful pebble sits there, inert.")
 			} else if battle_result() == .Lose {
+				heal_party()
 				say("The powerful pebble sits there, inert and oddly satisfied looking.")
 			}
 			pebble_fought = true

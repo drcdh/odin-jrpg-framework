@@ -68,6 +68,7 @@ Battle :: struct {
 	camera:         Camera,
 	combatants:			[dynamic]Combatant,
 	encounter:    	^Encounter,
+	lose_proc:      Script_Proc,
 	paused:         bool, // true while running audiovisual stuff
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
@@ -77,7 +78,10 @@ Battle :: struct {
 	results_skill:  Skill_Name,
 	skill_plays:    [dynamic]Battle_Skill_Play,
 	skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
+	start_proc:     Script_Proc,
+	start_proc_run: bool,
 	ui_disabled:    bool, // don't draw the menu or accept input while true
+	win_proc:       Script_Proc,
 }
 
 battle: Battle
@@ -280,7 +284,7 @@ interrupt_windup :: proc(target: ^Combatant) -> bool {
 roll_for_counter :: proc(actor, target: ^Combatant, risk: f32 = 1) {
 }
 
-encounter_init :: proc(encounter_name: Encounter_Name) {
+encounter_init :: proc(encounter_name: Encounter_Name, start_proc, win_proc, lose_proc: Script_Proc) {
 	battle_clear()
 	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
 	spawn_combatants(encounter_name) // spawns Entities
@@ -290,7 +294,11 @@ encounter_init :: proc(encounter_name: Encounter_Name) {
 	battle.camera.zoom = 1
 	battle.active = true
 	battle.paused = true
+	battle.start_proc_run = false
 	battle.ui_disabled = false
+	battle.lose_proc = lose_proc
+	battle.start_proc = start_proc
+	battle.win_proc = win_proc
 	log.info("battle is Active")
 }
 
@@ -481,6 +489,15 @@ battle_time_tick :: proc(dt: f32) {
 }
 
 update_battle :: proc(dt: f32) {
+	if !battle.start_proc_run {
+		if battle.start_proc != nil {
+			spawn(battle.start_proc)
+		} else {
+			spawn(default_start_proc)
+		}
+		battle.start_proc_run = true
+	}
+
 	if !battle.ui_disabled {
 		battle_menu_update()
 	}
@@ -556,27 +573,70 @@ show_skill_results :: proc(_: Entity_Id) {
 		log.infof("battle result non-nil: %v", result)
 		battle.result = result
 		if result == .Win {
-			battle.ui_disabled = true
-			battle_menu.ui_state = .Idle
-			for c_idx in battle.allies {
-				c := battle.combatants[c_idx]
-				if combatant_alive(c) {
-					set_sprite_tag_of(c.eid, .Cheer)
-					set_anim_when(c.eid, .Always)
-					play_anim(c.eid)
-				}
+			if battle.win_proc != nil {
+				spawn(battle.win_proc)
+			} else {
+				spawn(default_win_proc)
 			}
-			say("Victory!", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
-			party_get_experience(battle.encounter.exp) // blocks with say
-			// get_spoils()
-			fade_screen(1, .5)
-			battle_deactivate() // stop drawing battle and draw world
-			play_prev_music()
-			fade_screen(0, .5)
+		} else if result == .Lose {
+			if battle.lose_proc != nil {
+				spawn(battle.lose_proc)
+			} else {
+				spawn(default_lose_proc)
+			}
 		}
 	} else {
 		battle.paused = false
 	}
+}
+
+default_start_proc :: proc(_: Entity_Id) {
+	play_music(.Battle)
+	fade_screen(0, .25)
+	pause(.25)
+	battle.paused = false
+}
+
+default_win_proc :: proc(_: Entity_Id) {
+	battle.ui_disabled = true
+	battle_menu.ui_state = .Idle
+	for c_idx in battle.allies {
+		c := battle.combatants[c_idx]
+		if combatant_alive(c) {
+			set_sprite_tag_of(c.eid, .Cheer)
+			set_anim_when(c.eid, .Always)
+			play_anim(c.eid)
+		}
+	}
+	say("Victory!", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+	party_get_experience(battle.encounter.exp) // blocks with say
+	// get_spoils()
+	fade_screen(1, .5)
+	battle_deactivate() // stop drawing battle and draw world
+	play_prev_music()
+	fade_screen(0, .5)
+}
+
+default_lose_proc :: proc(_: Entity_Id) {
+	battle.ui_disabled = true
+	battle_menu.ui_state = .Idle
+	music_fade_down()
+	say("Defeat|", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+	fade_screen(1, .5)
+	battle_deactivate() // stop drawing battle and draw world
+	game_over()
+}
+
+continue_lose_proc :: proc(_: Entity_Id) {
+	battle.ui_disabled = true
+	battle_menu.ui_state = .Idle
+	music_fade_down()
+	say("Defeat|", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+	fade_screen(1, .5)
+	play_prev_music()
+	music_fade_up()
+	battle_deactivate()
+	fade_screen(0, .5)
 }
 
 // Shows the skill result for target `self`: the skill's animation over it, its

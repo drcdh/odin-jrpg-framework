@@ -78,13 +78,14 @@ init_quarry_main :: proc() {
 			choice: int
 			if choice, ok = choose("Hello there! Isn't it a lovely day?", {"Fight!", "I choose peace."}, speaker = name); !ok do return
 			if choice == 0 {
-				start_encounter(.Mouse_Boss)
+				start_encounter(.Mouse_Boss, lose_proc = continue_lose_proc)
 				wait_battle()
 				pause(.5)
 				if battle_result() == .Win {
 					say("Well now the whole picnic is ruined.", speaker = name)
 					monster_fight_stage = 2
 				} else if battle_result() == .Lose {
+					heal_party()
 					say("Looooooser.", speaker = name)
 					monster_fight_stage = 3
 				}

@@ -19,3 +19,9 @@ new_game :: proc() {
 		change_level(.Quarry_Main, fade = 1)
 	}
 }
+
+game_over :: proc() {
+	start_menu_enter()
+	fade_screen(0, .5)
+	// game.quitting = true
+}

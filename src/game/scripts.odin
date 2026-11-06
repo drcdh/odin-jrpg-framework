@@ -33,14 +33,10 @@ monster_in_a_box :: proc(self: Entity_Id, datum: Chest_Datum, encounter: Encount
 }
 
 // should get called inside a script, so stuff can block
-start_encounter :: proc(name: Encounter_Name) {
+start_encounter :: proc(name: Encounter_Name, start_proc: Script_Proc = nil, win_proc: Script_Proc = nil, lose_proc: Script_Proc = nil) {
 	log.infof("starting encounter %v", name)
 	fade_screen(1, .25)
-	encounter_init(name) // sets battle.active = true
-	play_music(.Battle)
-	fade_screen(0, .25)
-	pause(.25)
-	battle.paused = false
+	encounter_init(name, start_proc, win_proc, lose_proc) // sets battle.active = true
 }
 
 character_get_experience :: proc(pc_idx, exp: int) {
