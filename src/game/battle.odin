@@ -14,6 +14,8 @@ TAKE_TURN_DELAY :: .5 // seconds
 
 MULTI_TARGET_DELAY :: .2 // seconds
 
+POISON_PERIOD :: 5 // seconds of battle time between poison damage
+
 READY_TICKS :: 100 // ticks per turn
 
 BATTLE_POPUP_TIME :: f32(1)
@@ -44,11 +46,19 @@ Battle_Skill_Play :: struct {
 	windup:     Ticks,
 }
 
-// What a skill play did to one target
+// Where an effect result came from. Passive effects (poison, and later other
+// periodic effects) have no actor and are shown without skill banners or animations.
+Battle_Effect_Source :: enum {
+	Skill,
+	Passive,
+}
+
+// What a skill play or passive effect did to one target
 Battle_Effect_Result :: struct {
-	actor_idx:  int,
+	source:     Battle_Effect_Source,
+	actor_idx:  int,        // ignored unless source == .Skill
 	target_idx: int,
-	skill_name: Skill_Name,
+	skill_name: Skill_Name, // ignored unless source == .Skill
 	result:     Effect_Result,
 }
 
@@ -70,6 +80,7 @@ Battle :: struct {
 	encounter:    	^Encounter,
 	lose_proc:      Script_Proc,
 	paused:         bool, // true while running audiovisual stuff
+	poison_ticks:   int, // battle ticks since poison last did damage
 	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
 	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
@@ -158,6 +169,14 @@ get_combatant_skill_play :: proc {
 
 battle_tick :: proc() {
 	clear(&battle.skill_result)
+
+	// Poison gets a tick to itself so its results are never shown with a skill play's.
+	battle.poison_ticks += 1
+	if f32(battle.poison_ticks) * BATTLE_TICK_TIME >= POISON_PERIOD {
+		battle.poison_ticks = 0
+		if battle_poison_tick() do return
+	}
+
 	take_turns()
 
 	for &c in battle.combatants {
@@ -253,7 +272,13 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 
 	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
 		r := do_skill_combatant(actor, &battle.combatants[target_idx], skill)
-		append(&battle.skill_result, Battle_Effect_Result{skill_play.actor_idx, target_idx, skill_play.skill_name, r})
+		append(&battle.skill_result, Battle_Effect_Result{
+			source     = .Skill,
+			actor_idx  = skill_play.actor_idx,
+			target_idx = target_idx,
+			skill_name = skill_play.skill_name,
+			result     = r,
+		})
 	}
 
 	switch targets in skill_play.targets {
@@ -268,6 +293,22 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	case Target_All_Combatants:
 		for _, target_idx in battle.combatants do affect(skill_play, actor, target_idx, skill)
 	}
+}
+
+// TODO: per-combatant poison timers and severity
+battle_poison_tick :: proc() -> bool {
+	for &c, c_idx in battle.combatants {
+		if !combatant_alive(c) || !c.poison do continue
+		hp_loss := take_poison_damage(c.character)
+		log.infof("%s takes %d damage from poison", c.name, hp_loss)
+		append(&battle.skill_result, Battle_Effect_Result{
+			source     = .Passive,
+			actor_idx  = -1,
+			target_idx = c_idx,
+			result     = {hp_change = -hp_loss, downed = c.hitpoints == 0},
+		})
+	}
+	return len(battle.skill_result) > 0
 }
 
 // Breaks `target`'s windup. Returns false if they weren't winding up.
@@ -295,6 +336,7 @@ encounter_init :: proc(encounter_name: Encounter_Name, start_proc, win_proc, los
 	battle.active = true
 	battle.paused = true
 	battle.start_proc_run = false
+	battle.poison_ticks = 0
 	battle.ui_disabled = false
 	battle.lose_proc = lose_proc
 	battle.start_proc = start_proc
@@ -535,18 +577,26 @@ show_skill_results :: proc(_: Entity_Id) {
 	ATTACK_TIME :: .25 // time to animate approach and retreat
 	ALLY_DX :: 2 // distance allies move horizontally in tiles
 
-	say(skills[battle.results_skill].name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+	// passive effects (e.g. poison) have no actor, text, or animations
+	is_skill := battle.results[0].source == .Skill
 
-	actor := battle.combatants[battle.results_actor]
-	actor_eid := actor.eid
-	if actor.team == BADDY_TEAM {
-		move_entity(actor_eid, {1, 0}, ATTACK_TIME)
-	} else {
-		set_sprite_tag_of(actor_eid, .RArm)
-		freeze_anim(actor_eid, 1)
-		wait_all(tween_jump(actor_eid, -ALLY_DX, 1, ATTACK_TIME))
-		set_sprite_tag_of(actor_eid, .Walk)
-		freeze_anim(actor_eid, 1)
+	actor: Combatant
+	actor_eid: Entity_Id
+
+	if is_skill {
+		say(skills[battle.results_skill].name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
+
+		actor = battle.combatants[battle.results_actor]
+		actor_eid = actor.eid
+		if actor.team == BADDY_TEAM {
+			move_entity(actor_eid, {1, 0}, ATTACK_TIME)
+		} else {
+			set_sprite_tag_of(actor_eid, .RArm)
+			freeze_anim(actor_eid, 1)
+			wait_all(tween_jump(actor_eid, -ALLY_DX, 1, ATTACK_TIME))
+			set_sprite_tag_of(actor_eid, .Walk)
+			freeze_anim(actor_eid, 1)
+		}
 	}
 
 	scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
@@ -558,13 +608,15 @@ show_skill_results :: proc(_: Entity_Id) {
 		if !wait_script(s) do return
 	}
 
-	if actor.team == BADDY_TEAM {
-		move_entity(actor_eid, {-1, 0}, ATTACK_TIME)
-	} else {
-		set_sprite_tag_of(actor_eid, .Walk)
-		play_anim(actor_eid)
-		move_entity(actor_eid, {ALLY_DX, 0}, ATTACK_TIME)
-		set_sprite_tag_of(actor_eid, .Idle)
+	if is_skill {
+		if actor.team == BADDY_TEAM {
+			move_entity(actor_eid, {-1, 0}, ATTACK_TIME)
+		} else {
+			set_sprite_tag_of(actor_eid, .Walk)
+			play_anim(actor_eid)
+			move_entity(actor_eid, {ALLY_DX, 0}, ATTACK_TIME)
+			set_sprite_tag_of(actor_eid, .Idle)
+		}
 	}
 
 	battle_menu_set_stale(.Baddies)
@@ -639,9 +691,6 @@ continue_lose_proc :: proc(_: Entity_Id) {
 	fade_screen(0, .5)
 }
 
-// Shows the skill result for target `self`: the skill's animation over it, its
-// reaction and the result's popups, then ally_down or baddy_down if it went
-// down.
 @(private = "file")
 show_skill_result :: proc(target_id: Entity_Id) {
 	effect_result, found := skill_result_for(target_id)
@@ -656,23 +705,24 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		return
 	}
 
-	// animate reaction with tag change
-	prev_tag: Maybe(Sprite_Tag)
-	if c.team == PLAYER_TEAM {
-		if new_tag, ok := effect_reaction_tag(r).?; ok {
-			prev_tag = set_sprite_tag_of(target_id, new_tag)
-			play_anim(target_id)
+	if effect_result.source == .Skill {
+		prev_tag: Maybe(Sprite_Tag)
+		if c.team == PLAYER_TEAM {
+			if new_tag, ok := effect_reaction_tag(r).?; ok {
+				prev_tag = set_sprite_tag_of(target_id, new_tag)
+				play_anim(target_id)
+			}
 		}
-	}
 
-	skill := skills[effect_result.skill_name]
-	play_sound(skill.sound)
-	if !play_skill_anim(target_id, skill.animation) do return
+		skill := skills[effect_result.skill_name]
+		play_sound(skill.sound)
+		if !play_skill_anim(target_id, skill.animation) do return
 
-	// restore previous tag
-	if c.team == PLAYER_TEAM {
-		if t, ok := prev_tag.?; ok {
-			set_sprite_tag_of(target_id, t)
+		// restore previous tag
+		if c.team == PLAYER_TEAM {
+			if t, ok := prev_tag.?; ok {
+				set_sprite_tag_of(target_id, t)
+			}
 		}
 	}
 
