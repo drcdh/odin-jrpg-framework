@@ -19,10 +19,10 @@ WINDOW_HEIGHT :: ZOOM*game.WINDOW_HEIGHT
 _ :: mem // only used in debug builds
 
 Options :: struct {
-	auto:			  bool `usage:"Autobattle mode, must be true if visual is false (default true)."`,
-	seed: 		  u64  `usage:"Random seed (default 1959)."`,
+	auto:   bool `usage:"Autobattle mode, must be true if visual is false (default true)."`,
+	seed:   u64  `usage:"Random seed (default 1959)."`,
 	tscale: f32  `usage:"Modify factor for game time vs real time (default 1)."`,
-	visual:     bool `usage:"Audiovisual mode (default false)."`,
+	visual: bool `usage:"Audiovisual mode (default false)."`,
 }
 
 main :: proc() {
@@ -50,6 +50,8 @@ main :: proc() {
 	log.infof("Setting random seed to %d", opt.seed)
 	rand.reset(opt.seed)
 
+	encounter := game.Encounter_Name.Mouse_Boss
+
 	if opt.visual {
 		rl.SetConfigFlags({.VSYNC_HINT})
 		rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Autobattler")
@@ -63,7 +65,7 @@ main :: proc() {
 
 		game.init_new_game() // initializes party
 		if opt.auto do game.set_autobattle(true)
-		game.encounter_init(game.Encounter_Name.Rat)
+		game.encounter_init(encounter, nil, nil, nil)
 		game.battle.paused = false
 
 		for !rl.WindowShouldClose() {
@@ -96,7 +98,7 @@ main :: proc() {
 		defer game.destroy()
 
 		game.autobattle = true
-		game.add_combatants_for_encounter(game.Encounter_Name.Rat)
+		game.add_combatants_for_encounter(encounter)
 		game.battle.active = true
 		game.battle.paused = false
 

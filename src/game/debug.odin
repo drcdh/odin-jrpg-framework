@@ -166,17 +166,23 @@ debug_update :: proc() {
 		return
 	}
 
-	if rl.IsKeyPressed(.B) {
-		if battle.active {
-			fmt.println("VVV BATTLE VVV")
-			fmt.printfln("%#v", battle)
-			fmt.println("^^^ BATTLE ^^^")
-		}
-	}
+	// if rl.IsKeyPressed(.B) {
+	// 	if battle.active {
+	// 		fmt.println("VVV BATTLE VVV")
+	// 		fmt.printfln("%#v", battle) // this generates way too much text because battle popups are in a static array
+	// 		fmt.println("^^^ BATTLE ^^^")
+	// 	}
+	// }
 	if rl.IsKeyPressed(.C) {
-		fmt.println("VVV CHARACTERS VVV")
-		fmt.printfln("%#v", playable_characters)
-		fmt.println("^^^ CHARACTERS ^^^")
+		if battle_active() {
+			fmt.println("VVV COMBATANTS VVV")
+			fmt.printfln("%#v", battle.combatants)
+			fmt.println("^^^ COMBATANTS ^^^")
+		} else {
+			fmt.println("VVV CHARACTERS VVV")
+			fmt.printfln("%#v", playable_characters)
+			fmt.println("^^^ CHARACTERS ^^^")
+		}
 	}
 	// if rl.IsKeyPressed(.D) {
 	// 	if darkness < 250 {
