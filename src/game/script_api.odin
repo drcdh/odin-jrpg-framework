@@ -42,6 +42,13 @@ set_rotation :: proc(id: Entity_Id, degrees: f32) {
 	if e, ok := entity_get(id); ok do e.sprite.rotation = degrees
 }
 
+set_flip :: proc(id: Entity_Id, flip_x: bool = false, flip_y: bool = false) {
+	if e, ok := entity_get(id); ok {
+		e.sprite.flip_x = flip_x
+		e.sprite.flip_y = flip_y
+	}
+}
+
 set_visible :: proc(id: Entity_Id, visible: bool) {
 	if e, ok := entity_get(id); ok do e.sprite.hidden = !visible
 }

@@ -726,6 +726,26 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		}
 	}
 
+	if r.status_result == .Added {
+		switch r.status {
+		case .Confuse:
+			set_flip(c.eid, flip_x = true)
+		case .Control:
+			set_flip(c.eid, flip_x = true)
+		case .Poison:
+			set_tint(c.eid, rl.LIME)
+		}
+	} else if r.status_result == .Removed {
+		switch r.status {
+		case .Confuse:
+			set_flip(c.eid)
+		case .Control:
+			set_flip(c.eid)
+		case .Poison:
+			set_tint(c.eid)
+		}
+	}
+
 	// ignore status changes on downed targets
 	popups := effect_popups(r, status = !r.downed)
 	for p, i in sa.slice(&popups) {

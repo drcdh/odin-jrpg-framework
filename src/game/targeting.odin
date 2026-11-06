@@ -77,24 +77,24 @@ random_target :: proc(
 	target: Target_Selection,
 	valid: bool,
 ) {
-	if opponent_team == nil {panic("Oops! Need to implement this")}
+	target_team := opponent_team != nil ? opponent_team : (rand.float32() <= .5 ? PLAYER_TEAM : BADDY_TEAM)
 
 	switch targeting {
 	case .One_Opponent:
-		switch opponent_team {
+		switch target_team {
 		case PLAYER_TEAM:
 			target, valid = random_ally_target().?
 		case BADDY_TEAM:
 			target, valid = random_baddy_target().?
 		}
 	case .Some_Opponents:
-		if opponent_team == PLAYER_TEAM {
+		if target_team == PLAYER_TEAM {
 			if false {
 				target, valid = Target_All_Allies{}, true
 			} else {
 				target, valid = random_ally_target().?
 			}
-		} else if opponent_team == BADDY_TEAM {
+		} else if target_team == BADDY_TEAM {
 			if false {
 				target, valid = Target_All_Baddies{}, true
 			} else {
@@ -102,22 +102,22 @@ random_target :: proc(
 			}
 		}
 	case .All_Opponents:
-		target = Target_All_Allies{} if opponent_team == PLAYER_TEAM else Target_All_Baddies{}
+		target = Target_All_Allies{} if target_team == PLAYER_TEAM else Target_All_Baddies{}
 		valid = true
 	case .One_Ally:
-		if opponent_team == PLAYER_TEAM {
+		if target_team == PLAYER_TEAM {
 			target, valid = random_ally_target().?
-		} else if opponent_team == BADDY_TEAM {
+		} else if target_team == BADDY_TEAM {
 			target, valid = random_baddy_target().?
 		}
 	case .Some_Allies:
-		if opponent_team == BADDY_TEAM {
+		if target_team == BADDY_TEAM {
 			if false {
 				target, valid = Target_All_Allies{}, true
 			} else {
 				target, valid = random_ally_target().?
 			}
-		} else if opponent_team == PLAYER_TEAM {
+		} else if target_team == PLAYER_TEAM {
 			if false {
 				target, valid = Target_All_Baddies{}, true
 			} else {
@@ -125,7 +125,7 @@ random_target :: proc(
 			}
 		}
 	case .All_Allies:
-		target = Target_All_Allies{} if opponent_team == BADDY_TEAM else Target_All_Baddies{}
+		target = Target_All_Allies{} if target_team == BADDY_TEAM else Target_All_Baddies{}
 		valid = true
 	case .One_Combatant:
 		valid = false // TODO

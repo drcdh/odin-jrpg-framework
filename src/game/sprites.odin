@@ -34,11 +34,18 @@ health_tag :: proc(health: Stat) -> Sprite_Tag {
 	return .Downed
 }
 
-pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
+pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
 	c := playable_characters[pc_idx]
 	t := health_tag(Stat(c.hitpoints)/get_stat(c, .Hitpoints))
-	if pc_idx == 0 do return create_sprite_state(.Player_Battle, t, play = true, layer = layer)
-	return create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
+	if pc_idx == 0 {
+		s = create_sprite_state(.Player_Battle, t, play = true, layer = layer)
+	} else {
+		s = create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
+	}
+	if c.confuse || c.control do s.flip_x = true
+	if c.poison do s.tint = rl.LIME
+	if c.zombie do s.tint = rl.GRAY
+	return
 }
 
 pc_menu_sprite :: proc(pc_idx: int, health: Maybe(Stat) = nil) -> Sprite_State {
