@@ -197,7 +197,7 @@ battle_redraw_party_pane :: proc() {
 			tint = rl.YELLOW
 		}
 		draw_text(.5, .5 + f32(p) / 2, fmt.ctprint(c.name), tint)
-		draw_text_rjust(6.5, .5 + f32(p) / 2, get_status_cstring(c.status), tint)
+		draw_text_rjust(6.0, .5 + f32(p) / 2, statuses_string(c), tint, font = .Status)
 		draw_text_rjust(8.5, .5 + f32(p) / 2, fmt.ctprintf("% 4d", c.hitpoints), tint)
 	}
 }

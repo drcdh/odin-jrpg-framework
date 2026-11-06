@@ -42,9 +42,9 @@ pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
 	} else {
 		s = create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
 	}
-	if c.confuse || c.control do s.flip_x = true
-	if c.poison do s.tint = rl.LIME
-	if c.zombie do s.tint = rl.GRAY
+	if has_status(c, .Confuse) || has_status(c, .Control) do s.flip_x = true
+	if has_status(c, .Poison) do s.tint = rl.LIME
+	if has_status(c, .Zombie) do s.tint = rl.GRAY
 	return
 }
 

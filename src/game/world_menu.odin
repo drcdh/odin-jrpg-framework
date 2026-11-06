@@ -164,7 +164,7 @@ draw_popups :: proc() {
 		// Over the sprite in the Targeting pane (draw_targeting), rising half a
 		// tile towards the target cursor as it fades.
 		w := sprite_size(pc_menu_sprite(get_pc_idx(p.slot))).x / TILE_SIZE
-		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color, dmg=p.dmg)
+		draw_text_center(1.5 + 2.5 * f32(p.slot) + w / 2, 11.5 - 0.5 * k, cstring(&p.text[0]), color, font = p.dmg ? .Damage : .Normal)
 	}
 }
 
@@ -514,6 +514,9 @@ draw_character_content :: proc() {
 	draw_text(12.5, .5, "Status", LABEL_COLOR)
 
 	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
+
+	draw_text(3.5, 1.0, strings.clone_to_cstring(pc.name,context.temp_allocator))
+	draw_text(3.5, 1.5, statuses_string(pc), font=.Status)
 
 	draw_text(3.5, 2.0, "Level", LABEL_COLOR)
 	draw_text(4.0, 2.5, fmt.ctprint(pc.level))

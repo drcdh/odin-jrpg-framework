@@ -104,7 +104,7 @@ equipped_stats :: proc(lstats: Stats, equipment: Equipment) -> Stats {
 	return get_modded_stats(lstats, mul, add)
 }
 
-effective_stats :: proc(stats: Stats, status: Status) -> Stats {
+effective_stats :: proc(stats: Stats, statuses: Statuses) -> Stats {
 	return stats // TODO
 }
 

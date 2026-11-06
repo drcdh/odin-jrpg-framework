@@ -3,17 +3,38 @@ package game
 import "core:slice"
 import rl "vendor:raylib"
 
+Font :: enum {
+	Normal,
+	Damage,
+	Status,
+}
+
 @(private = "file")
 FONT_ATLAS_DATA :: #load("../../assets/textures/font.png")
 
 @(private = "file")
 DAMAGE_FONT_ATLAS_DATA :: #load("../../assets/textures/font_damage.png")
 
+@(private = "file")
+STATUS_ATLAS_DATA :: #load("../../assets/textures/status_icons.png")
+
 @(private)
 font: rl.Font
 
 @(private)
 damage_font: rl.Font
+
+@(private)
+status_font: rl.Font
+
+get_font :: proc(f: Font) -> (rlf: rl.Font) {
+	switch f {
+	case .Normal: rlf = font
+	case .Damage: rlf = damage_font
+	case .Status: rlf = status_font
+	}
+	return
+}
 
 @(private = "file")
 font_init_ :: proc(raw_data_: [^]u8, length: i32, atlas_glyphs: []Atlas_Glyph, font: ^rl.Font) {
@@ -49,6 +70,7 @@ font_init_ :: proc(raw_data_: [^]u8, length: i32, atlas_glyphs: []Atlas_Glyph, f
 font_init :: proc() {
 	font_init_(raw_data(FONT_ATLAS_DATA), i32(len(FONT_ATLAS_DATA)), atlas_glyphs, &font)
 	font_init_(raw_data(DAMAGE_FONT_ATLAS_DATA), i32(len(DAMAGE_FONT_ATLAS_DATA)), damage_atlas_glyphs, &damage_font)
+	font_init_(raw_data(STATUS_ATLAS_DATA), i32(len(STATUS_ATLAS_DATA)), status_atlas_glyphs, &status_font)
 }
 
 @(private = "file")
@@ -64,4 +86,5 @@ font_destroy_ :: proc(font: ^rl.Font) {
 font_destroy :: proc() {
 	font_destroy_(&font)
 	font_destroy_(&damage_font)
+	font_destroy_(&status_font)
 }

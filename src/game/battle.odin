@@ -219,7 +219,7 @@ get_next_player_controlled_combatant :: proc(previous: Maybe(int)) -> Maybe(int)
 	first: Maybe(int)
 	for c, c_idx in battle.combatants {
 		if combatant_ready(c) {
-			if (c.team == BADDY_TEAM && c.control) || (c.team == PLAYER_TEAM && !c.control && !c.confuse) {
+			if (c.team == BADDY_TEAM && has_status(c, .Control)) || (c.team == PLAYER_TEAM && !has_status(c, .Control) && !has_status(c, .Confuse)) {
 				if first == nil do first = c_idx
 				if previous == nil do return c_idx
 				if previous == c_idx do previous = nil
@@ -233,17 +233,17 @@ take_turns :: proc() {
 	for combatant, c_idx in battle.combatants {
 		if combatant_ready(combatant) {
 			if combatant.team == BADDY_TEAM {
-				if combatant.confuse {
+				if has_status(combatant, .Confuse) {
 					default_turn(c_idx, opponent_team = nil)
-				} else if combatant.control {
+				} else if has_status(combatant, .Control) {
 					if autobattle do default_turn(c_idx, opponent_team = PLAYER_TEAM)
 				} else {
 					default_turn(c_idx, opponent_team = PLAYER_TEAM)
 				}
 			} else if combatant.team == PLAYER_TEAM {
-				if combatant.confuse {
+				if has_status(combatant, .Confuse) {
 					default_turn(c_idx, opponent_team = nil)
-				} else if combatant.control {
+				} else if has_status(combatant, .Control) {
 					default_turn(c_idx, opponent_team = PLAYER_TEAM)
 				} else {
 					if autobattle do default_turn(c_idx, opponent_team = BADDY_TEAM)
@@ -298,7 +298,7 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 // TODO: per-combatant poison timers and severity
 battle_poison_tick :: proc() -> bool {
 	for &c, c_idx in battle.combatants {
-		if !combatant_alive(c) || !c.poison do continue
+		if !combatant_alive(c) || !has_status(c, .Poison) do continue
 		hp_loss := take_poison_damage(c.character)
 		log.infof("%s takes %d damage from poison", c.name, hp_loss)
 		append(&battle.skill_result, Battle_Effect_Result{
@@ -516,7 +516,7 @@ draw_battle_popups :: proc() {
 		color := p.color
 		color.a = u8(255 * (1 - k))
 		at := p.pos / TILE_SIZE
-		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color, p.dmg)
+		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color, font = p.dmg ? .Damage : .Normal)
 	}
 }
 

@@ -2,7 +2,6 @@ package game
 
 import "core:log"
 import "core:math"
-import "core:strings"
 
 Character :: struct {
 	base_stats:    Stats,
@@ -13,8 +12,8 @@ Character :: struct {
 	name:          string,
 	equipment:     Equipment,
 	eq_stats:      Stats,
-	stats:         Stats, // after status
-	using status:  Status,
+	stats:         Stats, // TODO: after statuses
+	statuses:      Statuses,
 	skill_set:     Skill_Set,
 	skills:        Charged_Skills,
 }
@@ -53,20 +52,20 @@ set_eq_stats :: proc(c: ^Character) {
 }
 
 set_effective_stats :: proc(c: ^Character) {
-	c.stats = effective_stats(c.eq_stats, c.status)
+	c.stats = effective_stats(c.eq_stats, c.statuses)
 	c.hitpoints = min(c.hitpoints, int(get_stat(c^, .Hitpoints)))
 	set_all_skills() // FIXME
 }
 
 instakill :: proc(c: ^Character) {
 	c.hitpoints = 0
-	remove_all_status(c)
+	remove_all_statuses(c)
 }
 
 take_damage :: proc(c: ^Character, hp_loss: int) {
 	c.hitpoints = max(0, c.hitpoints - hp_loss)
 	if c.hitpoints == 0 {
-		remove_all_status(c)
+		remove_all_statuses(c)
 	}
 }
 
@@ -85,65 +84,6 @@ gain_level :: proc(c: ^Character) -> Skill_Set {
 		log.infof("%s learned %s", c.name, skills[k].name)
 	}
 	return new_skills
-}
-
-Status_Name :: enum {
-	Confuse,
-	Control,
-	Poison,
-	Zombie,
-}
-
-Status :: struct {
-	confuse: bool,
-	control: bool,
-	poison:  bool,
-	zombie:  bool,
-}
-
-get_status_cstring :: proc(status: Status) -> cstring {
-	s := ""
-	if status.poison {
-		s = strings.concatenate({s, "P"}, context.temp_allocator)
-	}
-	if status.zombie {
-		s = strings.concatenate({s, "Z"}, context.temp_allocator)
-	}
-	return strings.clone_to_cstring(s, context.temp_allocator)
-}
-
-add_status :: proc(c: ^Character, status: Status_Name) {
-	switch status {
-	case .Confuse:
-		c.confuse = true
-	case .Control:
-		c.control = true
-	case .Poison:
-		c.poison = true
-	case .Zombie:
-		c.zombie = true
-	}
-	// add_text_effect(c^, fmt.caprintf("%s", status), rl.PURPLE)
-}
-
-remove_status :: proc(c: ^Character, status: Status_Name) {
-	switch status {
-	case .Confuse:
-		c.confuse = false
-	case .Control:
-		c.control = false
-	case .Poison:
-		c.poison = false
-	case .Zombie:
-		c.zombie = false
-	}
-	// add_text_effect(c, fmt.caprintf("Cured"))
-}
-
-remove_all_status :: proc(c: ^Character) {
-	for status in Status_Name {
-		remove_status(c, status)
-	}
 }
 
 character_set_equipped_item :: proc(

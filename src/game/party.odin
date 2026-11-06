@@ -181,7 +181,7 @@ do_party_step_effects :: proc() {
 	game_data.steps += 1
 	for &pc, pc_idx in playable_characters {
 		if game_data.party_membership[pc_idx] {
-			if pc.status.poison {
+			if has_status(pc, .Poison) {
 				take_poison_damage(&pc)
 			}
 			charge_skills(&pc.skills, battle = false)

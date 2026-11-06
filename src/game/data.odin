@@ -45,7 +45,7 @@ Character_Save_Data :: struct {
 	hitpoints:   int,
 	level:       int,
 	name:        string,
-	status:      Status,
+	statuses:    Statuses,
 }
 
 Party_Save_Data :: [NUM_PC]Character_Save_Data
@@ -102,7 +102,7 @@ encode_party_data :: proc() -> (d: Party_Save_Data) {
 		d[pc_idx].hitpoints = pc.hitpoints
 		d[pc_idx].level = pc.level
 		d[pc_idx].name = pc.name
-		d[pc_idx].status = pc.status
+		d[pc_idx].statuses = pc.statuses
 	}
 	return
 }
@@ -167,7 +167,7 @@ load_save_data :: proc(save_data: Save_Data) {
 
 	for csd, pc_idx in save_data.party_data {
 		pc := &playable_characters[pc_idx]
-		pc.status = csd.status
+		pc.statuses = csd.statuses
 		for slot in Equipment_Slot {
 			character_set_equipped_item(pc, slot, csd.equipment[slot], false, false)
 		}

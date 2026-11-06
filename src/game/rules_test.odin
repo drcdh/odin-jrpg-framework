@@ -101,7 +101,7 @@ debug_equippables_floor_stats_and_unequipping_restores_them :: proc(t: ^testing.
 setup_target :: proc(hitpoints: int) -> ^Character {
 	init_new_game()
 	pc := &playable_characters[0]
-	remove_all_status(pc)
+	remove_all_statuses(pc)
 	pc.stats[Stat_Name.Hitpoints] = 100
 	pc.stats[Stat_Name.Evasion] = 0
 	pc.hitpoints = hitpoints
@@ -128,7 +128,7 @@ antidote_cures_poison :: proc(t: ^testing.T) {
 	add_status(pc, .Poison)
 	r := do_skill_character(nil, pc, skills[Skill_Name.Antidote])
 	testing.expect_value(t, r.status_result, Status_Result.Removed)
-	testing.expect(t, !pc.poison, "still poisoned")
+	testing.expect(t, !has_status(pc^, .Poison), "still poisoned")
 }
 
 @(test)
@@ -137,7 +137,7 @@ poisonous_mushroom_poisons_without_damage :: proc(t: ^testing.T) {
 	r := do_skill_character(nil, pc, skills[Skill_Name.Poisonous_Mushroom])
 	testing.expect_value(t, r.hit, Hit_Result.Hit)
 	testing.expect_value(t, r.status_result, Status_Result.Added)
-	testing.expect(t, pc.poison, "not poisoned")
+	testing.expect(t, has_status(pc^, .Poison), "not poisoned")
 	testing.expect_value(t, pc.hitpoints, 10)
 }
 
@@ -204,7 +204,7 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 
 	testing.expect_value(t, playable_characters[0].hitpoints, max_hp + r.hp_change)
 	testing.expect(t, playable_characters[0].hitpoints < max_hp, "no damage taken")
-	testing.expect(t, playable_characters[0].poison, "poison didn't stay")
+	testing.expect(t, has_status(playable_characters[0], .Poison), "poison didn't stay")
 }
 
 @(test)

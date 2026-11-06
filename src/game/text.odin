@@ -2,12 +2,12 @@ package game
 
 import rl "vendor:raylib"
 
-draw_text_f32 :: proc(l, t: f32, text: cstring, tint := rl.WHITE, dmg := false) {
-	rl.DrawTextEx(dmg ? damage_font : font, text, tile_to_pixel(l, t), TILE_SIZE / 2, 0, tint)
+draw_text_f32 :: proc(l, t: f32, text: cstring, tint := rl.WHITE, font := Font.Normal) {
+	rl.DrawTextEx(get_font(font), text, tile_to_pixel(l, t), TILE_SIZE / 2, 0, tint)
 }
 
-draw_text_V :: proc(lt: [2]f32, text: cstring, tint := rl.WHITE, dmg := false) {
-	draw_text_f32(lt.x, lt.y, text, tint, dmg)
+draw_text_V :: proc(lt: [2]f32, text: cstring, tint := rl.WHITE, font := Font.Normal) {
+	draw_text_f32(lt.x, lt.y, text, tint, font)
 }
 
 draw_text :: proc {
@@ -16,13 +16,13 @@ draw_text :: proc {
 }
 
 // `l` is the center of the text.
-draw_text_center :: proc(l, t: f32, text: cstring, tint := rl.WHITE, dmg := false) {
-	draw_text(l - f32(len(text)) / 4, t, text, tint, dmg)
+draw_text_center :: proc(l, t: f32, text: cstring, tint := rl.WHITE, font := Font.Normal) {
+	draw_text(l - f32(len(text)) / 4, t, text, tint, font)
 }
 
 // `l` is the right end of the text.
-draw_text_rjust :: proc(l, t: f32, text: cstring, tint := rl.WHITE, dmg := false) {
-	draw_text(l - f32(len(text)) / 2, t, text, tint, dmg)
+draw_text_rjust :: proc(l, t: f32, text: cstring, tint := rl.WHITE, font := Font.Normal) {
+	draw_text(l - f32(len(text)) / 2, t, text, tint, font)
 }
 
 // Draws a texture region at `pos` (screen pixels), scaled up to the zoom.
