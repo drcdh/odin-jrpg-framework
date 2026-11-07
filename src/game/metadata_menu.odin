@@ -34,7 +34,7 @@ draw_metadata :: proc(save_idx, r: int) {
 	party_idx := 0
 	for pc_idx in 0 ..< NUM_PC {
 		if md.party_membership[pc_idx] {
-			draw_sprite(pc_menu_sprite(pc_idx, md.party_health[pc_idx]), tile_to_pixel(6.5 + 1.5 * f32(party_idx), j0 + 1))
+			draw_sprite(pc_menu_sprite(pc_idx, md.party_health[pc_idx], md.party_statuses[pc_idx]), tile_to_pixel(6.5 + 1.5 * f32(party_idx), j0 + 1))
 			party_idx += 1
 		}
 	}

@@ -189,6 +189,7 @@ _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)
 	}
 	log.infof("Adding status %s to %s (rolled %.0f < %.0f)", s, target.name, roll, acc - res)
 	add_status(target, s)
+	// FIXME: Combatant.controller needs to get set when adding .Control status
 	return .Added
 }
 

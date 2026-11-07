@@ -69,6 +69,7 @@ statuses_string :: proc {
 
 add_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 	statuses[status] = true
+	cancel_statuses(statuses, status)
 }
 
 add_status_Character :: proc(c: ^Character, status: Status_Name) {
@@ -95,6 +96,10 @@ remove_status_Character :: proc(c: ^Character, status: Status_Name) {
 
 remove_status_Combatant :: proc(c: ^Combatant, status: Status_Name) {
 	remove_status_Character(c.character, status)
+	if status == .Control {
+		controller := c.controller // TODO: extract from status struct data
+		remove_status(controller, .Controller)
+	}
 }
 
 remove_status :: proc {
@@ -124,5 +129,52 @@ has_status :: proc {
 remove_all_statuses :: proc(c: ^Character) {
 	for status in Status_Name {
 		remove_status(c, status)
+	}
+}
+
+cancel_statuses :: proc(statuses: ^Statuses, status: Status_Name) {
+	switch status {
+	case .Berserk:
+		remove_status(statuses, .Control)
+		remove_status(statuses, .Controller)
+	case .Blind:
+	case .Confuse:
+		remove_status(statuses, .Control)
+		remove_status(statuses, .Controller)
+		remove_status(statuses, .Rage)
+	case .Control:
+		remove_status(statuses, .Confuse)
+		remove_status(statuses, .Controller)
+	case .Controller:
+	case .Haste:
+		remove_status(statuses, .Slow)
+	case .Migraine:
+	case .Overheat:
+	case .Paralyze:
+		// remove_status(statuses, .Controller) // ?
+	case .Poison:
+	case .Rage:
+		remove_status(statuses, .Berserk)
+		remove_status(statuses, .Controller)
+	case .Regen:
+	case .Sick:
+	case .Sleep:
+		remove_status(statuses, .Berserk)
+		remove_status(statuses, .Confuse)
+		remove_status(statuses, .Control)
+		remove_status(statuses, .Controller)
+		remove_status(statuses, .Rage)
+	case .Slow:
+		remove_status(statuses, .Haste)
+	case .Zombie:
+		remove_status(statuses, .Berserk)
+		remove_status(statuses, .Confuse)
+		remove_status(statuses, .Control)
+		remove_status(statuses, .Controller)
+		remove_status(statuses, .Migraine)
+		remove_status(statuses, .Rage)
+		remove_status(statuses, .Regen)
+		remove_status(statuses, .Sick)
+		remove_status(statuses, .Sleep)
 	}
 }

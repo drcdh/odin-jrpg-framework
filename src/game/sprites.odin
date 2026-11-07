@@ -34,23 +34,25 @@ health_tag :: proc(health: Stat) -> Sprite_Tag {
 	return .Downed
 }
 
-pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
+pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0, health: Maybe(Stat) = nil, statuses: Maybe(Statuses) = nil) -> (s: Sprite_State) {
 	c := playable_characters[pc_idx]
-	t := health_tag(Stat(c.hitpoints)/get_stat(c, .Hitpoints))
+	t := health_tag(health.? or_else Stat(c.hitpoints)/get_stat(c, .Hitpoints))
+	if has_status(statuses.? or_else c.statuses, .Paralyze) do t = .Kneeled
+	if has_status(statuses.? or_else c.statuses, .Sleep) do t = .Downed
 	if pc_idx == 0 {
 		s = create_sprite_state(.Player_Battle, t, play = true, layer = layer)
 	} else {
 		s = create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
 	}
-	if has_status(c, .Confuse) || has_status(c, .Control) do s.flip_x = true
-	if has_status(c, .Poison) do s.tint = rl.LIME
-	if has_status(c, .Zombie) do s.tint = rl.GRAY
+	if has_status(statuses.? or_else c.statuses, .Confuse) do s.flip_x = true
+	if has_status(statuses.? or_else c.statuses, .Control) do s.flip_x = true
+	if has_status(statuses.? or_else c.statuses, .Poison) do s.tint = rl.LIME
+	if has_status(statuses.? or_else c.statuses, .Zombie) do s.tint = rl.GRAY
 	return
 }
 
-pc_menu_sprite :: proc(pc_idx: int, health: Maybe(Stat) = nil) -> Sprite_State {
-	s := pc_battle_sprite(pc_idx)
+pc_menu_sprite :: proc(pc_idx: int, health: Maybe(Stat) = nil, statuses: Maybe(Statuses) = nil) -> Sprite_State {
+	s := pc_battle_sprite(pc_idx, health=health, statuses=statuses)
 	s.origin = {0, 0}
-	if health, ok := health.?; ok do set_sprite_tag(&s, health_tag(health))
 	return s
 }

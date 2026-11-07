@@ -10,6 +10,7 @@ Metadata :: struct {
 	name:             string,
 	party_health:     [NUM_PC]Stat,
 	party_membership: [NUM_PC]bool,
+	party_statuses:   [NUM_PC]Statuses,
 	steps:            u32,
 	time:             u32,
 	time_loaded:      i64,
@@ -59,12 +60,17 @@ metadata_load :: proc() {
 			d, ok := read_saved_game_data(fi.name)
 			if !ok do continue
 			party_health: [NUM_PC]Stat
-			for c, i in d.party_data { party_health[i] = c.health }
+			party_statuses: [NUM_PC]Statuses
+			for c, i in d.party_data {
+				party_health[i] = c.health
+				party_statuses[i] = c.statuses
+			}
 			md := Metadata {
 				filepath         = strings.clone(fi.name),
 				level            = d.party_data[0].level,
 				name             = strings.clone(d.party_data[0].name),
 				party_health     = party_health,
+				party_statuses   = party_statuses,
 				party_membership = d.game_data.party_membership,
 				steps            = d.game_data.steps,
 				time             = d.game_data.time,
