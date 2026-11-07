@@ -1,5 +1,6 @@
 package game
 
+import "core:log"
 import "core:math/rand"
 
 BADDY_TEAM :: 0
@@ -168,4 +169,88 @@ random_target_relative :: proc(
 		target, valid = Target_All_Combatants{}, true
 	}
 	return
+}
+
+target_update :: proc(dx, dy: int, ts: Target_Selection, tt: Target_Type) -> Target_Selection {
+	switch ts in ts {
+	case Target_One_Baddy:
+		if dy != 0 {
+			return Target_One_Baddy{change_baddy_selection(ts.i, dy)}
+		} else if dx < 0 && tt != .One_Opponent && tt != .One_Combatant {
+			return Target_All_Baddies{ts.i}
+		} else if dx > 0 && tt == .One_Combatant {
+			return Target_One_Ally{}
+		}
+	case Target_All_Baddies:
+		if dx > 0 && tt != .All_Opponents {
+			return Target_One_Baddy{ts.prev}
+		}
+	case Target_One_Ally:
+		if dy != 0 {
+			return Target_One_Ally{change_ally_selection(ts.i, dy)}
+		} else if dx > 0 && tt != .One_Ally && tt != .One_Combatant {
+			return Target_All_Allies{ts.i}
+		} else if dx < 0 && tt == .One_Combatant {
+			return Target_One_Baddy{}
+		}
+	case Target_All_Allies:
+		if dx < 0 && tt != .All_Allies {
+			return Target_One_Ally{ts.prev}
+		}
+	case Target_All_Combatants:
+	// do nothing
+	}
+	return ts
+}
+
+default_target_selection :: proc(tt: Target_Type) -> Target_Selection {
+	ts: Target_Selection
+	switch tt {
+	case .One_Opponent:
+		ts = Target_One_Baddy{select_first_baddy()}
+	case .Some_Opponents:
+		ts = Target_One_Baddy{select_first_baddy()}
+	case .All_Opponents:
+		ts = Target_All_Baddies{}
+	case .One_Combatant:
+		ts = Target_One_Baddy{}
+	case .One_Ally:
+		ts = Target_One_Ally{}
+	case .Some_Allies:
+		ts = Target_One_Ally{}
+	case .All_Allies:
+		ts = Target_All_Allies{}
+	case .All_Combatants:
+		ts = Target_All_Combatants{}
+	}
+	return ts
+}
+
+select_first_baddy :: proc() -> int {
+	return change_baddy_selection(MAX_ENCOUNTER_SIZE, 1)
+}
+
+change_ally_selection :: proc(t, d: int) -> int {
+	target := t + d
+	if target < 0 {target = len(battle.allies) - 1}
+	if target >= len(battle.allies) {target = 0}
+	return target
+}
+
+change_baddy_selection :: proc(t, d: int) -> int {
+	aaah: int
+	initial_target := t
+	target := t + d
+	for {
+		if aaah += 1; aaah > 10 {
+			log.error("infinite loop?!")
+			break // FIXME
+		}
+		if target < 0 {target = len(battle.baddies) - 1}
+		if target >= len(battle.baddies) {target = 0}
+		if target == initial_target {break}
+		if combatant_alive(battle.combatants[battle.baddies[target]]) {break}
+		target += d
+	}
+	return target
 }

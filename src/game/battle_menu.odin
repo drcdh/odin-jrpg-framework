@@ -101,13 +101,25 @@ battle_menu_end :: proc() {
 	battle_menu.ui_state = .Inactive
 }
 
-battle_menu_draw :: proc(disabled: bool) {
-	for &stale, i in battle_menu.stale {
-		if stale {
-			battle_redraw_pane(Battle_Pane(i))
-			stale = false
-		}
+battle_menu_select_combatant :: proc(c_idx: int) {
+	// Called by battle when a valid combatant's turn comes up
+	// and there isn't already a combatant being controlled or
+	// the menu is switching because of a .MENU input
+	battle_menu.ui_data = {c_idx = c_idx}
+	battle_menu.ui_state = has_status(battle.combatants[c_idx], .Controller) ? .Control : .Top
+	battle_menu_set_stale(.Top)
+}
+
+battle_menu_next_combatant :: proc() {
+	if next, ok := get_next_player_controlled_combatant(battle_menu.c_idx).?; ok {
+		battle_menu_select_combatant(next)
+	} else {
+		battle_menu.ui_data = {}
+		battle_menu.ui_state = .Idle
 	}
+}
+
+battle_menu_draw :: proc(disabled: bool) {
 	if disabled do battle_menu.ui_state = .Idle
 
 	switch battle_menu.ui_state {
@@ -134,192 +146,6 @@ battle_menu_draw :: proc(disabled: bool) {
 	}
 	if !disabled && battle_menu.ui_state != .Inactive {
 		battle_menu_draw_icons()
-	}
-}
-
-battle_menu_draw_icons :: proc() {
-	switch battle_menu.ui_state {
-	case .Inactive:
-	case .Idle:
-	case .Top:
-		battle_draw_top_icons()
-	case .Control:
-		battle_draw_top_icons()
-	case .Skills:
-		battle_draw_skills_icons()
-	case .Skill_Target:
-	case .Inventory:
-		battle_draw_inventory_icons()
-	case .Item_Target:
-	}
-}
-
-battle_redraw_top_pane :: proc() {
-	if battle_menu.ui_state == .Control {
-		draw_text(0.5, 0.5, "Break", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
-	} else {
-		draw_text(0.5, 0.5, "Skill", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
-		draw_text(0.5, 1.0, "Item ", battle_menu.top == .Item  ? rl.YELLOW : rl.WHITE)
-		draw_text(0.5, 1.5, "Equip", battle_menu.top == .Equip ? rl.YELLOW : rl.WHITE)
-		draw_text(0.5, 2.0, "Run  ", battle_menu.top == .Run   ? rl.YELLOW : rl.WHITE)
-	}
-}
-
-battle_draw_top_icons :: proc() {
-	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + tile_to_pixel(.5, .5 + .5 * f32(battle_menu.top)),
-	)
-}
-
-battle_redraw_text_pane :: proc(text: Maybe(string) = nil) {
-	if s, is_str := text.(string); is_str {
-		rl.BeginTextureMode(battle_menu.textures[Battle_Pane.Text])
-		rl.ClearBackground(rl.BLANK)
-		l := f32(len(s)) / 2 + 1
-		draw_pane((VIEW_TILES_W - l) / 2, 0, l, 1.5)
-		draw_text_center(VIEW_TILES_W / 2, .5, strings.clone_to_cstring(s, context.temp_allocator))
-		battle_menu.show_text = true
-		rl.EndTextureMode()
-	} else {
-		battle_menu.show_text = false
-	}
-}
-
-battle_redraw_baddies_pane :: proc() {
-	row := 0
-	for c_idx in battle.baddies {
-		c := battle.combatants[c_idx]
-		if combatant_alive(c) {
-			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name))
-			row += 1
-		}
-	}
-}
-
-battle_redraw_party_pane :: proc() {
-	for i, p in battle.allies {
-		c := battle.combatants[i]
-		tint := rl.WHITE
-		if c.hitpoints <= 0 {
-			tint = rl.RED
-		} else if f16(c.hitpoints) <= get_stat(c, .Hitpoints) * 0.25 {
-			tint = rl.YELLOW
-		}
-		draw_text(.5, .5 + f32(p) / 2, fmt.ctprint(c.name), tint)
-		draw_text_rjust(6.0, .5 + f32(p) / 2, statuses_string(c), tint, font = .Status)
-		draw_text_rjust(8.5, .5 + f32(p) / 2, fmt.ctprintf("% 4d", c.hitpoints), tint)
-	}
-}
-
-
-battle_redraw_skills_pane :: proc() {
-	pc := battle.combatants[battle_menu.c_idx].character
-	// fmt.printfln("\n%#v\n", c_skills)
-	for r in 0 ..< BATTLE_MENU_SKILLS_ROWS {
-		if r >= len(pc.skills) {break}
-		cs := pc.skills[r + battle_menu.skill_sel.origin_idx]
-		tint := rl.WHITE
-		if r == selection_row(battle_menu.skill_sel) {
-			tint = rl.YELLOW
-		}
-		if cs.charge < CHARGE_MAX {
-			tint = rl.ColorTint(tint, rl.GRAY)
-		}
-		draw_text(
-			.5,
-			.5 + f32(r) * .5,
-			fmt.ctprintf("%s % 3.0f", skills[cs.skill].name, 100 * f16(cs.charge) / CHARGE_MAX),
-			tint,
-		)
-	}
-}
-
-battle_draw_skills_icons :: proc() {
-	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
-		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
-	)
-}
-
-battle_redraw_inventory_pane :: proc() {
-	for r in 0 ..< BATTLE_MENU_INVENTORY_ROWS {
-		if r >= len(inventory_order) {break}
-		draw_text(
-			.5,
-			.5 + f32(r) * .5,
-			strings.clone_to_cstring(
-				items[inventory_order[battle_menu.inv_sel.origin_idx + r]].name,
-				context.temp_allocator,
-			),
-			rl.YELLOW if r == selection_row(battle_menu.inv_sel) else rl.WHITE,
-		)
-	}
-}
-
-battle_draw_inventory_icons :: proc() {
-	draw_text_indicator(
-		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
-		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
-	)
-}
-
-battle_redraw_pane :: proc(pane: Battle_Pane) {
-	// fmt.printfln("Redrawing texture for %w", pane)
-	rl.BeginTextureMode(battle_menu.textures[pane])
-	draw_pane(BATTLE_PANE_DIM[pane])
-	// battle_pane_redraw_proc[pane]()
-	switch pane {
-	case .Text:
-	// special
-	case .Baddies:
-		battle_redraw_baddies_pane()
-	case .Party:
-		battle_redraw_party_pane()
-	case .Top:
-		battle_redraw_top_pane()
-	case .Skills:
-		battle_redraw_skills_pane()
-	case .Inventory:
-		battle_redraw_inventory_pane()
-	}
-	rl.EndTextureMode()
-}
-
-battle_draw_pane :: proc(pane: Battle_Pane) {
-	origin_tile := BATTLE_PANE_ORIGIN[pane]
-	origin := tile_to_pixel(origin_tile)
-	texture := battle_menu.textures[pane].texture
-	w := f32(texture.width)
-	h := f32(texture.height)
-	dest := rl.Rectangle{origin.x, origin.y, w, -h}
-	rl.DrawTexturePro(texture, {0, 0, w, -h}, dest, {}, 0, rl.WHITE)
-}
-
-battle_draw_panes :: proc(panes: ..Battle_Pane) {
-	for pane in panes {
-		battle_draw_pane(pane)
-	}
-}
-
-battle_menu_set_stale :: proc(pane: Battle_Pane) {
-	battle_menu.stale[pane] = true
-}
-
-battle_menu_select_combatant :: proc(c_idx: int) {
-	// Called by battle when a valid combatant's turn comes up
-	// and there isn't already a combatant being controlled or
-	// the menu is switching because of a .MENU input
-	battle_menu.ui_data = {c_idx = c_idx}
-	battle_menu.ui_state = has_status(battle.combatants[c_idx], .Controller) ? .Control : .Top
-	battle_menu_set_stale(.Top)
-}
-
-battle_menu_next_combatant :: proc() {
-	if next, ok := get_next_player_controlled_combatant(battle_menu.c_idx).?; ok {
-		battle_menu_select_combatant(next)
-	} else {
-		battle_menu.ui_data = {}
-		battle_menu.ui_state = .Idle
 	}
 }
 
@@ -421,90 +247,195 @@ battle_menu_update :: proc() {
 			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, skills[battle_menu.skill].targeting)
 		}
 	}
+
+	battle_menu_redraw_content()
 }
 
-// /////// //
-// HELPERS //
-// /////// //
+// ******************************
+// ******************************
 
-change_ally_selection :: proc(t, d: int) -> int {
-	target := t + d
-	if target < 0 {target = len(battle.allies) - 1}
-	if target >= len(battle.allies) {target = 0}
-	return target
+battle_menu_set_stale :: proc(pane: Battle_Pane) {
+	battle_menu.stale[pane] = true
 }
 
-change_baddy_selection :: proc(t, d: int) -> int {
-	aaah: int
-	initial_target := t
-	target := t + d
-	for {
-		if aaah += 1; aaah > 10 do break // FIXME
-		if target < 0 {target = len(battle.baddies) - 1}
-		if target >= len(battle.baddies) {target = 0}
-		if target == initial_target {break}
-		if combatant_alive(battle.combatants[battle.baddies[target]]) {break}
-		target += d
+@(private = "file")
+battle_draw_panes :: proc(panes: ..Battle_Pane) {
+	for pane in panes {
+		battle_draw_pane(pane)
 	}
-	return target
-	// targeting_ease = 0
 }
 
-select_first_baddy :: proc() -> int {
-	return change_baddy_selection(MAX_ENCOUNTER_SIZE, 1)
+@(private = "file")
+battle_draw_pane :: proc(pane: Battle_Pane) {
+	origin_tile := BATTLE_PANE_ORIGIN[pane]
+	origin := tile_to_pixel(origin_tile)
+	texture := battle_menu.textures[pane].texture
+	w := f32(texture.width)
+	h := f32(texture.height)
+	dest := rl.Rectangle{origin.x, origin.y, w, -h}
+	rl.DrawTexturePro(texture, {0, 0, w, -h}, dest, {}, 0, rl.WHITE)
 }
 
-target_update :: proc(dx, dy: int, ts: Target_Selection, tt: Target_Type) -> Target_Selection {
-	switch ts in ts {
-	case Target_One_Baddy:
-		if dy != 0 {
-			return Target_One_Baddy{change_baddy_selection(ts.i, dy)}
-		} else if dx < 0 && tt != .One_Opponent && tt != .One_Combatant {
-			return Target_All_Baddies{ts.i}
-		} else if dx > 0 && tt == .One_Combatant {
-			return Target_One_Ally{}
-		}
-	case Target_All_Baddies:
-		if dx > 0 && tt != .All_Opponents {
-			return Target_One_Baddy{ts.prev}
-		}
-	case Target_One_Ally:
-		if dy != 0 {
-			return Target_One_Ally{change_ally_selection(ts.i, dy)}
-		} else if dx > 0 && tt != .One_Ally && tt != .One_Combatant {
-			return Target_All_Allies{ts.i}
-		} else if dx < 0 && tt == .One_Combatant {
-			return Target_One_Baddy{}
-		}
-	case Target_All_Allies:
-		if dx < 0 && tt != .All_Allies {
-			return Target_One_Ally{ts.prev}
-		}
-	case Target_All_Combatants:
-	// do nothing
+@(private = "file")
+battle_menu_draw_icons :: proc() {
+	switch battle_menu.ui_state {
+	case .Inactive:
+	case .Idle:
+	case .Top:
+		battle_draw_top_icons()
+	case .Control:
+		battle_draw_top_icons()
+	case .Skills:
+		battle_draw_skills_icons()
+	case .Skill_Target:
+	case .Inventory:
+		battle_draw_inventory_icons()
+	case .Item_Target:
 	}
-	return ts
 }
 
-default_target_selection :: proc(tt: Target_Type) -> Target_Selection {
-	ts: Target_Selection
-	switch tt {
-	case .One_Opponent:
-		ts = Target_One_Baddy{select_first_baddy()}
-	case .Some_Opponents:
-		ts = Target_One_Baddy{select_first_baddy()}
-	case .All_Opponents:
-		ts = Target_All_Baddies{}
-	case .One_Combatant:
-		ts = Target_One_Baddy{}
-	case .One_Ally:
-		ts = Target_One_Ally{}
-	case .Some_Allies:
-		ts = Target_One_Ally{}
-	case .All_Allies:
-		ts = Target_All_Allies{}
-	case .All_Combatants:
-		ts = Target_All_Combatants{}
+battle_menu_redraw_content :: proc() {
+	for pane in Battle_Pane {
+		if battle_menu.stale[pane] do battle_redraw_pane(pane)
 	}
-	return ts
+}
+
+@(private = "file")
+battle_redraw_pane :: proc(pane: Battle_Pane) {
+	// fmt.printfln("Redrawing texture for %w", pane)
+	rl.BeginTextureMode(battle_menu.textures[pane])
+	draw_pane(BATTLE_PANE_DIM[pane])
+	// battle_pane_redraw_proc[pane]()
+	switch pane {
+	case .Text:
+	// special
+	case .Baddies:
+		battle_redraw_baddies_pane()
+	case .Party:
+		battle_redraw_party_pane()
+	case .Top:
+		battle_redraw_top_pane()
+	case .Skills:
+		battle_redraw_skills_pane()
+	case .Inventory:
+		battle_redraw_inventory_pane()
+	}
+	rl.EndTextureMode()
+	battle_menu.stale[pane] = false
+}
+
+battle_redraw_text_pane :: proc(text: Maybe(string) = nil) {
+	if s, is_str := text.(string); is_str {
+		rl.BeginTextureMode(battle_menu.textures[Battle_Pane.Text])
+		rl.ClearBackground(rl.BLANK)
+		l := f32(len(s)) / 2 + 1
+		draw_pane((VIEW_TILES_W - l) / 2, 0, l, 1.5)
+		draw_text_center(VIEW_TILES_W / 2, .5, strings.clone_to_cstring(s, context.temp_allocator))
+		battle_menu.show_text = true
+		rl.EndTextureMode()
+	} else {
+		battle_menu.show_text = false
+	}
+}
+
+@(private = "file")
+battle_redraw_baddies_pane :: proc() {
+	row := 0
+	for c_idx in battle.baddies {
+		c := battle.combatants[c_idx]
+		if combatant_alive(c) {
+			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name))
+			row += 1
+		}
+	}
+}
+
+@(private = "file")
+battle_redraw_party_pane :: proc() {
+	for i, p in battle.allies {
+		c := battle.combatants[i]
+		tint := rl.WHITE
+		if c.hitpoints <= 0 {
+			tint = rl.RED
+		} else if f16(c.hitpoints) <= get_stat(c, .Hitpoints) * 0.25 {
+			tint = rl.YELLOW
+		}
+		draw_text(.5, .5 + f32(p) / 2, fmt.ctprint(c.name), tint)
+		draw_text_rjust(6.0, .5 + f32(p) / 2, statuses_string(c), tint, font = .Status)
+		draw_text_rjust(8.5, .5 + f32(p) / 2, fmt.ctprintf("% 4d", c.hitpoints), tint)
+	}
+}
+
+@(private = "file")
+battle_redraw_top_pane :: proc() {
+	if battle_menu.ui_state == .Control {
+		draw_text(0.5, 0.5, "Break", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
+	} else {
+		draw_text(0.5, 0.5, "Skill", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 1.0, "Item ", battle_menu.top == .Item  ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 1.5, "Equip", battle_menu.top == .Equip ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 2.0, "Run  ", battle_menu.top == .Run   ? rl.YELLOW : rl.WHITE)
+	}
+}
+
+@(private = "file")
+battle_draw_top_icons :: proc() {
+	draw_text_indicator(
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Top]) + tile_to_pixel(.5, .5 + .5 * f32(battle_menu.top)),
+	)
+}
+
+@(private = "file")
+battle_redraw_skills_pane :: proc() {
+	pc := battle.combatants[battle_menu.c_idx].character
+	// fmt.printfln("\n%#v\n", c_skills)
+	for r in 0 ..< BATTLE_MENU_SKILLS_ROWS {
+		if r >= len(pc.skills) {break}
+		cs := pc.skills[r + battle_menu.skill_sel.origin_idx]
+		tint := rl.WHITE
+		if r == selection_row(battle_menu.skill_sel) {
+			tint = rl.YELLOW
+		}
+		if cs.charge < CHARGE_MAX {
+			tint = rl.ColorTint(tint, rl.GRAY)
+		}
+		draw_text(
+			.5,
+			.5 + f32(r) * .5,
+			fmt.ctprintf("%s % 3.0f", skills[cs.skill].name, 100 * f16(cs.charge) / CHARGE_MAX),
+			tint,
+		)
+	}
+}
+
+@(private = "file")
+battle_draw_skills_icons :: proc() {
+	draw_text_indicator(
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Skills]) +
+		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.skill_sel)),
+	)
+}
+
+@(private = "file")
+battle_redraw_inventory_pane :: proc() {
+	for r in 0 ..< BATTLE_MENU_INVENTORY_ROWS {
+		if r >= len(inventory_order) {break}
+		draw_text(
+			.5,
+			.5 + f32(r) * .5,
+			strings.clone_to_cstring(
+				items[inventory_order[battle_menu.inv_sel.origin_idx + r]].name,
+				context.temp_allocator,
+			),
+			rl.YELLOW if r == selection_row(battle_menu.inv_sel) else rl.WHITE,
+		)
+	}
+}
+
+@(private = "file")
+battle_draw_inventory_icons :: proc() {
+	draw_text_indicator(
+		tile_to_pixel(BATTLE_PANE_ORIGIN[Battle_Pane.Inventory]) +
+		tile_to_pixel(.5, .5 + .5 * selection_row_f(battle_menu.inv_sel)),
+	)
 }
