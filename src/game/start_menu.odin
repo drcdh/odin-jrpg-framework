@@ -81,19 +81,8 @@ start_menu_active :: proc() -> bool {
 	return start_menu.ui_state != .Inactive
 }
 
-start_menu_set_stale :: proc(pane: Start_Menu_Pane) {
-	start_menu.stale[pane] = true
-}
-
 @(private)
 start_menu_draw :: proc() {
-	for &stale, i in start_menu.stale {
-		if stale {
-			start_menu_redraw_pane(Start_Menu_Pane(i))
-			stale = false
-		}
-	}
-
 	switch start_menu.ui_state {
 	case .Inactive:
 	case .Fade_In:
@@ -120,52 +109,6 @@ start_menu_draw :: proc() {
 		r := f32(selection_row(start_menu.load_sel))
 		draw_text_indicator(tile_to_pixel(1, TITLE_HEIGHT + r * SLOT_HEIGHT + .5))
 	case .Working:
-	}
-}
-
-start_menu_redraw_top_pane :: proc() {
-	draw_text(1, 0.5, "Load", rl.GRAY if len(metadata) == 0 else rl.WHITE)
-	draw_text(1, 1.0, "New")
-	draw_text(1, 1.5, "New+", rl.GRAY)
-	draw_text(1, 2.0, "Quit")
-}
-
-start_menu_redraw_load_pane :: proc() {
-	draw_pane(0, 0, 16, TITLE_HEIGHT)
-	draw_text(1, .5, "Load", LABEL_COLOR)
-	for r in 0 ..< SAVES_ROWS {
-		if r < len(metadata) {
-			draw_pane(0, TITLE_HEIGHT + r * SLOT_HEIGHT, 16, SLOT_HEIGHT)
-			save_idx := r + start_menu.load_sel.origin_idx
-			draw_metadata(save_idx, r)
-		}
-	}
-}
-
-start_menu_redraw_pane :: proc(pane: Start_Menu_Pane) {
-	rl.BeginTextureMode(start_menu.textures[pane])
-	draw_pane(START_MENU_PANE_DIM[pane])
-	switch pane {
-	case .Top:
-		start_menu_redraw_top_pane()
-	case .Load:
-		start_menu_redraw_load_pane()
-	}
-	rl.EndTextureMode()
-}
-
-start_menu_draw_pane :: proc(pane: Start_Menu_Pane) {
-	origin := tile_to_pixel(START_MENU_PANE_ORIGINS[pane])
-	texture := start_menu.textures[pane].texture
-	w := f32(texture.width)
-	h := f32(texture.height)
-	dest := rl.Rectangle{origin.x, origin.y, w, -h}
-	rl.DrawTexturePro(texture, {0, 0, w, -h}, dest, {}, 0, rl.WHITE)
-}
-
-start_menu_draw_panes :: proc(panes: ..Start_Menu_Pane) {
-	for pane in panes {
-		start_menu_draw_pane(pane)
 	}
 }
 
@@ -234,6 +177,30 @@ start_menu_update :: proc() {
 		}
 	case .Working:
 	}
+
+	start_menu_redraw_content()
+}
+
+// ******************************
+// ******************************
+
+start_menu_set_stale :: proc(pane: Start_Menu_Pane) {
+	start_menu.stale[pane] = true
+}
+
+start_menu_draw_panes :: proc(panes: ..Start_Menu_Pane) {
+	for pane in panes {
+		start_menu_draw_pane(pane)
+	}
+}
+
+start_menu_draw_pane :: proc(pane: Start_Menu_Pane) {
+	origin := tile_to_pixel(START_MENU_PANE_ORIGINS[pane])
+	texture := start_menu.textures[pane].texture
+	w := f32(texture.width)
+	h := f32(texture.height)
+	dest := rl.Rectangle{origin.x, origin.y, w, -h}
+	rl.DrawTexturePro(texture, {0, 0, w, -h}, dest, {}, 0, rl.WHITE)
 }
 
 start_menu_draw_title :: proc() {
@@ -255,3 +222,42 @@ start_menu_draw_title :: proc() {
 		draw_text(4, 10, "Press Z to Start")
 	}
 }
+
+start_menu_redraw_content :: proc() {
+	for pane in Start_Menu_Pane {
+		if start_menu.stale[pane] do start_menu_redraw_pane(pane)
+	}
+}
+
+start_menu_redraw_pane :: proc(pane: Start_Menu_Pane) {
+	rl.BeginTextureMode(start_menu.textures[pane])
+	draw_pane(START_MENU_PANE_DIM[pane])
+	switch pane {
+	case .Top:
+		start_menu_redraw_top_pane()
+	case .Load:
+		start_menu_redraw_load_pane()
+	}
+	rl.EndTextureMode()
+	start_menu.stale[pane] = false
+}
+
+start_menu_redraw_top_pane :: proc() {
+	draw_text(1, 0.5, "Load", rl.GRAY if len(metadata) == 0 else rl.WHITE)
+	draw_text(1, 1.0, "New")
+	draw_text(1, 1.5, "New+", rl.GRAY)
+	draw_text(1, 2.0, "Quit")
+}
+
+start_menu_redraw_load_pane :: proc() {
+	draw_pane(0, 0, 16, TITLE_HEIGHT)
+	draw_text(1, .5, "Load", LABEL_COLOR)
+	for r in 0 ..< SAVES_ROWS {
+		if r < len(metadata) {
+			draw_pane(0, TITLE_HEIGHT + r * SLOT_HEIGHT, 16, SLOT_HEIGHT)
+			save_idx := r + start_menu.load_sel.origin_idx
+			draw_metadata(save_idx, r)
+		}
+	}
+}
+
