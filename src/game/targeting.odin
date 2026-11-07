@@ -8,6 +8,7 @@ PLAYER_TEAM :: 1
 Target_Selection :: union {
 	Target_One_Ally,
 	Target_One_Baddy,
+	// Target_One_Combatant,
 	Target_All_Allies,
 	Target_All_Baddies,
 	Target_All_Combatants,
@@ -54,7 +55,7 @@ random_ally_target :: proc() -> (target: Maybe(Target_One_Ally)) {
 	return
 }
 
-random_baddy_target :: proc(target_all_prob := 0) -> (target: Maybe(Target_One_Baddy)) {
+random_baddy_target :: proc() -> (target: Maybe(Target_One_Baddy)) {
 	targets: [dynamic]int
 	defer delete(targets)
 	for c_idx, baddy_idx in battle.baddies {
@@ -68,67 +69,101 @@ random_baddy_target :: proc(target_all_prob := 0) -> (target: Maybe(Target_One_B
 	return
 }
 
+random_combatant_target :: proc() -> (target: Maybe(Target_Selection)) {
+	targets: [dynamic]int
+	defer delete(targets)
+	for c, c_idx in battle.combatants {
+		if combatant_alive(c) {
+			append(&targets, c_idx)
+		}
+	}
+	if len(targets) > 0 {
+		target_c_idx := rand.choice(targets[:])
+		if battle.combatants[target_c_idx].team == PLAYER_TEAM {
+			for c_idx, ally_idx in battle.allies {
+				if c_idx == target_c_idx do return Target_One_Ally{ally_idx}
+			}
+		} else if battle.combatants[target_c_idx].team == BADDY_TEAM {
+			for c_idx, baddy_idx in battle.baddies {
+				if c_idx == target_c_idx do return Target_One_Baddy{baddy_idx}
+			}
+		}
+	}
+	return
+}
+
+coinflip :: proc(bias: f32) -> bool {
+	assert(bias >= 0, "coin-flip bias must be positive")
+	assert(bias <= 1, "coin-flip bias must be <=1")
+	return rand.float32() < bias
+}
+
 // TODO status/living/dead restrictions
-random_target :: proc(
-	targeting: Target_Type,
-	opponent_team: Maybe(int),
-	target_all_prob := .5,
+random_target_relative :: proc(
+	k: Skill_Name,
+	ally_team: Maybe(int),
+	target_all_prob: f32 = .5,
 ) -> (
 	target: Target_Selection,
 	valid: bool,
 ) {
-	target_team := opponent_team != nil ? opponent_team : (rand.float32() <= .5 ? PLAYER_TEAM : BADDY_TEAM)
+	skill := skills[k]
+	target_type := skill.targeting
 
-	switch targeting {
+	ally_team := ally_team.? or_else (coinflip(.5) ? PLAYER_TEAM : BADDY_TEAM)
+	opponent_team := 1 - ally_team
+
+	switch target_type {
 	case .One_Opponent:
-		switch target_team {
+		switch opponent_team {
 		case PLAYER_TEAM:
 			target, valid = random_ally_target().?
 		case BADDY_TEAM:
 			target, valid = random_baddy_target().?
 		}
 	case .Some_Opponents:
-		if target_team == PLAYER_TEAM {
-			if false {
+		if opponent_team == PLAYER_TEAM {
+			if coinflip(target_all_prob) {
 				target, valid = Target_All_Allies{}, true
 			} else {
 				target, valid = random_ally_target().?
 			}
-		} else if target_team == BADDY_TEAM {
-			if false {
+		} else if opponent_team == BADDY_TEAM {
+			if coinflip(target_all_prob) {
 				target, valid = Target_All_Baddies{}, true
 			} else {
 				target, valid = random_baddy_target().?
 			}
 		}
 	case .All_Opponents:
-		target = Target_All_Allies{} if target_team == PLAYER_TEAM else Target_All_Baddies{}
+		target = opponent_team == PLAYER_TEAM ? Target_All_Allies{} : Target_All_Baddies{}
 		valid = true
+
 	case .One_Ally:
-		if target_team == PLAYER_TEAM {
+		if ally_team == PLAYER_TEAM {
 			target, valid = random_ally_target().?
-		} else if target_team == BADDY_TEAM {
+		} else if ally_team == BADDY_TEAM {
 			target, valid = random_baddy_target().?
 		}
 	case .Some_Allies:
-		if target_team == BADDY_TEAM {
-			if false {
+		if ally_team == PLAYER_TEAM {
+			if coinflip(target_all_prob) {
 				target, valid = Target_All_Allies{}, true
 			} else {
 				target, valid = random_ally_target().?
 			}
-		} else if target_team == PLAYER_TEAM {
-			if false {
+		} else if ally_team == BADDY_TEAM {
+			if coinflip(target_all_prob) {
 				target, valid = Target_All_Baddies{}, true
 			} else {
 				target, valid = random_baddy_target().?
 			}
 		}
 	case .All_Allies:
-		target = Target_All_Allies{} if target_team == BADDY_TEAM else Target_All_Baddies{}
+		target = ally_team == PLAYER_TEAM ? Target_All_Allies{} : Target_All_Baddies{}
 		valid = true
 	case .One_Combatant:
-		valid = false // TODO
+		target, valid = random_combatant_target().?
 	case .All_Combatants:
 		target, valid = Target_All_Combatants{}, true
 	}

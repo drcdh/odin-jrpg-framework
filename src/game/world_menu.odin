@@ -516,7 +516,7 @@ draw_character_content :: proc() {
 	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
 
 	draw_text(3.5, 1.0, strings.clone_to_cstring(pc.name,context.temp_allocator))
-	draw_text(3.5, 1.5, statuses_string(pc), font=.Status)
+	draw_text(3.5, 1.5, statuses_string(pc), font=Font.Status)
 
 	draw_text(3.5, 2.0, "Level", LABEL_COLOR)
 	draw_text(4.0, 2.5, fmt.ctprint(pc.level))

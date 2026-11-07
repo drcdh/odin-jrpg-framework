@@ -25,6 +25,7 @@ Battle_UI_State :: enum {
 	Inactive,
 	Idle,
 	Top,
+	Control,
 	Skills,
 	Skill_Target,
 	Inventory,
@@ -115,6 +116,8 @@ battle_menu_draw :: proc(disabled: bool) {
 		battle_draw_panes(.Baddies, .Party)
 	case .Top:
 		battle_draw_panes(.Baddies, .Party, .Top)
+	case .Control:
+		battle_draw_panes(.Baddies, .Party, .Top)
 	case .Skills:
 		battle_draw_panes(.Baddies, .Party, .Top, .Skills)
 	case .Skill_Target:
@@ -140,6 +143,8 @@ battle_menu_draw_icons :: proc() {
 	case .Idle:
 	case .Top:
 		battle_draw_top_icons()
+	case .Control:
+		battle_draw_top_icons()
 	case .Skills:
 		battle_draw_skills_icons()
 	case .Skill_Target:
@@ -150,10 +155,14 @@ battle_menu_draw_icons :: proc() {
 }
 
 battle_redraw_top_pane :: proc() {
-	draw_text(0.5, 0.5, "Skill", rl.YELLOW if battle_menu.top == Battle_UI_Top_Choices.Skill else rl.WHITE)
-	draw_text(0.5, 1.0, "Item ", rl.YELLOW if battle_menu.top == Battle_UI_Top_Choices.Item else rl.WHITE)
-	draw_text(0.5, 1.5, "Equip", rl.YELLOW if battle_menu.top == Battle_UI_Top_Choices.Equip else rl.WHITE)
-	draw_text(0.5, 2.0, "Run  ", rl.YELLOW if battle_menu.top == Battle_UI_Top_Choices.Run else rl.WHITE)
+	if battle_menu.ui_state == .Control {
+		draw_text(0.5, 0.5, "Break", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
+	} else {
+		draw_text(0.5, 0.5, "Skill", battle_menu.top == .Skill ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 1.0, "Item ", battle_menu.top == .Item  ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 1.5, "Equip", battle_menu.top == .Equip ? rl.YELLOW : rl.WHITE)
+		draw_text(0.5, 2.0, "Run  ", battle_menu.top == .Run   ? rl.YELLOW : rl.WHITE)
+	}
 }
 
 battle_draw_top_icons :: proc() {
@@ -296,11 +305,20 @@ battle_menu_set_stale :: proc(pane: Battle_Pane) {
 	battle_menu.stale[pane] = true
 }
 
+battle_menu_select_combatant :: proc(c_idx: int) {
+	// Called by battle when a valid combatant's turn comes up
+	// and there isn't already a combatant being controlled or
+	// the menu is switching because of a .MENU input
+	battle_menu.ui_data = {c_idx = c_idx}
+	battle_menu.ui_state = has_status(battle.combatants[c_idx], .Controller) ? .Control : .Top
+	battle_menu_set_stale(.Top)
+}
+
 battle_menu_next_combatant :: proc() {
 	if next, ok := get_next_player_controlled_combatant(battle_menu.c_idx).?; ok {
-		battle_menu.c_idx = next
-		battle_menu.ui_state = .Top
+		battle_menu_select_combatant(next)
 	} else {
+		battle_menu.ui_data = {}
 		battle_menu.ui_state = .Idle
 	}
 }
@@ -309,7 +327,7 @@ battle_menu_update :: proc() {
 	switch battle_menu.ui_state {
 	case .Inactive:
 	case .Idle:
-		battle_menu_next_combatant()
+		// battle_menu_next_combatant()
 	case .Top:
 		if get_input(.ENTER) {
 			switch battle_menu.top {
@@ -328,6 +346,16 @@ battle_menu_update :: proc() {
 		} else if dy, ok := get_y_input().?; ok {
 			battle_menu.top = Battle_UI_Top_Choices(grid_change(int(battle_menu.top), 0, dy, 1, len(Battle_UI_Top_Choices)))
 			battle_menu_set_stale(.Top)
+		}
+
+	case .Control:
+		if get_input(.ENTER) {
+			c := &battle.combatants[battle_menu.c_idx]
+			remove_status(c, .Controller) // will remove .Control from target
+			c.ticks = 0
+			battle_menu.ui_state = .Idle
+		} else if get_input(.MENU) {
+			battle_menu_next_combatant()
 		}
 
 	case .Skills:

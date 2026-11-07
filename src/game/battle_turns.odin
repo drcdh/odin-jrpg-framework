@@ -1,9 +1,13 @@
 package game
 
 import "core:fmt"
+import "core:log"
 import "core:math/rand"
+import "core:time"
 
-default_turn :: proc(actor_idx: int, opponent_team: Maybe(int)) {
+take_turn :: proc(actor_idx: int) {
+	start := time.tick_now()
+
 	c := &battle.combatants[actor_idx]
 	available_skills: [dynamic]int; defer delete(available_skills)
 	for cs, cs_idx in c.skills {
@@ -15,7 +19,7 @@ default_turn :: proc(actor_idx: int, opponent_team: Maybe(int)) {
 		cs_idx := rand.choice(available_skills[:])
 		k := c.skills[cs_idx].skill
 		fmt.printfln("%s picked skill %s", c.name, k)
-		if target, valid := random_target(skills[k].targeting, opponent_team); valid {
+		if target, valid := random_target_relative(k, c.team); valid {
 			c.skills[cs_idx].charge = 0
 			queue_battle_skill(actor_idx, target, k)
 		} else {
@@ -24,4 +28,6 @@ default_turn :: proc(actor_idx: int, opponent_team: Maybe(int)) {
 	} else {
 		fmt.printfln("%s twiddles their thumbs", c.name)
 	}
+
+	log.infof("combatant %d %s took turn in %v", actor_idx, c.name, time.tick_since(start))
 }

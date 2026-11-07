@@ -126,6 +126,13 @@ has_status :: proc {
 	has_status_Statuses,
 }
 
+has_any_status :: proc(c: Combatant, statuses: ..Status_Name) -> bool {
+	for status in statuses {
+		if has_status(c, status) do return true
+	}
+	return false
+}
+
 remove_all_statuses :: proc(c: ^Character) {
 	for status in Status_Name {
 		remove_status(c, status)
@@ -177,4 +184,22 @@ cancel_statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 		remove_status(statuses, .Sick)
 		remove_status(statuses, .Sleep)
 	}
+}
+
+can_take_turn :: proc(c: Combatant) -> bool {
+	return !has_any_status(c,
+		.Paralyze,
+		.Sleep,
+	)
+}
+
+is_uncontrollable :: proc(c: Combatant) -> bool {
+	return has_any_status(c,
+		.Berserk,
+		.Confuse,
+		.Paralyze,
+		.Rage,
+		.Sleep,
+		.Zombie,
+	)
 }

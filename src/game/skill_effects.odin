@@ -145,6 +145,10 @@ effect_attack_character :: proc(actor, target: ^Character, effect: Effect_Data) 
 effect_attack_combatant :: proc(actor, target: ^Combatant, effect: Effect_Data) -> (r: Effect_Result) {
 	r = effect_attack_character(actor, target, effect)
 	if r.hit != .Hit || r.downed do return
+	if r.status == .Control && r.status_result == .Added {
+		add_status(actor, .Controller)
+		target.controller = actor
+	}
 	r.stagger, r.interrupted = _stagger(target, effect.stg_acc, effect.stagger, effect.int_acc)
 	roll_for_counter(target, actor, f32(effect.risk) / 100)
 	return
@@ -225,6 +229,7 @@ _stagger :: proc(target: ^Combatant, stg_acc, stagger, int_acc: int) -> (stagger
 		} else {
 			log.infof("Staggering %s turn by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
 			target.ticks -= Ticks(stagger)
+			if target == &battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
 			staggered = true
 		}
 	}

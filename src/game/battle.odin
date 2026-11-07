@@ -214,42 +214,37 @@ battle_tick :: proc() {
 	}
 }
 
-get_next_player_controlled_combatant :: proc(previous: Maybe(int)) -> Maybe(int) {
-	if autobattle do return nil // shortcut
-	previous: Maybe(int) = previous
+player_controllable :: proc(c: Combatant) -> bool {
+	if !combatant_ready(c) do return false
+	if is_uncontrollable(c) do return false
+	if c.team == BADDY_TEAM do return has_status(c, .Control)
+	if c.team == PLAYER_TEAM do return !has_status(c, .Control)
+	panic("should be unreachable: is the combatant team something weird?")
+}
+
+get_next_player_controlled_combatant :: proc(previous: int) -> Maybe(int) {
 	first: Maybe(int)
+	met_previous: bool // loop passed `previous`
 	for c, c_idx in battle.combatants {
-		if combatant_ready(c) {
-			if (c.team == BADDY_TEAM && has_status(c, .Control)) || (c.team == PLAYER_TEAM && !has_status(c, .Control) && !has_status(c, .Confuse)) {
-				if first == nil do first = c_idx
-				if previous == nil do return c_idx
-				if previous == c_idx do previous = nil
-			}
+		if player_controllable(c) {
+			if met_previous do return c_idx
+			first = first.? or_else c_idx
 		}
+		if c_idx == previous do met_previous = true
 	}
 	return first
 }
 
 take_turns :: proc() {
-	for combatant, c_idx in battle.combatants {
-		if combatant_ready(combatant) {
-			if combatant.team == BADDY_TEAM {
-				if has_status(combatant, .Confuse) {
-					default_turn(c_idx, opponent_team = nil)
-				} else if has_status(combatant, .Control) {
-					if autobattle do default_turn(c_idx, opponent_team = PLAYER_TEAM)
-				} else {
-					default_turn(c_idx, opponent_team = PLAYER_TEAM)
-				}
-			} else if combatant.team == PLAYER_TEAM {
-				if has_status(combatant, .Confuse) {
-					default_turn(c_idx, opponent_team = nil)
-				} else if has_status(combatant, .Control) {
-					default_turn(c_idx, opponent_team = PLAYER_TEAM)
-				} else {
-					if autobattle do default_turn(c_idx, opponent_team = BADDY_TEAM)
-				}
+	for c, c_idx in battle.combatants {
+		if combatant_ready(c) {
+			assert(can_take_turn(c), "combatant is ready but has invalidating status")
+			if is_uncontrollable(c) || autobattle do take_turn(c_idx)
+			if (c.team == BADDY_TEAM && has_status(c, .Control)) || (c.team == PLAYER_TEAM && !has_status(c, .Control)) {
+				if battle_menu.ui_state == .Idle do battle_menu_select_combatant(c_idx)
+				continue
 			}
+			take_turn(c_idx) // baddy that's not controlled and can take turn
 		}
 	}
 }
@@ -287,6 +282,8 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 		affect(skill_play, actor, battle.allies[targets.i], skill)
 	case Target_One_Baddy:
 		affect(skill_play, actor, battle.baddies[targets.i], skill)
+	// case Target_One_Combatant:
+	// 	affect(skill_play, actor, targets.i, skill)
 	case Target_All_Allies:
 		for target_idx in battle.allies do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Baddies:
@@ -528,6 +525,9 @@ battle_time_tick :: proc(dt: f32) {
 		time_since_tick -= BATTLE_TICK_TIME
 		battle_tick()
 		process_skill_results()
+		// visually update gauges
+		battle_menu_set_stale(.Party)
+		battle_menu_set_stale(.Skills)
 	}
 }
 
@@ -819,6 +819,8 @@ targeted :: proc(c_idx, team: int) -> bool {
 			return team == BADDY_TEAM && c_idx == battle.baddies[ts.i]
 		case Target_One_Ally:
 			return team == PLAYER_TEAM && c_idx == battle.allies[ts.i]
+		// case Target_One_Combatant:
+		// 	return c_idx == ts.i
 		case Target_All_Allies:
 			return team == PLAYER_TEAM
 		case Target_All_Baddies:
