@@ -1,11 +1,8 @@
 package game
 
-import sa "core:container/small_array"
-import "core:fmt"
 import "core:log"
 import "core:math"
 import "core:math/rand"
-import rl "vendor:raylib"
 
 Skill_Context :: enum {
 	World_Menu,
@@ -296,58 +293,8 @@ do_skill :: proc(actor: ^Character, target_party_idx: int, skill_name: Skill_Nam
 	r = do_effect_character(actor, target, skill.effect_data, skill.effect_type)
 	play_sound(skill.sound)
 	switch ctx {
-	case .World_Menu: show_effect_in_world_menu(target_party_idx, r)
+	case .World_Menu: world_menu_effect_popups(target_party_idx, r)
 	case .Battle:     // TODO: battle presentation
 	}
 	return
-}
-
-// Seconds between one result's popups.
-POPUP_GAP :: f32(0.4)
-
-// One line of text that shows part of an Effect_Result. It allocates
-// nothing, so scripts can make them too.
-Effect_Popup :: struct {
-	text:  [16]u8, // NUL-terminated
-	color: rl.Color,
-	dmg: bool, // use damage_font
-}
-
-Effect_Popups :: sa.Small_Array(4, Effect_Popup)
-
-// The popups for `r`, in order: the hit or HP change, then levels, then
-// status (unless `status` is false).
-effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Effect_Popups) {
-	popup :: proc(popups: ^Effect_Popups, color: rl.Color, format: string, args: ..any, dmg := false) {
-		p := Effect_Popup{color = color, dmg = dmg}
-		fmt.bprintf(p.text[:len(p.text) - 1], format, ..args)
-		sa.push(popups, p)
-	}
-
-	switch r.hit {
-	case .Miss:  popup(&popups, rl.GRAY, "Mi", dmg=true)
-	case .Evade: popup(&popups, rl.GRAY, "Eva", dmg=true)
-	case .Hit:
-	}
-	if r.hp_change < 0 do popup(&popups, rl.WHITE, "%d", -r.hp_change, dmg=true)
-	if r.hp_change > 0 do popup(&popups, rl.GREEN, "%d", r.hp_change, dmg=true)
-	if r.levels > 0 do popup(&popups, rl.PURPLE, "%d", r.levels, dmg=true)
-	if s, ok := r.status.?; ok && status {
-		switch r.status_result {
-		case .None:
-		case .Added:         popup(&popups, rl.RED, "%v", s) // TODO: status animations?
-		case .Ineffective:   popup(&popups, rl.PURPLE, "Ine", dmg=true)
-		case .Resisted:      popup(&popups, rl.PURPLE, "Res", dmg=true)
-		case .Removed:       popup(&popups, rl.GREEN, "Cur", dmg=true)
-		case .Remove_Missed: popup(&popups, rl.PURPLE, "Mi", dmg=true)
-		}
-	}
-	return
-}
-
-// Popups over the target in the Targeting pane, POPUP_GAP apart.
-@(private = "file")
-show_effect_in_world_menu :: proc(slot: int, r: Effect_Result) {
-	popups := effect_popups(r)
-	for &p, i in sa.slice(&popups) do world_menu_popup(slot, p.color, f32(i) * POPUP_GAP, string(cstring(&p.text[0])), p.dmg)
 }

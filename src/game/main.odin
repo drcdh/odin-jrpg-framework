@@ -62,6 +62,7 @@ init :: proc(time_scale : f32 = 1, allocator := context.allocator) {
 	bb_init()
 	input_init()
 	music_init()
+	popups_init()
 	shop_load()
 	sounds_init(allocator)
 	ui_init() // after the sprite maps: it creates the icon sprites
@@ -82,6 +83,7 @@ shutdown :: proc() {
 	battle_destroy()
 	dialogue_destroy()
 	music_shutdown()
+	popups_shutdown()
 	shop_unload()
 	sounds_destroy()
 	ui_destroy()

@@ -82,7 +82,6 @@ Battle :: struct {
 	lose_proc:      Script_Proc,
 	paused:         bool, // true while running audiovisual stuff
 	poison_ticks:   int, // battle ticks since poison last did damage
-	popups:         sa.Small_Array(MAX_BATTLE_POPUPS, Battle_Popup),
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
 	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
 	results_actor:  int,
@@ -97,13 +96,6 @@ Battle :: struct {
 }
 
 battle: Battle
-
-// Text that rises from a combatant and fades out, e.g. damage. See battle_popup.
-Battle_Popup :: struct {
-	using popup: Effect_Popup,
-	pos:         [2]f32, // world pixels
-	t:           f32, // seconds since it appeared
-}
 
 targeting_ease: f32
 autobattle: bool // debug mode
@@ -363,7 +355,7 @@ battle_deactivate :: proc() {
 	clear(&battle.skill_result)
 	script_cancel(battle.results_script)
 	clear(&battle.results)
-	sa.clear(&battle.popups)
+	clear_popups()
 	battle_menu_end()
 	battle.active = false
 }
@@ -440,7 +432,7 @@ draw_battle :: proc() {
 	}
 	rl.EndMode2D()
 	battle_menu_draw(battle.ui_disabled)
-	draw_battle_popups()
+	draw_popups()
 
 	// debug
 	// rl.DrawText(fmt.ctprint(battle_ui_state), 0, i32(7 * tile_size), 16, rl.BLACK)
@@ -488,36 +480,6 @@ draw_battle_combatants :: proc() {
 	}
 }
 
-// Shows `text` rising from the top of `id`'s tile.
-battle_popup :: proc(id: Entity_Id, popup: Effect_Popup) {
-	p := Battle_Popup{popup = popup, pos = entity_pos(id) - {0, TILE_SIZE / 2}}
-	if !sa.push(&battle.popups, p) do log.warnf("Too many battle popups; dropped %q", cstring(&p.text[0]))
-}
-
-@(private = "file")
-battle_popups_update :: proc(dt: f32) {
-	for i := 0; i < sa.len(battle.popups); {
-		p := sa.get_ptr(&battle.popups, i)
-		p.t += dt
-		if p.t >= BATTLE_POPUP_TIME {
-			sa.ordered_remove(&battle.popups, i)
-		} else {
-			i += 1
-		}
-	}
-}
-
-@(private = "file")
-draw_battle_popups :: proc() {
-	for &p in sa.slice(&battle.popups) {
-		k := p.t / BATTLE_POPUP_TIME
-		color := p.color
-		color.a = u8(255 * (1 - k))
-		at := p.pos / TILE_SIZE
-		draw_text_center(at.x, at.y - 0.5 * k, cstring(&p.text[0]), color, font = p.dmg ? .Damage : .Normal)
-	}
-}
-
 battle_time_tick :: proc(dt: f32) {
 	@(static) time_since_tick: f32
 	time_since_tick += dt
@@ -549,7 +511,7 @@ update_battle :: proc(dt: f32) {
 		battle_time_tick(dt)
 	}
 
-	battle_popups_update(dt)
+	popups_update(dt)
 
 	targeting_ease += dt / .5
 	if targeting_ease > 1 {targeting_ease = 0}
@@ -747,12 +709,7 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		}
 	}
 
-	// ignore status changes on downed targets
-	popups := effect_popups(r, status = !r.downed)
-	for p, i in sa.slice(&popups) {
-		if i > 0 && !pause(POPUP_GAP) do return // pause between popups
-		battle_popup(target_id, p)
-	}
+	battle_effect_popups(c.eid, r)
 
 	if r.downed {
 		if c.team == PLAYER_TEAM {

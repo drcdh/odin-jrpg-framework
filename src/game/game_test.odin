@@ -1493,9 +1493,9 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 	r := do_skill(nil, 0, .Potion, .World_Menu)
 	testing.expect_value(t, r.hp_change, 50)
 	testing.expect_value(t, pc.hitpoints, 51)
-	testing.expect_value(t, world_menu_popup_count(), 1)
+	testing.expect_value(t, popup_count(), 1)
 	run_for(1.1) // popups run on raw_dt, which run_for advances too
-	testing.expect_value(t, world_menu_popup_count(), 0)
+	testing.expect_value(t, popup_count(), 0)
 }
 
 @(test)
