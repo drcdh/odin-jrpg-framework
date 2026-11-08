@@ -190,7 +190,7 @@ battle_menu_update :: proc() {
 			if cs.charge == CHARGE_MAX {
 				battle_menu.skill = cs.skill
 				battle_menu.ui_state = .Skill_Target
-				battle_menu.targets = default_target_selection(skills[cs.skill].targeting)
+				battle_menu.targets = default_target_selection(skills[cs.skill].targeting, skills[cs.skill].offensive)
 			}
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Top
@@ -223,7 +223,7 @@ battle_menu_update :: proc() {
 			if consumable, ok := items[inventory_order[battle_menu.inv_sel.select_idx]].data.(Consumable); ok {
 				battle_menu.skill = consumable
 				battle_menu.ui_state = .Item_Target
-				battle_menu.targets = default_target_selection(skills[consumable].targeting)
+				battle_menu.targets = default_target_selection(skills[consumable].targeting, skills[consumable].offensive)
 			}
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Top
@@ -352,7 +352,7 @@ battle_redraw_baddies_pane :: proc() {
 
 @(private = "file")
 battle_redraw_party_pane :: proc() {
-	for i, p in battle.allies {
+	for i, p in battle.players {
 		c := battle.combatants[i]
 		tint := rl.WHITE
 		if c.hitpoints <= 0 {

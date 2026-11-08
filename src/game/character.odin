@@ -12,10 +12,11 @@ Character :: struct {
 	name:          string,
 	equipment:     Equipment,
 	eq_stats:      Stats,
-	stats:         Stats, // TODO: after statuses
+	stats:         Stats,
 	statuses:      Statuses,
 	skill_set:     Skill_Set,
 	skills:        Charged_Skills,
+	eid:           Entity_Id,
 }
 
 alive :: proc(c: Character) -> bool {

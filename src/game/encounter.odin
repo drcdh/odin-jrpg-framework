@@ -14,23 +14,28 @@ Encounter :: struct {
 	exp:     int,
 }
 
-ally_combatant :: proc(pc_idx: int) -> Combatant {
-	return Combatant{character = &playable_characters[pc_idx], team = PLAYER_TEAM}
-}
-
 // The baddy's Character is freed in battle_cleanup.
+@(private = "file")
 baddy_combatant :: proc(template: Baddy_Template) -> Combatant {
-	return Combatant{character = new_baddy(template), team = BADDY_TEAM}
+	return Combatant{character = new_baddy(template), team = .Baddy}
 }
 
-add_ally_combatant :: proc(ally: Combatant) {
-	append(&battle.allies, len(battle.combatants))
-	append(&battle.combatants, ally)
+@(private = "file")
+player_combatant :: proc(pc_idx: int) -> Combatant {
+	return Combatant{character = &playable_characters[pc_idx], team = .Player}
 }
 
-add_baddy_combatant :: proc(baddy: Combatant) {
-	append(&battle.baddies, len(battle.combatants))
-	append(&battle.combatants, baddy)
+@(private = "file")
+add_combatant :: proc(c: Combatant) {
+	switch c.team {
+	case .None:
+		panic("Don't know what to do with Combatant with Team.None")
+	case .Baddy:
+		append(&battle.baddies, len(battle.combatants))
+	case .Player:
+		append(&battle.players, len(battle.combatants))
+	}
+	append(&battle.combatants, c)
 }
 
 add_combatants_for_encounter :: proc(name: Encounter_Name) {
@@ -38,14 +43,14 @@ add_combatants_for_encounter :: proc(name: Encounter_Name) {
 		baddy_id := spot.baddy_id
 		if baddy_id == .None do continue
 		log.infof("adding combatant %s (%v)", baddy_templates[baddy_id].name, baddy_id)
-		add_baddy_combatant(baddy_combatant(baddy_templates[baddy_id]))
+		add_combatant(baddy_combatant(baddy_templates[baddy_id]))
 	}
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
 			for &cs in playable_characters[pc_idx].skills {
 				cs.charge = 0
 			}
-			add_ally_combatant(ally_combatant(pc_idx))
+			add_combatant(player_combatant(pc_idx))
 		}
 	}
 	battle.encounter = &encounters[name]

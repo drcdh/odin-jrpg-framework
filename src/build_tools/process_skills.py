@@ -41,7 +41,8 @@ def odin_skill(row):
 		"name": row["name"],
 		"effect": effect_data_str(row),
 		"effect_type": row["effect_type"],
-		"targeting": "." + row["targeting"],
+		"target": "." + row["target"],
+		"offensive": "true" if bool(row["offensive"]) else "false",
 		"windup": row["windup"] or 0,
 		"cost": row["cost"] or 100,
 		"cooldown": row["cooldown"] or 0,
@@ -50,7 +51,7 @@ def odin_skill(row):
 		"description": process_text(row.get("description", "")),
 	}
 def write_skill(f, oskill):
-	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {targeting}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
+	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {target}, {offensive}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
 
 
 for file in sorted(pathlib.Path(ROOT).rglob("*.csv")):

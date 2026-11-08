@@ -19,7 +19,12 @@ take_turn :: proc(actor_idx: int) {
 		cs_idx := rand.choice(available_skills[:])
 		k := c.skills[cs_idx].skill
 		fmt.printfln("%s picked skill %s", c.name, k)
-		if target, valid := random_target_relative(k, c.team); valid {
+
+		team := c.team
+		if has_any_status(c^, .Control) do team = opposite_team(team)
+		if has_any_status(c^, .Confuse, .Rage, .Zombie) do team = .None
+
+		if target, valid := random_target(k, team); valid {
 			c.skills[cs_idx].charge = 0
 			queue_battle_skill(actor_idx, target, k)
 		} else {

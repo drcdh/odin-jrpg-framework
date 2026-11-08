@@ -24,18 +24,19 @@ MAX_BATTLE_POPUPS :: 32
 MAX_COMBATANTS :: MAX_ENCOUNTER_SIZE + NUM_PC
 
 BADDY_ORIGIN  :: Tile{2, 3}
-ALLY_ORIGIN   :: Tile{12, 3}
+PARTY_ORIGIN   :: Tile{12, 3}
 
 COMBATANT_LAYER  :: 0
 SKILL_ANIM_LAYER :: 1 // skill animations draw over the combatants
+
+Team :: enum { None, Baddy, Player }
 
 Ticks :: f32
 
 Combatant :: struct {
 	using character: ^Character,
 	controller:      ^Combatant,
-	eid:             Entity_Id,
-	team:            int,
+	team:            Team,
 	ticks:           Ticks,
 	windup:          bool, // TODO: change to Maybe(Skill_Play_Id)
 }
@@ -73,7 +74,7 @@ Battle_Result :: enum {
 
 Battle :: struct {
 	active:					bool, // battle will be drawn if true, else world
-	allies:					[dynamic]int,
+	players:        [dynamic]int,
 	baddies:      	[dynamic]int,
 	background:			Battle_Background,
 	camera:         Camera,
@@ -101,12 +102,12 @@ targeting_ease: f32
 autobattle: bool // debug mode
 
 check_win :: proc() -> Maybe(Battle_Result) {
-	allies_alive := false
-	for c_idx in battle.allies {
+	players_alive := false
+	for c_idx in battle.players {
 		if combatant_alive(battle.combatants[c_idx]) {
-			allies_alive = true
+			players_alive = true
 		}}
-	if !allies_alive {
+	if !players_alive {
 		return .Lose
 	}
 	baddies_alive := false
@@ -209,9 +210,8 @@ battle_tick :: proc() {
 player_controllable :: proc(c: Combatant) -> bool {
 	if !combatant_ready(c) do return false
 	if is_uncontrollable(c) do return false
-	if c.team == BADDY_TEAM do return has_status(c, .Control)
-	if c.team == PLAYER_TEAM do return !has_status(c, .Control)
-	panic("should be unreachable: is the combatant team something weird?")
+	if c.team == .Player do return !has_status(c, .Control)
+	return has_status(c, .Control)
 }
 
 get_next_player_controlled_combatant :: proc(previous: int) -> Maybe(int) {
@@ -232,7 +232,7 @@ take_turns :: proc() {
 		if combatant_ready(c) {
 			assert(can_take_turn(c), "combatant is ready but has invalidating status")
 			if is_uncontrollable(c) || autobattle do take_turn(c_idx)
-			if (c.team == BADDY_TEAM && has_status(c, .Control)) || (c.team == PLAYER_TEAM && !has_status(c, .Control)) {
+			if (c.team == .Baddy && has_status(c, .Control)) || (c.team == .Player && !has_status(c, .Control)) {
 				if battle_menu.ui_state == .Idle do battle_menu_select_combatant(c_idx)
 				continue
 			}
@@ -270,14 +270,14 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	}
 
 	switch targets in skill_play.targets {
-	case Target_One_Ally:
-		affect(skill_play, actor, battle.allies[targets.i], skill)
+	case Target_One_Player:
+		affect(skill_play, actor, battle.players[targets.i], skill)
 	case Target_One_Baddy:
 		affect(skill_play, actor, battle.baddies[targets.i], skill)
 	// case Target_One_Combatant:
 	// 	affect(skill_play, actor, targets.i, skill)
-	case Target_All_Allies:
-		for target_idx in battle.allies do affect(skill_play, actor, target_idx, skill)
+	case Target_All_Players:
+		for target_idx in battle.players do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Baddies:
 		for target_idx in battle.baddies do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Combatants:
@@ -342,7 +342,7 @@ battle_clear :: proc() {
 		free(battle.combatants[c_idx].character)
 	}
 	for c in battle.combatants do destroy_entity(c.eid)
-	clear(&battle.allies)
+	clear(&battle.players)
 	clear(&battle.baddies)
 	clear(&battle.combatants)
 	battle.encounter = nil
@@ -362,7 +362,7 @@ battle_deactivate :: proc() {
 
 battle_destroy :: proc() {
 	battle_clear()
-	delete(battle.allies)
+	delete(battle.players)
 	delete(battle.baddies)
 	delete(battle.combatants)
 	delete(battle.skill_plays)
@@ -411,7 +411,7 @@ spawn_combatants :: proc(name: Encounter_Name) {
 	party_idx := 0
 	for pc_idx in 0 ..< NUM_PC {
 		if !game_data.party_membership[pc_idx] do continue
-		battle.combatants[battle.allies[party_idx]].eid = spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
+		battle.combatants[battle.players[party_idx]].eid = spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
 		party_idx += 1
 		x += 1
 		if party_idx != 3 {
@@ -538,7 +538,7 @@ process_skill_results :: proc() {
 @(private = "file")
 show_skill_results :: proc(_: Entity_Id) {
 	ATTACK_TIME :: .25 // time to animate approach and retreat
-	ALLY_DX :: 2 // distance allies move horizontally in tiles
+	PARTY_DX :: 2 // distance players move horizontally in tiles
 
 	// passive effects (e.g. poison) have no actor, text, or animations
 	is_skill := battle.results[0].source == .Skill
@@ -551,12 +551,12 @@ show_skill_results :: proc(_: Entity_Id) {
 
 		actor = battle.combatants[battle.results_actor]
 		actor_eid = actor.eid
-		if actor.team == BADDY_TEAM {
+		if actor.team == .Baddy {
 			move_entity(actor_eid, {1, 0}, ATTACK_TIME)
 		} else {
 			set_sprite_tag_of(actor_eid, .RArm)
 			freeze_anim(actor_eid, 1)
-			wait_all(tween_jump(actor_eid, -ALLY_DX, 1, ATTACK_TIME))
+			wait_all(tween_jump(actor_eid, -PARTY_DX, 1, ATTACK_TIME))
 			set_sprite_tag_of(actor_eid, .Walk)
 			freeze_anim(actor_eid, 1)
 		}
@@ -572,12 +572,12 @@ show_skill_results :: proc(_: Entity_Id) {
 	}
 
 	if is_skill {
-		if actor.team == BADDY_TEAM {
+		if actor.team == .Baddy {
 			move_entity(actor_eid, {-1, 0}, ATTACK_TIME)
 		} else {
 			set_sprite_tag_of(actor_eid, .Walk)
 			play_anim(actor_eid)
-			move_entity(actor_eid, {ALLY_DX, 0}, ATTACK_TIME)
+			move_entity(actor_eid, {PARTY_DX, 0}, ATTACK_TIME)
 			set_sprite_tag_of(actor_eid, .Idle)
 		}
 	}
@@ -615,7 +615,7 @@ default_start_proc :: proc(_: Entity_Id) {
 default_win_proc :: proc(_: Entity_Id) {
 	battle.ui_disabled = true
 	battle_menu.ui_state = .Idle
-	for c_idx in battle.allies {
+	for c_idx in battle.players {
 		c := battle.combatants[c_idx]
 		if combatant_alive(c) {
 			set_sprite_tag_of(c.eid, .Cheer)
@@ -670,7 +670,7 @@ show_skill_result :: proc(target_id: Entity_Id) {
 
 	if effect_result.source == .Skill {
 		prev_tag: Maybe(Sprite_Tag)
-		if c.team == PLAYER_TEAM {
+		if c.team == .Player {
 			if new_tag, ok := effect_reaction_tag(r).?; ok {
 				prev_tag = set_sprite_tag_of(target_id, new_tag)
 				play_anim(target_id)
@@ -682,7 +682,7 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		if !play_skill_anim(target_id, skill.animation) do return
 
 		// restore previous tag
-		if c.team == PLAYER_TEAM {
+		if c.team == .Player {
 			if t, ok := prev_tag.?; ok {
 				set_sprite_tag_of(target_id, t)
 			}
@@ -712,8 +712,8 @@ show_skill_result :: proc(target_id: Entity_Id) {
 	battle_effect_popups(c.eid, r)
 
 	if r.downed {
-		if c.team == PLAYER_TEAM {
-			ally_down(target_id)
+		if c.team == .Player {
+			player_down(target_id)
 		} else {
 			baddy_down(target_id)
 		}
@@ -753,13 +753,6 @@ effect_reaction_tag :: proc(r: Effect_Result) -> Maybe(Sprite_Tag) {
 	return nil
 }
 
-ally_down :: proc(self: Entity_Id) {
-	set_sprite_tag_of(self, .Kneeled)
-	pause(.25)
-	play_sound(.Down)
-	set_sprite_tag_of(self, .Downed)
-}
-
 baddy_down :: proc(self: Entity_Id) {
 	pause(.25)
 	play_sound(.Down)
@@ -769,22 +762,35 @@ baddy_down :: proc(self: Entity_Id) {
 	set_tint(self)
 }
 
-targeted :: proc(c_idx, team: int) -> bool {
+player_down :: proc(self: Entity_Id) {
+	set_sprite_tag_of(self, .Kneeled)
+	pause(.25)
+	play_sound(.Down)
+	set_sprite_tag_of(self, .Downed)
+}
+
+targeted :: proc(c_idx: int, team: Team) -> bool {
 	if battle_menu.ui_state == .Skill_Target || battle_menu.ui_state == .Item_Target {
 		switch ts in battle_menu.targets {
 		case Target_One_Baddy:
-			return team == BADDY_TEAM && c_idx == battle.baddies[ts.i]
-		case Target_One_Ally:
-			return team == PLAYER_TEAM && c_idx == battle.allies[ts.i]
+			return team == .Baddy && c_idx == battle.baddies[ts.i]
+		case Target_One_Player:
+			return team == .Player && c_idx == battle.players[ts.i]
 		// case Target_One_Combatant:
 		// 	return c_idx == ts.i
-		case Target_All_Allies:
-			return team == PLAYER_TEAM
+		case Target_All_Players:
+			return team == .Player
 		case Target_All_Baddies:
-			return team == BADDY_TEAM
+			return team == .Baddy
 		case Target_All_Combatants:
 			return true
 		}
 	}
 	return false
+}
+
+opposite_team :: proc(team: Team) -> Team {
+	if team == .Player do return .Baddy
+	if team == .Baddy do return .Player
+	return .None
 }

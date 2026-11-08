@@ -1,10 +1,19 @@
 package game
 
+Target_Type :: enum {
+	One,
+	Some, // one combatant or one entire team
+	Team, // one entire team
+	All,
+}
+
 Skill :: struct {
 	name:        string,
 	effect_data: Effect_Data,
 	effect_type: Effect_Type,
 	targeting:   Target_Type,
+	offensive:   bool,
+	// ally_only:   bool,
 	windup:      int,
 	cost:        int,
 	cooldown:    int,
@@ -69,23 +78,7 @@ charge_skills :: proc(cs: ^Charged_Skills, battle := false) {
 }
 
 is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
-	skill := skills[skill_name]
-	switch skill.targeting {
-	case .One_Opponent:
-	case .Some_Opponents:
-	case .All_Opponents:
-	case .One_Ally:
-		is = true
-	case .Some_Allies:
-		is = true
-	case .All_Allies:
-		is = true
-	case .One_Combatant:
-		is = true
-	case .All_Combatants:
-		is = true
-	}
-	return
+	return false // TODO
 }
 
 // `actor` is nil for an item.

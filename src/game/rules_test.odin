@@ -185,24 +185,24 @@ only_combatants_are_staggered :: proc(t: ^testing.T) {
 
 // The Rat encounter: the baddy is combatant 0 and PC 0 is combatant 1.
 @(private = "file")
-setup_rat_battle :: proc() -> (baddy, ally: ^Combatant) {
+setup_rat_battle :: proc() -> (baddy, player: ^Combatant) {
 	headless_core_init() // spawns entities; undo with headless_core_shutdown
 	init_new_game()
 	game_data.party_membership = {true, false, false, false, false, false}
 	encounter_init(.Rat, nil, nil, nil) // start_encounter fades the screen, so it must run in a script
-	baddy, ally = &battle.combatants[battle.baddies[0]], &battle.combatants[battle.allies[0]]
-	ally.stats[Stat_Name.Evasion] = 0
+	baddy, player = &battle.combatants[battle.baddies[0]], &battle.combatants[battle.players[0]]
+	player.stats[Stat_Name.Evasion] = 0
 	return
 }
 
 @(test)
 pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
-	baddy, ally := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy()
-	testing.expect(t, ally.character == &playable_characters[0], "the ally isn't PC 0")
+	baddy, player := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy()
+	testing.expect(t, player.character == &playable_characters[0], "the player isn't PC 0")
 	max_hp := playable_characters[0].hitpoints
 
 	effect := Effect_Data{hit_acc = 100, power = 100, sts_acc = 100, status = .Poison}
-	r := do_effect(baddy, ally, effect, .Attack)
+	r := do_effect(baddy, player, effect, .Attack)
 	testing.expect_value(t, r.hit, Hit_Result.Hit)
 	battle_deactivate() // frees the baddy
 
@@ -213,29 +213,29 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 
 @(test)
 skill_plays_stagger_affects_turn_ticks :: proc(t: ^testing.T) {
-	baddy, ally := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
+	baddy, player := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
 	// stagger should affect ticks when the target isn't winding up
-	ally.ticks = 100
-	ally.windup = false
+	player.ticks = 100
+	player.windup = false
 
-	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Debug_Stagger})
-	testing.expect_value(t, ally.ticks, 50)
+	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Player{0}, skill_name = .Debug_Stagger})
+	testing.expect_value(t, player.ticks, 50)
 	testing.expect(t, !baddy.windup, "the actor is still winding up")
 }
 
 @(test)
 skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
-	baddy, ally := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
+	baddy, player := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
 	// stagger should affect windup when the target is winding up
-	ally.ticks = 100
-	ally.windup = true
-	append(&battle.skill_plays, Battle_Skill_Play{actor_idx = battle.allies[0], targets = Target_One_Baddy{0}, skill_name = .Slash, windup = Ticks(100)})
+	player.ticks = 100
+	player.windup = true
+	append(&battle.skill_plays, Battle_Skill_Play{actor_idx = battle.players[0], targets = Target_One_Baddy{0}, skill_name = .Slash, windup = Ticks(100)})
 	testing.expect_value(t, battle.skill_plays[0].windup, 100)
 
-	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Ally{0}, skill_name = .Debug_Stagger})
-	testing.expect_value(t, ally.ticks, 100)
+	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Player{0}, skill_name = .Debug_Stagger})
+	testing.expect_value(t, player.ticks, 100)
 	testing.expect_value(t, battle.skill_plays[0].windup, 150)
 	testing.expect(t, !baddy.windup, "the actor is still winding up")
 }
