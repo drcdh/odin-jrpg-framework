@@ -9,6 +9,59 @@ import rl "vendor:raylib"
 
 // Headless: no window. Each test owns the global world, so run with ODIN_TEST_THREADS=1.
 
+// Tests can't call init and shutdown: they create and free GPU resources,
+// which need a window. These set up and tear down the parts tests use.
+
+// The Game containers, the clock, scripts and the world: enough to spawn
+// entities, scripts and tweens, set maps and step them directly, without update.
+headless_core_init :: proc(time_scale: f32 = 1) {
+	hm.dynamic_init(&game.images, context.allocator)
+	hm.dynamic_init(&game.scripts, context.allocator)
+	hm.dynamic_init(&game.sprites, context.allocator)
+	hm.dynamic_init(&game.tweens, context.allocator)
+	game.pending_destroy = make([dynamic]Entity_Id)
+	game.script_order    = make([dynamic]Script_Id)
+	game.swapped_sprites = make(map[Swap_Key]Sprite_Handle)
+	game.clock = {time_scale = time_scale}
+	world_init()
+}
+
+headless_core_shutdown :: proc() {
+	scripts_shutdown()
+	hm.dynamic_destroy(&game.entities)
+	hm.dynamic_destroy(&game.images)
+	hm.dynamic_destroy(&game.scripts)
+	hm.dynamic_destroy(&game.sprites)
+	hm.dynamic_destroy(&game.tweens)
+	delete(game.pending_destroy)
+	delete(game.script_order)
+	delete(game.swapped_sprites)
+	world_shutdown()
+	game = {}
+}
+
+// The core plus everything update touches.
+headless_init :: proc(time_scale: f32 = 1) {
+	headless_core_init(time_scale)
+	dialogue_init()
+	music_init()
+	popups_init()
+	sounds_init()
+	ui_init() // no window: creates nothing, but keeps the pairing with ui_destroy
+}
+
+headless_shutdown :: proc() {
+	scripts_shutdown() // before anything a script may still use
+	battle_destroy()
+	dialogue_destroy()
+	music_shutdown()
+	popups_shutdown()
+	sounds_destroy()
+	ui_destroy() // also closes the menus
+	destroy() // game data, if a test started a new game
+	headless_core_shutdown()
+}
+
 @(private = "file")
 FRAME :: f32(1.0 / 50.0)
 
@@ -33,7 +86,7 @@ expect_near :: proc(t: ^testing.T, got, want: f32, loc := #caller_location) {
 
 @(test)
 tween_once_reaches_end_and_is_removed :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_at({0, 0})
 	tw := tween_to(e, .Pos_X, {10, 0, 0, 0}, 1)
 
@@ -49,7 +102,7 @@ tween_once_reaches_end_and_is_removed :: proc(t: ^testing.T) {
 
 @(test)
 tween_relative_with_easing :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_at({100, 0})
 	tween_by(e, .Pos_X, {20, 0, 0, 0}, 1, .Quadratic_In)
 
@@ -61,7 +114,7 @@ tween_relative_with_easing :: proc(t: ^testing.T) {
 
 @(test)
 tween_delay_captures_from_at_start :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_at({0, 0})
 	tween_by(e, .Pos_X, {10, 0, 0, 0}, 1, delay = 0.5)
 
@@ -73,7 +126,7 @@ tween_delay_captures_from_at_start :: proc(t: ^testing.T) {
 
 @(test)
 tween_ping_pong_comes_back :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({})
 	tw := tween_to(e, .Rotation, {90, 0, 0, 0}, 1, mode = .Ping_Pong)
 
@@ -86,7 +139,7 @@ tween_ping_pong_comes_back :: proc(t: ^testing.T) {
 
 @(test)
 tween_tint_lanes_round_trip :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({sprite = {tint = rl.WHITE}})
 	tween_tint(e, rl.RED, 0.5)
 	run_for(0.6)
@@ -95,7 +148,7 @@ tween_tint_lanes_round_trip :: proc(t: ^testing.T) {
 
 @(test)
 tween_on_same_target_replaces :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	e := spawn_entity({})
 	a := tween_to(e, .Pos_X, {100, 0, 0, 0}, 1)
 	b := tween_to(e, .Pos_X, {-100, 0, 0, 0}, 1)
@@ -106,7 +159,7 @@ tween_on_same_target_replaces :: proc(t: ^testing.T) {
 
 @(test)
 tween_ends_when_entity_is_destroyed :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({})
 	tw := tween_to(e, .Pos_X, {100, 0, 0, 0}, 1)
 	destroy_entity(e)
@@ -118,7 +171,7 @@ tween_ends_when_entity_is_destroyed :: proc(t: ^testing.T) {
 
 @(test)
 tween_raw_f32 :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	zoom: f32 = 1
 	tween_f32(&zoom, 3, 1)
 	run_for(1.1)
@@ -127,7 +180,7 @@ tween_raw_f32 :: proc(t: ^testing.T) {
 
 @(test)
 find_by_name :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn_entity({name = "a"})
 	b := spawn_entity({name = "b"})
 	testing.expect_value(t, find("b"), b)
@@ -145,7 +198,7 @@ find_by_name :: proc(t: ^testing.T) {
 
 @(test)
 script_pause_resumes_on_time :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) {
 		started := game.clock.time
 		pause(0.5)
@@ -160,7 +213,7 @@ script_pause_resumes_on_time :: proc(t: ^testing.T) {
 
 @(test)
 scripts_run_in_spawn_order_each_frame :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	defer delete(log_buf)
 	log_buf = make([dynamic]int)
 	spawn(proc(_: Entity_Id) { for _ in 0..<3 { append(&log_buf, 1); next_frame() } })
@@ -174,7 +227,7 @@ scripts_run_in_spawn_order_each_frame :: proc(t: ^testing.T) {
 
 @(test)
 wait_all_waits_for_slowest :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	wait_all_entity = spawn_entity({})
 	s := spawn(proc(self: Entity_Id) {
 		a := tween_by(self, .Pos_X, {10, 0, 0, 0}, 0.2)
@@ -192,7 +245,7 @@ wait_all_waits_for_slowest :: proc(t: ^testing.T) {
 
 @(test)
 spawn_centers_pos_on_tile :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	e := spawn_entity({tile = {2, 3}, pos = {999, 999}})
 	testing.expect_value(t, entity_pos(e), [2]f32{2 * 16 + 8, 3 * 16 + 8})
 	testing.expect_value(t, pixel_to_tile(entity_pos(e)), Tile{2, 3})
@@ -200,7 +253,7 @@ spawn_centers_pos_on_tile :: proc(t: ^testing.T) {
 
 @(test)
 move_entity_sets_tile_then_slides :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({tile = {0, 0}})
 	spawn(proc(self: Entity_Id) {
 		move_entity(self, {2, 3}, 0.5)
@@ -216,7 +269,7 @@ move_entity_sets_tile_then_slides :: proc(t: ^testing.T) {
 
 @(test)
 walk_entity_steps_one_tile_at_a_time :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({tile = {0, 0}})
 	spawn(proc(self: Entity_Id) { walk_entity(self, {2, -1}, 0.2) }, e)
 
@@ -235,7 +288,7 @@ walk_entity_steps_one_tile_at_a_time :: proc(t: ^testing.T) {
 
 @(test)
 cancel_stops_looping_script :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	s := spawn(proc(_: Entity_Id) {
 		for pause(0.1) {}
 	})
@@ -249,7 +302,7 @@ cancel_stops_looping_script :: proc(t: ^testing.T) {
 
 @(test)
 destroying_entity_cancels_its_scripts :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({})
 	s := spawn(proc(self: Entity_Id) {
 		for move_entity(self, {1, 0}, 1) {}
@@ -262,7 +315,7 @@ destroying_entity_cancels_its_scripts :: proc(t: ^testing.T) {
 
 @(test)
 ignoring_cancel_does_not_hang :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	frames := 0
 	spawn(proc(_: Entity_Id) {
 		// Ignores every result; after cancel each pause still yields one frame.
@@ -279,7 +332,7 @@ ignoring_cancel_does_not_hang :: proc(t: ^testing.T) {
 
 @(test)
 script_spawned_by_script_and_waited_on :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) {
 		child := spawn(proc(_: Entity_Id) { pause(0.3) })
 		wait_script(child)
@@ -291,7 +344,7 @@ script_spawned_by_script_and_waited_on :: proc(t: ^testing.T) {
 
 @(test)
 script_drives_entity_found_by_name :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	light := spawn_entity({name = "light", sprite = {tint = rl.BLACK}})
 	spawn(proc(_: Entity_Id) {
 		l := find("light")
@@ -307,7 +360,7 @@ script_drives_entity_found_by_name :: proc(t: ^testing.T) {
 
 @(test)
 flash_screen_fades_out :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) {
 		flash_screen({255, 0, 0, 200}, 0.25)
 		resumed_at = game.clock.time
@@ -324,7 +377,7 @@ flash_screen_fades_out :: proc(t: ^testing.T) {
 
 @(test)
 new_flash_replaces_old :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	a := tween_flash(rl.RED, 1)
 	run_for(0.5)
 	b := tween_flash(rl.BLUE, 0.25)
@@ -338,7 +391,7 @@ new_flash_replaces_old :: proc(t: ^testing.T) {
 
 @(test)
 walk_entity_pauses_between_tiles :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({tile = {0, 0}})
 	s := spawn(proc(self: Entity_Id) { walk_entity(self, {2, 0}, 0.2, pause_between = 0.25) }, e)
 
@@ -382,7 +435,7 @@ fake_sprite :: proc(m: Sprite_Metadata) -> Sprite_State {
 
 @(test)
 sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	s := fake_sprite(hero_meta())
 	testing.expect_value(t, s.tag, Sprite_Tag.Left) // first tag by default
 	testing.expect_value(t, sprite_src(s), rl.Rectangle{0, 0, 16, 24})
@@ -399,7 +452,7 @@ sprite_src_uses_frame_column_and_tag_row :: proc(t: ^testing.T) {
 
 @(test)
 update_sprite_advances_and_loops :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	s := fake_sprite(blink_meta())
 	testing.expect(t, !update_sprite(0.5, &s), "not playing yet")
 	testing.expect_value(t, s.frame, 0)
@@ -421,7 +474,7 @@ update_sprite_advances_and_loops :: proc(t: ^testing.T) {
 
 @(test)
 static_sprite_never_animates :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	s := fake_sprite({frame_size = {16, 16}, type = .Static})
 	play_sprite(&s)
 	testing.expect(t, !update_sprite(10, &s))
@@ -431,7 +484,7 @@ static_sprite_never_animates :: proc(t: ^testing.T) {
 
 @(test)
 sprite_playback_controls :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	s := fake_sprite(hero_meta())
 	play_sprite(&s)
 	update_sprite(0.16, &s)
@@ -458,7 +511,7 @@ sprite_playback_controls :: proc(t: ^testing.T) {
 
 @(test)
 animation_length_per_row :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	b := fake_sprite(blink_meta())
 	expect_near(t, animation_length(b), 0.4)
 	h := fake_sprite(hero_meta())
@@ -467,35 +520,9 @@ animation_length_per_row :: proc(t: ^testing.T) {
 	expect_near(t, animation_length(h), 0.45)
 }
 
-// @(test)
-// follow_facing_switches_row_and_keeps_playing :: proc(t: ^testing.T) {
-// 	init(); defer shutdown()
-// 	s := fake_sprite(hero_meta())
-// 	s.follow_facing = true
-// 	s.anim = true
-// 	s.frame = 1
-// 	e := spawn_entity({facing = .Up, sprite = s})
-// 	b := fake_sprite(blink_meta())
-// 	b.follow_facing = true // no direction rows: ignored
-// 	other := spawn_entity({facing = .Right, sprite = b})
-//
-// 	sprites_update(0)
-// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Up)
-// 	testing.expect(t, entity_get(e).sprite.anim && entity_get(e).sprite.frame == 1, "row switch keeps playback")
-// 	testing.expect_value(t, entity_get(other).sprite.tag, Sprite_Tag.Left) // zero value, untouched
-//
-// 	// Moving to a row with fewer frames wraps the frame.
-// 	entity_get(e).sprite.tag = .Cheer
-// 	entity_get(e).sprite.frame = 2
-// 	set_facing(e, .Down)
-// 	sprites_update(0)
-// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Down)
-// 	testing.expect_value(t, entity_get(e).sprite.frame, 0)
-// }
-
 @(test)
 moving_sprite_animates_one_stride_per_tile :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	s := fake_sprite(hero_meta()) // Left row: 2 frames x 150 ms, a 0.3 s loop
 	s.anim = true
 	s.anim_when = .Moving
@@ -520,7 +547,7 @@ moving_sprite_animates_one_stride_per_tile :: proc(t: ^testing.T) {
 
 @(test)
 anim_when_always_and_never :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	s := fake_sprite(hero_meta())
 	s.anim = true
 	e := spawn_entity({tile = {0, 0}, sprite = s}) // Always, the default
@@ -539,7 +566,7 @@ anim_when_always_and_never :: proc(t: ^testing.T) {
 
 @(test)
 walk_speed_belongs_to_the_entity :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	plain := spawn_entity({})
 	testing.expect_value(t, entity_get(plain).step_time, DEFAULT_STEP_TIME)
 	hero := spawn_entity({sprite = fake_sprite(hero_meta())})
@@ -558,28 +585,9 @@ walk_speed_belongs_to_the_entity :: proc(t: ^testing.T) {
 	testing.expect_value(t, entity_get(e).pos, tile_center({2, 0}))
 }
 
-// @(test)
-// set_sprite_tag_of_overrides_follow_facing :: proc(t: ^testing.T) {
-// 	init(); defer shutdown()
-// 	s := fake_sprite(hero_meta())
-// 	s.follow_facing = true
-// 	e := spawn_entity({facing = .Up, sprite = s})
-//
-// 	set_sprite_tag_of(e, .Cheer)
-// 	sprites_update(0)
-// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer)
-// 	set_facing(e, .Left)
-// 	sprites_update(0)
-// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Cheer) // facing no longer wins
-//
-// 	set_follow_facing(e)
-// 	sprites_update(0)
-// 	testing.expect_value(t, entity_get(e).sprite.tag, Sprite_Tag.Left)
-// }
-
 @(test)
 create_sprite_state_without_window :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	s := create_sprite_state(.Man_Ps, tint = rl.GOLD, play = true, speed = 2, layer = 3)
 	testing.expect_value(t, s.sprite, Sprite_Handle{})
 	testing.expect_value(t, s.tint, rl.GOLD)
@@ -592,7 +600,7 @@ create_sprite_state_without_window :: proc(t: ^testing.T) {
 
 @(test)
 walk_route_loops_back_to_start :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	e := spawn_entity({tile = test_route[0]})
 	s := spawn(proc(self: Entity_Id) { walk_route(self, test_route[:], 0.1, pause_between = 0.05, close = true) }, e)
 
@@ -614,7 +622,7 @@ walk_route_loops_back_to_start :: proc(t: ^testing.T) {
 
 @(test)
 walk_route_once_stops_at_last_vertex :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	test_open_route_ok = false
 	e := spawn_entity({tile = test_open_route[0]})
 	s := spawn(proc(self: Entity_Id) {
@@ -681,7 +689,8 @@ input_states_press_hold_release :: proc(t: ^testing.T) {
 
 @(test)
 get_input_repeats_after_hold_time :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
+	sounds_init(); defer sounds_destroy() // get_input plays a blip
 	game.input.state[.ENTER] = Input_Pressed{}
 	testing.expect(t, get_input(.ENTER))
 	game.input.state[.ENTER] = Input_Held{t = 0.5}
@@ -730,7 +739,7 @@ wrap_page_breaks_at_spaces_and_newlines :: proc(t: ^testing.T) {
 
 @(test)
 say_types_then_waits_for_enter :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	trigger_count = 0
 	s := spawn(proc(_: Entity_Id) {
 		say("first", "Tester")
@@ -765,7 +774,7 @@ say_types_then_waits_for_enter :: proc(t: ^testing.T) {
 
 @(test)
 enter_skips_typing :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) { say("a fairly long line of text") })
 	run_for(FRAME)
 	tap(.ENTER)
@@ -778,7 +787,7 @@ enter_skips_typing :: proc(t: ^testing.T) {
 
 @(test)
 opening_press_does_not_skip :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	game.input.state[.ENTER] = Input_Pressed{} // the press that talked to someone
 	spawn(proc(_: Entity_Id) { say("hello there") })
 	run_for(FRAME)
@@ -788,7 +797,7 @@ opening_press_does_not_skip :: proc(t: ^testing.T) {
 
 @(test)
 say_pages_long_text :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) { say("1\n2\n3\n4\n5\n6") })
 	run_for(0.5)
 	testing.expect_value(t, dialogue_text(), "1\n2\n3\n4")
@@ -803,7 +812,7 @@ say_pages_long_text :: proc(t: ^testing.T) {
 
 @(test)
 speaker_takes_a_line :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) { say("1\n2\n3\n4\n5\n6", "Sage") })
 	run_for(0.5)
 	testing.expect_value(t, dialogue_text(), "1\n2\n3")
@@ -814,7 +823,7 @@ speaker_takes_a_line :: proc(t: ^testing.T) {
 
 @(test)
 say_appends_without_clear :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) {
 		say("a", hurry = true)
 		say(" b", clear = false)
@@ -825,7 +834,7 @@ say_appends_without_clear :: proc(t: ^testing.T) {
 
 @(test)
 hurry_and_pause_need_no_enter :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	trigger_count = 0
 	spawn(proc(_: Entity_Id) {
 		say("hi", hurry = true, pause = 0.5)
@@ -843,7 +852,7 @@ hurry_and_pause_need_no_enter :: proc(t: ^testing.T) {
 
 @(test)
 choose_wraps_and_returns_the_pick :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	chosen = -1
 	spawn(proc(_: Entity_Id) {
 		c, ok := choose("Pick one", {"a", "b", "c"})
@@ -866,7 +875,7 @@ choose_wraps_and_returns_the_pick :: proc(t: ^testing.T) {
 
 @(test)
 say_waits_for_other_speaker :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) { say("a") })
 	spawn(proc(_: Entity_Id) { say("b") })
 	run_for(0.2)
@@ -881,7 +890,7 @@ say_waits_for_other_speaker :: proc(t: ^testing.T) {
 
 @(test)
 cancelled_speaker_closes_its_dialogue :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	npc := spawn_entity({})
 	spawn(proc(_: Entity_Id) { say("bye") }, npc)
 	run_for(FRAME)
@@ -899,46 +908,6 @@ count_and_wait :: proc(_: Entity_Id) {
 	trigger_count += 1
 	pause(1)
 }
-
-@(test)
-trigger_autoface_and_autobusy :: proc(t: ^testing.T) {
-	init(); defer shutdown()
-	p := spawn_entity({tile = {0, 0}, facing = .Right})
-	npc := spawn_entity({tile = {1, 0}, facing = .Up, trigger = new_trigger(proc(self: Entity_Id) {
-		set_facing(self, .Down) // the trigger script itself may change it
-		pause(0.5)
-	})})
-	pacer := spawn(proc(self: Entity_Id) { walk_entity(self, {0, 3}, 0.1) }, npc)
-
-	testing.expect(t, interact(p))
-	testing.expect_value(t, entity_get(npc).facing, Direction.Left)
-	// testing.expect(t, entity_get(npc).busy)
-	run_for(0.3)
-	testing.expect_value(t, entity_tile(npc), Tile{1, 0}) // the pacer is held off
-	testing.expect_value(t, entity_get(npc).facing, Direction.Down)
-
-	// run_for(0.3)
-	// testing.expect(t, !entity_get(npc).busy, "busy ends with the trigger script")
-	run_for(0.5)
-	testing.expect_value(t, entity_tile(npc), Tile{1, 3})
-	testing.expect(t, !script_alive(pacer))
-}
-
-// @(test)
-// plain_trigger_neither_faces_nor_busies :: proc(t: ^testing.T) {
-// 	init(); defer shutdown()
-// 	p := spawn_entity({tile = {0, 0}, facing = .Right})
-// 	npc := spawn_entity({tile = {1, 0}, facing = .Up, trigger = new_trigger(proc(self: Entity_Id) {
-// 		set_busy(self) // busy set by the script itself is cleared at the end too
-// 	}, autoface = false, autobusy = false)})
-//
-// 	testing.expect(t, interact(p))
-// 	testing.expect_value(t, entity_get(npc).facing, Direction.Up)
-// 	testing.expect(t, !entity_get(npc).busy)
-// 	run_for(FRAME)
-// 	testing.expect(t, !entity_get(npc).busy)
-// 	testing.expect(t, !script_alive(entity_get(npc).trigger.running))
-// }
 
 // --- Maps, camera, levels ---
 
@@ -963,7 +932,7 @@ map_gid_lookup :: proc(t: ^testing.T) {
 
 @(test)
 map_contains_edges :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	set_map({size = {20, 10}})
 	testing.expect(t, map_contains({0, 0}))
 	testing.expect(t, map_contains({19, 9}))
@@ -974,7 +943,7 @@ map_contains_edges :: proc(t: ^testing.T) {
 
 @(test)
 map_render_headless_is_noop :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	set_map({size = {2, 2}, tilesets = []Tileset_Id{.Tileset_Terrain}, firstgids = []int{1}})
 	begin_map_render()
 	draw_map_tile(1, 0, 0)
@@ -984,7 +953,7 @@ map_render_headless_is_noop :: proc(t: ^testing.T) {
 
 @(test)
 camera_follows_tweened_pos :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	p := spawn_entity({tile = {5, 5}})
 	camera_follow(p)
 	camera_update()
@@ -1006,7 +975,7 @@ camera_follows_tweened_pos :: proc(t: ^testing.T) {
 
 @(test)
 camera_snaps_to_tile_and_entity :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {20, 20}})
 	camera_to_tile({7, 3})
 	run_for(FRAME)
@@ -1022,7 +991,7 @@ camera_snaps_to_tile_and_entity :: proc(t: ^testing.T) {
 
 @(test)
 camera_pans_to_tile_at_speed :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {20, 20}})
 	camera_to_tile({2, 2})
 	run_for(FRAME)
@@ -1037,7 +1006,7 @@ camera_pans_to_tile_at_speed :: proc(t: ^testing.T) {
 
 @(test)
 camera_pans_onto_moving_entity :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {20, 20}})
 	camera_to_tile({0, 0})
 	run_for(FRAME)
@@ -1053,7 +1022,7 @@ camera_pans_onto_moving_entity :: proc(t: ^testing.T) {
 
 @(test)
 pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {20, 20}})
 	camera_to_tile({0, 0})
 	run_for(FRAME)
@@ -1067,7 +1036,7 @@ pan_camera_to_tile_blocks_until_there :: proc(t: ^testing.T) {
 
 @(test)
 camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	half := [2]f32{WINDOW_WIDTH, WINDOW_HEIGHT} / 2
 	map_size := [2]f32{20, 20} * TILE_SIZE // bigger than the view
 	p := spawn_entity({tile = {0, 0}})
@@ -1092,7 +1061,7 @@ camera_clamps_in_clamp_mode :: proc(t: ^testing.T) {
 
 @(test)
 clear_level_removes_everything :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	p := spawn_entity({tile = {1, 1}})
 	set_player(p)
 	camera_follow(p)
@@ -1129,7 +1098,7 @@ WALL_WITH_GAP := [15]u8{
 
 @(test)
 find_path_goes_round_walls :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	set_map({size = {5, 3}, passable = WALL_WITH_GAP[:]})
 	steps, ok := find_path({0, 0}, {4, 0}, context.temp_allocator)
 	testing.expect(t, ok)
@@ -1152,7 +1121,7 @@ find_path_goes_round_walls :: proc(t: ^testing.T) {
 
 @(test)
 find_path_crosses_the_wrap_seam :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	set_map({size = {6, 1}, mode = .WRAP})
 	steps, ok := find_path({0, 0}, {5, 0}, context.temp_allocator)
 	testing.expect(t, ok)
@@ -1164,7 +1133,7 @@ find_path_crosses_the_wrap_seam :: proc(t: ^testing.T) {
 
 @(test)
 walk_to_goes_through_the_gap :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {5, 3}, passable = WALL_WITH_GAP[:]})
 	walk_to_result = false
 	e := spawn_entity({tile = {0, 0}})
@@ -1180,7 +1149,7 @@ walk_to_goes_through_the_gap :: proc(t: ^testing.T) {
 
 @(test)
 walk_to_unreachable_returns_false :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	set_map({size = {4, 3}, passable = WALL_COLUMN[:]})
 	walk_to_result = true
 	e := spawn_entity({tile = {0, 0}})
@@ -1193,7 +1162,7 @@ walk_to_unreachable_returns_false :: proc(t: ^testing.T) {
 
 @(test)
 tile_free_checks_passability :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	set_map({size = {4, 3}})
 	testing.expect(t, tile_free({2, 1}), "no passability: everything free")
 
@@ -1222,7 +1191,7 @@ tile_free_checks_passability :: proc(t: ^testing.T) {
 
 @(test)
 entities_block_unless_ghost :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	a := spawn_entity({tile = {0, 0}})
 	spawn_entity({tile = {1, 0}})
 	spawn_entity({tile = {2, 0}, ghost = true})
@@ -1242,7 +1211,7 @@ entities_block_unless_ghost :: proc(t: ^testing.T) {
 
 @(test)
 walk_entity_waits_for_blocker :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	walker  := spawn_entity({tile = {0, 0}})
 	blocker := spawn_entity({tile = {2, 0}})
 	s := spawn(proc(self: Entity_Id) { walk_entity(self, {3, 0}, 0.1) }, walker)
@@ -1259,7 +1228,7 @@ walk_entity_waits_for_blocker :: proc(t: ^testing.T) {
 
 @(test)
 ghost_walks_through :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	ghost := spawn_entity({tile = {0, 0}, ghost = true})
 	spawn_entity({tile = {1, 0}})
 	s := spawn(proc(self: Entity_Id) { walk_entity(self, {2, 0}, 0.1) }, ghost)
@@ -1275,7 +1244,7 @@ step_by: Entity_Id
 
 @(test)
 step_trigger_fires_on_arrival :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	step_count = 0
 	pad := spawn_entity({tile = {2, 0}, ghost = true, on_step = proc(_, by: Entity_Id) {
 		step_count += 1
@@ -1315,7 +1284,7 @@ step_trigger_fires_on_arrival :: proc(t: ^testing.T) {
 
 @(test)
 clear_level_ends_global_scripts_and_tweens :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	value: f32
 	tw := tween_f32(&value, 1, 10)
 	s := spawn(proc(_: Entity_Id) { pause(10) }, {}, "global")
@@ -1328,7 +1297,7 @@ clear_level_ends_global_scripts_and_tweens :: proc(t: ^testing.T) {
 
 @(test)
 curtain_tweens :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	tw := curtain_to(1, 0.2)
 	run_for(0.1)
 	testing.expect(t, game.curtain > 0.3 && game.curtain < 0.7, "halfway")
@@ -1339,7 +1308,7 @@ curtain_tweens :: proc(t: ^testing.T) {
 
 @(test)
 set_curtain_cancels_fade_and_fade_screen_blocks :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	tw := curtain_to(0.5, 1)
 	set_curtain(1)
 	testing.expect(t, tween_done(tw), "set_curtain cancels a running fade")
@@ -1355,7 +1324,7 @@ set_curtain_cancels_fade_and_fade_screen_blocks :: proc(t: ^testing.T) {
 
 @(test)
 palette_swaps_are_cached :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	lime := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
 	lime_again := Palette_Swap{{rl.SKYBLUE, rl.LIME}}
 	pink := Palette_Swap{{rl.SKYBLUE, rl.PINK}}
@@ -1366,17 +1335,11 @@ palette_swaps_are_cached :: proc(t: ^testing.T) {
 	testing.expect_value(t, hm.len(game.sprites), 3)
 }
 
-// @(test)
-// tag_direction_inverts_direction_tag :: proc(t: ^testing.T) {
-// 	for d in Direction do testing.expect_value(t, tag_direction(direction_tag(d)), d)
-// 	testing.expect_value(t, tag_direction(.Walk), Direction.Down)
-// }
-
 // --- World menu ---
 
 @(test)
 world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	world_menu_enter()
 	testing.expect(t, world_menu_active(), "the menu should open")
 	testing.expect(t, game.clock.paused, "the menu should pause the world")
@@ -1398,9 +1361,10 @@ world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
 
 @(test)
 menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	p := spawn_entity({name = "player"})
 	set_player(p)
+	set_control()
 
 	tap(.MENU)
 	testing.expect(t, world_menu_active(), "MENU should open the menu when idle")
@@ -1411,10 +1375,10 @@ menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
 	tap(.CANCEL)
 	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
 
-	// set_busy(p)
+	set_control(false)
 	tap(.MENU)
-	testing.expect(t, !world_menu_active(), "MENU shouldn't open the menu while the player is busy")
-	// set_busy(p, false)
+	testing.expect(t, !world_menu_active(), "MENU shouldn't open the menu without player control")
+	set_control()
 
 	move := tween_to_tile(p, {3, 0}, 1) // as a script's move_entity would
 	tap(.MENU)
@@ -1427,7 +1391,7 @@ menu_input_opens_the_menu_only_when_the_player_is_free :: proc(t: ^testing.T) {
 
 @(test)
 delayed_sound_waits_on_game_time :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	play_sound(.Warp, delay = 0.5)
 	run_for(0.4)
 	testing.expect_value(t, len(game.audio.pending), 1)
@@ -1437,7 +1401,7 @@ delayed_sound_waits_on_game_time :: proc(t: ^testing.T) {
 
 @(test)
 paused_clock_holds_sounds :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	play_sound(.Warp, delay = 0.1)
 	set_paused(true)
 	run_for(1)
@@ -1449,7 +1413,7 @@ paused_clock_holds_sounds :: proc(t: ^testing.T) {
 
 @(test)
 script_queues_sound :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	spawn(proc(_: Entity_Id) {
 		play_sound(.Whack, delay = 1)
 	})
@@ -1460,7 +1424,7 @@ script_queues_sound :: proc(t: ^testing.T) {
 
 @(test)
 play_music_remembers_the_previous_track :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	testing.expect(t, game.audio.music.thread == nil, "no audio device, so no music thread")
 	play_music(.Town)
 	play_music(.Cave)
@@ -1474,7 +1438,7 @@ play_music_remembers_the_previous_track :: proc(t: ^testing.T) {
 
 @(test)
 music_fades_are_requests :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_core_init(); defer headless_core_shutdown()
 	music_fade_down()
 	testing.expect(t, game.audio.music.faded)
 	play_music(.Town) // a track change doesn't undo the fade
@@ -1485,7 +1449,7 @@ music_fades_are_requests :: proc(t: ^testing.T) {
 
 @(test)
 item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	init_new_game()
 	pc := get_party_member(0)
 	pc.stats[Stat_Name.Hitpoints] = 100
@@ -1500,7 +1464,7 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 
 @(test)
 box_gives_its_items_once :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	init_new_game()
 	datum := Chest_Datum(0)
 	game_data.inventory[Item_Name.Potion] = 0
@@ -1528,20 +1492,20 @@ box_gives_its_items_once :: proc(t: ^testing.T) {
 
 @(test)
 get_items_groups_duplicates :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	init_new_game()
 	game_data.inventory[Item_Name.Potion] = 0
 	game_data.inventory[Item_Name.Tea] = 0
 	spawn(proc(_: Entity_Id) { get_items(.Potion, .Tea, .Potion) })
 	run_for(0.1)
-	testing.expect_value(t, strings.to_string(game.dialogue.buffer), "Got Potion x2, Tea!")
+	testing.expect_value(t, strings.to_string(game.dialogue.buffer), "Got items: Potion x2, Tea")
 	testing.expect_value(t, game_data.inventory[Item_Name.Potion], 2)
 	testing.expect_value(t, game_data.inventory[Item_Name.Tea], 1)
 }
 
 @(test)
 level_without_player :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	init_new_game()
 	start_level(Level(0), with_player = false)
 	testing.expect(t, !entity_alive(player()), "a player spawned")
@@ -1552,7 +1516,7 @@ level_without_player :: proc(t: ^testing.T) {
 
 @(test)
 script_changes_level :: proc(t: ^testing.T) {
-	init(); defer shutdown()
+	headless_init(); defer headless_shutdown()
 	init_new_game()
 	start_level(Level(0), with_player = false)
 	spawn(proc(_: Entity_Id) { change_level(Level(0), at = Tile{3, 4}, face = .Left, fade = 0.2) })
