@@ -20,6 +20,7 @@ add_combatant :: proc(c: ^Character) {
 	c.ticks = 0
 	c.windup = false
 	c.controller = nil
+	update_character_sprite(c^)
 	switch c.team {
 	case .None:
 		panic("Don't know what to do with Combatant with Team.None")

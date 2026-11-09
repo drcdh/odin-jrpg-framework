@@ -168,7 +168,7 @@ battle_tick :: proc() {
 	// remove invalid Skill_Plays
 	for i := 0; i < len(battle.skill_plays); {
 		c := battle.combatants[battle.skill_plays[i].actor_idx]
-		if !c.windup || !alive(c^) {
+		if !winding_up(c^) || !alive(c^) {
 			fmt.printfln("removing Battle_Skill_Play %d after combatant interrupted or downed", i)
 			unordered_remove(&battle.skill_plays, i)
 		} else {
@@ -229,6 +229,7 @@ queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name
 	skill := skills[skill_name]
 	battle.combatants[actor_idx].ticks -= Ticks(skill.cost)
 	battle.combatants[actor_idx].windup = true
+	update_character_sprite(battle.combatants[actor_idx]^)
 	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, Ticks(skill.windup)})
 }
 
@@ -238,6 +239,7 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	skill := skills[skill_play.skill_name]
 	actor := battle.combatants[skill_play.actor_idx]
 	actor.windup = false
+	update_character_sprite(actor^)
 
 	battle.results_actor = skill_play.actor_idx
 	battle.results_skill = skill_play.skill_name
@@ -290,6 +292,7 @@ interrupt_windup :: proc(target: ^Character) -> bool {
 		return false
 	}
 	target.windup = false
+	update_character_sprite(target^)
 	log.infof("Break! %s is interrupted", target.name)
 	return true
 }

@@ -37,8 +37,9 @@ pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
 	return
 }
 
-apply_character_look :: proc(s: ^Sprite_State, health: Stat, statuses: Statuses) {
+apply_character_look :: proc(s: ^Sprite_State, health: Stat, statuses: Statuses, windup: bool = false) {
 	t := Sprite_Tag.Idle
+	if windup do t = .LArm
 	if health <= 0 {
 		t = .Downed
 	} else if health <= .25 {
@@ -59,7 +60,7 @@ apply_character_look :: proc(s: ^Sprite_State, health: Stat, statuses: Statuses)
 update_character_sprite :: proc(c: Character) {
 	e, ok := entity_get(c.eid)
 	if !ok do return
-	apply_character_look(&e.sprite, Stat(c.hitpoints) / get_stat(c, .Hitpoints), c.statuses)
+	apply_character_look(&e.sprite, Stat(c.hitpoints) / get_stat(c, .Hitpoints), c.statuses, c.windup)
 }
 
 // A PC's battle sprite with the given look, for when there's no entity (save
