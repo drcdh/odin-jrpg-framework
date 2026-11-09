@@ -39,7 +39,7 @@ pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
 
 apply_character_look :: proc(s: ^Sprite_State, health: Stat, statuses: Statuses, windup: bool = false) {
 	t := Sprite_Tag.Idle
-	if windup do t = .LArm
+	if windup do t = .Ready
 	if health <= 0 {
 		t = .Downed
 	} else if health <= .25 {

@@ -235,7 +235,6 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	skill := skills[skill_play.skill_name]
 	actor := battle.combatants[skill_play.actor_idx]
 	actor.windup = false
-	update_character_sprite(actor^)
 
 	battle.results_actor = skill_play.actor_idx
 	battle.results_skill = skill_play.skill_name
