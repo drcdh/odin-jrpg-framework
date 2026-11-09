@@ -100,6 +100,14 @@ world_menu_enter :: proc() {
 	menu.stale = true
 	menu.was_paused = game.clock.paused
 	set_paused(true)
+	// Put the party's entities at their targeting slots, so effects (popups)
+	// show over them there.
+	party_apply(proc(i, pc_idx: int) {
+		e, ok := entity_get(pc_entity(pc_idx))
+		if !ok do return
+		e.pos = targeting_slot(i) + e.sprite.origin * sprite_size(e.sprite)
+		e.sprite.hidden = false
+	})
 }
 
 // Closes the menu and restores the clock.
@@ -107,6 +115,7 @@ world_menu_exit :: proc() {
 	if !world_menu_active() do return
 	menu.ui_state = .Inactive
 	clear_popups()
+	party_entities_hide()
 	set_paused(menu.was_paused)
 }
 
@@ -276,7 +285,7 @@ world_menu_update :: proc() {
 			party_idx := menu.party_idx
 			if consumable, ok := items[item_name].data.(Consumable); ok {
 				pc := get_party_member(party_idx)
-				do_skill(nil, party_idx, consumable, .World_Menu)
+				use_skill(nil, pc, consumable)
 				remove_item(item_name)
 				if game_data.inventory[item_name] == 0 {
 					menu.ui_state = .Inventory
@@ -400,7 +409,7 @@ draw_top_content :: proc() {
 		draw_text(origin + {2, 0}, strings.clone_to_cstring(pc.name, context.temp_allocator))
 		draw_text(origin + {2, 1}, "HP", LABEL_COLOR)
 		draw_text(origin + {3.5, 1}, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
-		draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(origin.x, origin.y))
+		draw_character_sprite(pc, tile_to_pixel(origin.x, origin.y))
 	})
 
 	draw_pane(11, 0, 5, 6) // top
@@ -455,7 +464,7 @@ draw_character_content :: proc() {
 	draw_pane(12, 0, 4, 1.5)
 	draw_text(12.5, .5, "Status", LABEL_COLOR)
 
-	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
+	draw_character_sprite(pc, tile_to_pixel(1, 1))
 
 	draw_text(3.5, 1.0, strings.clone_to_cstring(pc.name,context.temp_allocator))
 	draw_text(3.5, 1.5, statuses_string(pc), font=Font.Status)
@@ -605,7 +614,7 @@ draw_skills_content :: proc() {
 	draw_pane(12, 0, 4, 1.5)
 	draw_text(12.5, .5, "Skills", LABEL_COLOR)
 
-	draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1, 1))
+	draw_character_sprite(pc, tile_to_pixel(1, 1))
 	draw_text(3, 1, strings.clone_to_cstring(pc.name, context.temp_allocator))
 
 	draw_text(1, 3, "Description", LABEL_COLOR)
@@ -671,7 +680,7 @@ draw_targeting_content :: proc() {
 	party_apply(
 		proc(i, pc_idx: int) {
 			pc := playable_characters[pc_idx]
-			draw_sprite(pc_menu_sprite(pc_idx), tile_to_pixel(1.5 + 2.5 * f32(i), 1))
+			draw_character_sprite(pc, tile_to_pixel(1.5 + 2.5 * f32(i), 1))
 			hp_tint := rl.WHITE
 			hp := pc.hitpoints
 			max_hp := int(get_stat(pc, .Hitpoints))
@@ -691,6 +700,13 @@ draw_targeting_content :: proc() {
 	menu.stale[t] = false
 }
 
+// The screen position of party slot `i`'s sprite (top-left) in the targeting
+// pane, which draw_targeting puts 10 tiles down.
+@(private = "file")
+targeting_slot :: proc(i: int) -> [2]f32 {
+	return tile_to_pixel(1.5 + 2.5 * f32(i), 11)
+}
+
 @(private = "file")
 draw_targeting :: proc() {
 	t :: World_Menu_Textures.Targeting
@@ -701,8 +717,7 @@ draw_targeting :: proc() {
 	dest := rl.Rectangle{0, 10 * TILE_SIZE, w, -h}
 	rl.DrawTexturePro(texture, src, dest, {}, 0, rl.WHITE)
 
-	p := f32(menu.party_idx)
-	draw_tile_indicator(tile_to_pixel(1.5 + 2.5 * p, 11), direction = Tile_Indicator_Direction.Down)
+	draw_tile_indicator(targeting_slot(menu.party_idx), direction = Tile_Indicator_Direction.Down)
 }
 
 @(private = "file")
@@ -713,11 +728,11 @@ draw_save_content :: proc() {
 	draw_text(8, .5, "Save", LABEL_COLOR)
 	for r in 0 ..< SAVES_ROWS {
 		if r <= len(metadata) {
-			draw_pane(0, f32(TITLE_HEIGHT + r * SLOT_HEIGHT), 16, SLOT_HEIGHT)
 			save_idx := r + menu.save_sel.origin_idx
 			if save_idx < len(metadata) {
-				draw_metadata(save_idx, r)
+				draw_metadata_slot(save_idx, r)
 			} else {
+				draw_pane(0, f32(TITLE_HEIGHT + r * SLOT_HEIGHT), 16, SLOT_HEIGHT)
 				draw_text(1, f32(TITLE_HEIGHT + r * SLOT_HEIGHT) + .5, "New Save")
 			}
 		}

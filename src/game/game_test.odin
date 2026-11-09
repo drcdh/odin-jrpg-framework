@@ -1454,7 +1454,7 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 	pc := get_party_member(0)
 	pc.stats[Stat_Name.Hitpoints] = 100
 	pc.hitpoints = 1
-	r := do_skill(nil, 0, .Potion, .World_Menu)
+	r := use_skill(nil, pc, .Potion)
 	testing.expect_value(t, r.hp_change, 50)
 	testing.expect_value(t, pc.hitpoints, 51)
 	testing.expect_value(t, popup_count(), 1)

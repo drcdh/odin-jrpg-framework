@@ -8,7 +8,7 @@ Target_Selection :: union {
 	Target_One_Player,
 	Target_All_Baddies,
 	Target_All_Players,
-	Target_All_Combatants,
+	Target_All,
 }
 Target_One_Baddy :: struct {
 	i: int,
@@ -22,13 +22,13 @@ Target_All_Players :: struct {
 Target_All_Baddies :: struct {
 	prev: int,
 }
-Target_All_Combatants :: struct {}
+Target_All :: struct {}
 
 random_player_target :: proc() -> (target: Maybe(Target_One_Player)) {
 	targets: [dynamic]int
 	defer delete(targets)
 	for c_idx, player_idx in battle.players {
-		if combatant_alive(battle.combatants[c_idx]) {
+		if alive(battle.combatants[c_idx]^) {
 			append(&targets, player_idx)
 		}
 	}
@@ -42,7 +42,7 @@ random_baddy_target :: proc() -> (target: Maybe(Target_One_Baddy)) {
 	targets: [dynamic]int
 	defer delete(targets)
 	for c_idx, baddy_idx in battle.baddies {
-		if combatant_alive(battle.combatants[c_idx]) {
+		if alive(battle.combatants[c_idx]^) {
 			append(&targets, baddy_idx)
 		}
 	}
@@ -56,7 +56,7 @@ random_combatant_target :: proc() -> (target: Maybe(Target_Selection)) {
 	targets: [dynamic]int
 	defer delete(targets)
 	for c, c_idx in battle.combatants {
-		if combatant_alive(c) {
+		if alive(c^) {
 			append(&targets, c_idx)
 		}
 	}
@@ -137,7 +137,7 @@ random_target :: proc(
 			target, valid = coinflip() ? Target_All_Players{} : Target_All_Baddies{}, true
 		}
 	case .All:
-		target, valid = Target_All_Combatants{}, true
+		target, valid = Target_All{}, true
 	}
 	return
 }
@@ -168,7 +168,7 @@ target_update :: proc(dx, dy: int, ts: Target_Selection, tt: Target_Type) -> Tar
 		if dx < 0 && tt != .Team {
 			return Target_One_Player{ts.prev}
 		}
-	case Target_All_Combatants:
+	case Target_All:
 	// do nothing
 	}
 	return ts
@@ -184,7 +184,7 @@ default_target_selection :: proc(tt: Target_Type, offensive: bool) -> (ts: Targe
 	case .Team:
 		ts = offensive ? Target_All_Baddies{} : Target_All_Players{}
 	case .All:
-		ts = Target_All_Combatants{}
+		ts = Target_All{}
 	}
 	return
 }
@@ -212,7 +212,7 @@ change_baddy_selection :: proc(t, d: int) -> int {
 		if target < 0 {target = len(battle.baddies) - 1}
 		if target >= len(battle.baddies) {target = 0}
 		if target == initial_target {break}
-		if combatant_alive(battle.combatants[battle.baddies[target]]) {break}
+		if alive(battle.combatants[battle.baddies[target]]^) {break}
 		target += d
 	}
 	return target

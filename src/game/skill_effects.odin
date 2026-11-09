@@ -4,11 +4,6 @@ import "core:log"
 import "core:math"
 import "core:math/rand"
 
-Skill_Context :: enum {
-	World_Menu,
-	Battle,
-}
-
 VERBOSE :: #config(VERBOSE, false) // log the damage formula
 
 Effect_Type :: enum {
@@ -57,8 +52,8 @@ Effect_Result :: struct {
 	status:        Maybe(Status_Name),
 	status_result: Status_Result,
 	levels:        int,
-	stagger:       bool, // the target lost ticks (Combatants only)
-	interrupted:   bool, // the target's windup was broken (Combatants only)
+	stagger:       bool, // the target lost ticks (Characters only)
+	interrupted:   bool, // the target's windup was broken (Characters only)
 }
 
 calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool) #optional_ok {
@@ -104,7 +99,7 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 	return hp_loss, true
 }
 
-effect_attack_character :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
+effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
 	acc := Stat(effect.hit_acc) // percentage
 	roll := Stat(rand.int_max(100)) // [0, n)
 	if roll >= acc {
@@ -135,12 +130,7 @@ effect_attack_character :: proc(actor, target: ^Character, effect: Effect_Data) 
 
 	r.status = effect.status
 	r.status_result = _add_status(target, effect.sts_acc, effect.status)
-	return
-}
 
-// The Character attack, then stagger and the target's chance to counter.
-effect_attack_combatant :: proc(actor, target: ^Combatant, effect: Effect_Data) -> (r: Effect_Result) {
-	r = effect_attack_character(actor, target, effect)
 	if r.hit != .Hit || r.downed do return
 	if r.status == .Control && r.status_result == .Added {
 		add_status(actor, .Controller)
@@ -149,11 +139,6 @@ effect_attack_combatant :: proc(actor, target: ^Combatant, effect: Effect_Data) 
 	r.stagger, r.interrupted = _stagger(target, effect.stg_acc, effect.stagger, effect.int_acc)
 	roll_for_counter(target, actor, f32(effect.risk) / 100)
 	return
-}
-
-effect_attack :: proc {
-	effect_attack_character,
-	effect_attack_combatant,
 }
 
 // `actor` may be nil (an item), which adds no psy power.
@@ -190,7 +175,7 @@ _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)
 	}
 	log.infof("Adding status %s to %s (rolled %.0f < %.0f)", s, target.name, roll, acc - res)
 	add_status(target, s)
-	// FIXME: Combatant.controller needs to get set when adding .Control status
+	// FIXME: Character.controller needs to get set when adding .Control status
 	return .Added
 }
 
@@ -209,7 +194,7 @@ _remove_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Na
 }
 
 // Takes `stagger` ticks from the target and may interrupt their windup.
-_stagger :: proc(target: ^Combatant, stg_acc, stagger, int_acc: int) -> (staggered, interrupted: bool) {
+_stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (staggered, interrupted: bool) {
 	if stagger <= 0 && int_acc <= 0 do return
 	acc := Stat(stg_acc)
 	roll := Stat(rand.int_max(100))
@@ -226,7 +211,7 @@ _stagger :: proc(target: ^Combatant, stg_acc, stagger, int_acc: int) -> (stagger
 		} else {
 			log.infof("Staggering %s turn by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
 			target.ticks -= Ticks(stagger)
-			if target == &battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
+			if target == battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
 			staggered = true
 		}
 	}
@@ -260,41 +245,17 @@ effect_death :: proc(_, target: ^Character, effect: Effect_Data) -> (r: Effect_R
 	return
 }
 
-do_effect_character :: proc(actor, target: ^Character, effect: Effect_Data, effect_type: Effect_Type) -> Effect_Result {
+do_effect :: proc(actor, target: ^Character, effect: Effect_Data, effect_type: Effect_Type) -> Effect_Result {
 	if actor != nil {
 		when VERBOSE do log.debugf("%s -> %s: %v", actor.name, target.name, effect)
 	} else {
 		log.debugf("%s: %v", target.name, effect)
 	}
 	switch effect_type {
-	case .Attack:   return effect_attack_character(actor, target, effect)
+	case .Attack:   return effect_attack(actor, target, effect)
 	case .Heal:     return effect_heal(actor, target, effect)
 	case .Level_Up: return effect_level_up(actor, target, effect)
 	case .Death:    return effect_death(actor, target, effect)
 	}
 	return {}
-}
-
-// Only attacks differ for Combatants (stagger and counter).
-do_effect_combatant :: proc(actor, target: ^Combatant, effect: Effect_Data, effect_type: Effect_Type) -> Effect_Result {
-	if effect_type == .Attack do return effect_attack_combatant(actor, target, effect)
-	return do_effect_character(actor, target, effect, effect_type)
-}
-
-do_effect :: proc {
-	do_effect_character,
-	do_effect_combatant,
-}
-
-// `actor` is nil for an item. The target is a party slot.
-do_skill :: proc(actor: ^Character, target_party_idx: int, skill_name: Skill_Name, ctx: Skill_Context) -> (r: Effect_Result) {
-	target := get_party_member(target_party_idx)
-	skill := skills[skill_name]
-	r = do_effect_character(actor, target, skill.effect_data, skill.effect_type)
-	play_sound(skill.sound)
-	switch ctx {
-	case .World_Menu: world_menu_effect_popups(target_party_idx, r)
-	case .Battle:     // TODO: battle presentation
-	}
-	return
 }

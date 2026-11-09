@@ -106,7 +106,7 @@ battle_menu_select_combatant :: proc(c_idx: int) {
 	// and there isn't already a combatant being controlled or
 	// the menu is switching because of a .MENU input
 	battle_menu.ui_data = {c_idx = c_idx}
-	battle_menu.ui_state = has_status(battle.combatants[c_idx], .Controller) ? .Control : .Top
+	battle_menu.ui_state = has_status(battle.combatants[c_idx]^, .Controller) ? .Control : .Top
 	battle_menu_set_stale(.Top)
 }
 
@@ -176,7 +176,7 @@ battle_menu_update :: proc() {
 
 	case .Control:
 		if get_input(.ENTER) {
-			c := &battle.combatants[battle_menu.c_idx]
+			c := battle.combatants[battle_menu.c_idx]
 			remove_status(c, .Controller) // will remove .Control from target
 			c.ticks = 0
 			battle_menu.ui_state = .Idle
@@ -186,7 +186,7 @@ battle_menu_update :: proc() {
 
 	case .Skills:
 		if get_input(.ENTER) {
-			cs := battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
+			cs := battle.combatants[battle_menu.c_idx].skills[battle_menu.skill_sel.select_idx]
 			if cs.charge == CHARGE_MAX {
 				battle_menu.skill = cs.skill
 				battle_menu.ui_state = .Skill_Target
@@ -195,7 +195,7 @@ battle_menu_update :: proc() {
 		} else if get_input(.CANCEL) {
 			battle_menu.ui_state = .Top
 		} else if dy, ok := get_y_input().?; ok {
-			c_skills := battle.combatants[battle_menu.c_idx].character.skills
+			c_skills := battle.combatants[battle_menu.c_idx].skills
 			// fmt.printfln("\n%#v\n", c_skills)
 			battle_menu.skill_sel = shift_windowed_selection(
 				dy,
@@ -208,7 +208,7 @@ battle_menu_update :: proc() {
 
 	case .Skill_Target:
 		if get_input(.ENTER) {
-			cs := &battle.combatants[battle_menu.c_idx].character.skills[battle_menu.skill_sel.select_idx]
+			cs := &battle.combatants[battle_menu.c_idx].skills[battle_menu.skill_sel.select_idx]
 			cs.charge = 0
 			queue_battle_skill(battle_menu.c_idx, battle_menu.targets, cs.skill)
 			battle_menu.ui_state = .Idle
@@ -343,8 +343,8 @@ battle_redraw_baddies_pane :: proc() {
 	row := 0
 	for c_idx in battle.baddies {
 		c := battle.combatants[c_idx]
-		if combatant_alive(c) {
-			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].character.name))
+		if alive(c^) {
+			draw_text(.5, .5 + f32(row) / 2, fmt.ctprintf("%s", battle.combatants[c_idx].name))
 			row += 1
 		}
 	}
@@ -357,11 +357,11 @@ battle_redraw_party_pane :: proc() {
 		tint := rl.WHITE
 		if c.hitpoints <= 0 {
 			tint = rl.RED
-		} else if f16(c.hitpoints) <= get_stat(c, .Hitpoints) * 0.25 {
+		} else if f16(c.hitpoints) <= get_stat(c^, .Hitpoints) * 0.25 {
 			tint = rl.YELLOW
 		}
 		draw_text(.5, .5 + f32(p) / 2, fmt.ctprint(c.name), tint)
-		draw_text_rjust(6.0, .5 + f32(p) / 2, statuses_string(c), tint, font = .Status)
+		draw_text_rjust(6.0, .5 + f32(p) / 2, statuses_string(c^), tint, font = .Status)
 		draw_text_rjust(8.5, .5 + f32(p) / 2, fmt.ctprintf("% 4d", c.hitpoints), tint)
 	}
 }
@@ -387,7 +387,7 @@ battle_draw_top_icons :: proc() {
 
 @(private = "file")
 battle_redraw_skills_pane :: proc() {
-	pc := battle.combatants[battle_menu.c_idx].character
+	pc := battle.combatants[battle_menu.c_idx]
 	// fmt.printfln("\n%#v\n", c_skills)
 	for r in 0 ..< BATTLE_MENU_SKILLS_ROWS {
 		if r >= len(pc.skills) {break}

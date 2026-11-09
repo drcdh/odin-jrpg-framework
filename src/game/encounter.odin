@@ -14,19 +14,12 @@ Encounter :: struct {
 	exp:     int,
 }
 
-// The baddy's Character is freed in battle_cleanup.
 @(private = "file")
-baddy_combatant :: proc(template: Baddy_Template) -> Combatant {
-	return Combatant{character = new_baddy(template), team = .Baddy}
-}
-
-@(private = "file")
-player_combatant :: proc(pc_idx: int) -> Combatant {
-	return Combatant{character = &playable_characters[pc_idx], team = .Player}
-}
-
-@(private = "file")
-add_combatant :: proc(c: Combatant) {
+add_combatant :: proc(c: ^Character) {
+	// PCs carry these over from the last battle
+	c.ticks = 0
+	c.windup = false
+	c.controller = nil
 	switch c.team {
 	case .None:
 		panic("Don't know what to do with Combatant with Team.None")
@@ -43,14 +36,14 @@ add_combatants_for_encounter :: proc(name: Encounter_Name) {
 		baddy_id := spot.baddy_id
 		if baddy_id == .None do continue
 		log.infof("adding combatant %s (%v)", baddy_templates[baddy_id].name, baddy_id)
-		add_combatant(baddy_combatant(baddy_templates[baddy_id]))
+		add_combatant(new_baddy(baddy_templates[baddy_id]))
 	}
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
 			for &cs in playable_characters[pc_idx].skills {
 				cs.charge = 0
 			}
-			add_combatant(player_combatant(pc_idx))
+			add_combatant(&playable_characters[pc_idx])
 		}
 	}
 	battle.encounter = &encounters[name]

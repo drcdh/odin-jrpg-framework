@@ -3,6 +3,7 @@ package game
 import "core:log"
 import "core:os"
 import "core:strings"
+import rl "vendor:raylib"
 
 Metadata :: struct {
 	filepath:         string,
@@ -15,19 +16,22 @@ Metadata :: struct {
 	time:             u32,
 	time_loaded:      i64,
 	time_saved:       i64,
+	texture:          rl.RenderTexture, // the slot, drawn once by metadata_load
 }
 
 metadata: [dynamic]Metadata
 
 metadata_clear :: proc() {
 	for md in metadata {
+		if md.texture.id != 0 do rl.UnloadRenderTexture(md.texture)
 		delete(md.filepath)
 		delete(md.name)
 	}
 	clear(&metadata)
 }
 
-// Reads the summaries of the save files in SAVE_DIR. With no SAVE_DIR (no
+// Reads the summaries of the save files in SAVE_DIR and draws each one's slot
+// into its texture (so it needs a window). With no SAVE_DIR (no
 // saves yet) or an unreadable one, the list is empty.
 metadata_load :: proc() {
 	metadata_clear()
@@ -77,6 +81,11 @@ metadata_load :: proc() {
 				// time_loaded      = d.save_data.time_loaded,
 				time_saved       = d.time_saved,
 			}
+			md.texture = rl.LoadRenderTexture(i32(16 * TILE_SIZE), i32(SLOT_HEIGHT * TILE_SIZE))
+			rl.BeginTextureMode(md.texture)
+			draw_pane(0, 0, 16, SLOT_HEIGHT)
+			draw_metadata(md)
+			rl.EndTextureMode()
 			append(&metadata, md)
 		}
 	}

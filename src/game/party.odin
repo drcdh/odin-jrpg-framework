@@ -6,9 +6,10 @@ NUM_PC :: 6
 
 playable_characters: [NUM_PC]Character
 
-// Frees what the PCs own: their names and skill lists.
+// Frees what the PCs own: their names, skill lists and entities.
 delete_pcs :: proc() {
 	for &pc in playable_characters {
+		destroy_entity(pc.eid)
 		delete(pc.name)
 		delete(pc.skills)
 	}
@@ -52,6 +53,30 @@ init_pcs :: proc() {
 			equipment = new_equipment(),
 		},
 	}
+	for &pc in playable_characters do pc.team = .Player
+}
+
+// The PC's entity, which shows them in battles and menus. It's spawned hidden
+// on first use and persists across levels; delete_pcs destroys it.
+pc_entity :: proc(pc_idx: int) -> Entity_Id {
+	pc := &playable_characters[pc_idx]
+	if !entity_alive(pc.eid) {
+		sprite := pc_battle_sprite(pc_idx, COMBATANT_LAYER)
+		sprite.hidden = true
+		pc.eid = spawn_entity(Entity{name = "pc", sprite = sprite, ghost = true, battle = true, persistent = true})
+	}
+	update_character_sprite(pc^)
+	return pc.eid
+}
+
+// Makes sure every party member has an entity, with an up-to-date look.
+party_entities_ensure :: proc() {
+	party_apply(proc(_, pc_idx: int) { pc_entity(pc_idx) })
+}
+
+// Hides the party members' entities (leaving a battle or the world menu).
+party_entities_hide :: proc() {
+	party_apply(proc(_, pc_idx: int) { set_visible(playable_characters[pc_idx].eid, false) })
 }
 
 get_pc_idx :: proc(party_idx: int) -> int {

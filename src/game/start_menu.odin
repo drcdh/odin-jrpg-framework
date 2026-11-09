@@ -254,9 +254,7 @@ start_menu_redraw_load_pane :: proc() {
 	draw_text(1, .5, "Load", LABEL_COLOR)
 	for r in 0 ..< SAVES_ROWS {
 		if r < len(metadata) {
-			draw_pane(0, TITLE_HEIGHT + r * SLOT_HEIGHT, 16, SLOT_HEIGHT)
-			save_idx := r + start_menu.load_sel.origin_idx
-			draw_metadata(save_idx, r)
+			draw_metadata_slot(r + start_menu.load_sel.origin_idx, r)
 		}
 	}
 }

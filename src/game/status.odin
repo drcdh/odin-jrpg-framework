@@ -57,13 +57,8 @@ statuses_string_Character :: proc(c: Character, width: int = 0) -> cstring {
 	return statuses_string_Statuses(c.statuses, width)
 }
 
-statuses_string_Combatant :: proc(c: Combatant, width: int = 0) -> cstring {
-	return statuses_string_Character(c.character^, width)
-}
-
 statuses_string :: proc {
 	statuses_string_Character,
-	statuses_string_Combatant,
 	statuses_string_Statuses,
 }
 
@@ -74,15 +69,11 @@ add_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 
 add_status_Character :: proc(c: ^Character, status: Status_Name) {
 	add_status_Statuses(&c.statuses, status)
-}
-
-add_status_Combatant :: proc(c: ^Combatant, status: Status_Name) {
-	add_status_Character(c.character, status)
+	update_character_sprite(c^)
 }
 
 add_status :: proc {
 	add_status_Character,
-	add_status_Combatant,
 	add_status_Statuses,
 }
 
@@ -92,19 +83,17 @@ remove_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 
 remove_status_Character :: proc(c: ^Character, status: Status_Name) {
 	remove_status_Statuses(&c.statuses, status)
-}
-
-remove_status_Combatant :: proc(c: ^Combatant, status: Status_Name) {
-	remove_status_Character(c.character, status)
-	if status == .Control {
+	// only a Character controlled in battle has a controller
+	if status == .Control && c.controller != nil {
 		controller := c.controller // TODO: extract from status struct data
+		c.controller = nil
 		remove_status(controller, .Controller)
 	}
+	update_character_sprite(c^)
 }
 
 remove_status :: proc {
 	remove_status_Character,
-	remove_status_Combatant,
 	remove_status_Statuses,
 }
 
@@ -116,17 +105,12 @@ has_status_Character :: proc(c: Character, status: Status_Name) -> bool {
 	return has_status_Statuses(c.statuses, status)
 }
 
-has_status_Combatant :: proc(c: Combatant, status: Status_Name) -> bool {
-	return has_status_Character(c.character^, status)
-}
-
 has_status :: proc {
 	has_status_Character,
-	has_status_Combatant,
 	has_status_Statuses,
 }
 
-has_any_status :: proc(c: Combatant, statuses: ..Status_Name) -> bool {
+has_any_status :: proc(c: Character, statuses: ..Status_Name) -> bool {
 	for status in statuses {
 		if has_status(c, status) do return true
 	}
@@ -186,14 +170,14 @@ cancel_statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 	}
 }
 
-can_take_turn :: proc(c: Combatant) -> bool {
+can_take_turn :: proc(c: Character) -> bool {
 	return !has_any_status(c,
 		.Paralyze,
 		.Sleep,
 	)
 }
 
-is_uncontrollable :: proc(c: Combatant) -> bool {
+is_uncontrollable :: proc(c: Character) -> bool {
 	return has_any_status(c,
 		.Berserk,
 		.Confuse,

@@ -9,8 +9,7 @@ import rl "vendor:raylib"
 MAX_POPUPS :: 32
 @(private = "file")
 POPUP_TIME :: f32(1)
-@(private = "file")
-POPUP_GAP :: f32(0.4)
+POPUP_GAP :: f32(0.4) // seconds between one target's popups
 
 @(private = "file")
 Popup :: struct {
@@ -66,39 +65,23 @@ draw_popups :: proc() {
 	}
 }
 
-battle_effect_popups :: proc(target_eid: Entity_Id, r: Effect_Result) {
+// Pops up `r` over `c`'s entity, POPUP_GAP apart, without blocking. Returns
+// how many popups there are.
+show_effect_popups :: proc(c: Character, r: Effect_Result) -> int {
 	// ignore status changes on downed targets
 	new_popups := effect_popups(r, status = !r.downed)
-	for p, i in sa.slice(&new_popups) {
-		if i > 0 && !pause(POPUP_GAP) do return // pause between popups
-		push_battle_popup(target_eid, p)
+	pos := entity_pos(c.eid) - {0, TILE_SIZE / 2}
+	for &p, i in sa.slice(&new_popups) {
+		p.pos = pos
+		p.t = -f32(i) * POPUP_GAP
+		push_popup(p)
 	}
-}
-
-world_menu_effect_popups :: proc(slot: int, r: Effect_Result) {
-	new_popups := effect_popups(r, status = !r.downed)
-	for &p, i in sa.slice(&new_popups) do push_world_menu_popup(slot, p.color, f32(i) * POPUP_GAP, string(cstring(&p.text[0])), p.dmg)
+	return sa.len(new_popups)
 }
 
 @(private = "file")
 push_popup :: proc(p: Popup) {
 	if !sa.push(&popups, p) do log.warnf("Too many popups; dropped %q", p.text)
-}
-
-@(private = "file")
-push_battle_popup :: proc(id: Entity_Id, popup: Popup) {
-	popup := popup
-	popup.pos = entity_pos(id) - {0, TILE_SIZE / 2}
-	push_popup(popup)
-}
-
-@(private = "file")
-push_world_menu_popup :: proc(slot: int, color: rl.Color, delay: f32, text: string, dmg := false) {
-	w := sprite_size(pc_menu_sprite(get_pc_idx(slot))).x / TILE_SIZE
-	x, y : f32 = 1.5 + 2.5 * f32(slot) + w / 2, 11.5
-	p := Popup{pos = {x*TILE_SIZE, y*TILE_SIZE}, color = color, t = -delay, dmg = dmg}
-	copy(p.text[:len(p.text) - 1], text)
-	push_popup(p)
 }
 
 // The popups for `r`, in order: the hit or HP change, then levels, then

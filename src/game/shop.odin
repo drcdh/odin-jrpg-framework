@@ -70,6 +70,7 @@ shop_enter :: proc(shop: ^Shop) {
 	shop_menu_data.shop = shop
 	shop_menu_data.ui_data = Shop_UI_Data{}
 	shop_menu_data.ui_state = .Top
+	party_entities_ensure() // the party pane draws their sprites
 
 	for pane in Shop_Pane {
 		shop_set_stale(pane)
@@ -369,7 +370,7 @@ shop_redraw_party_pane :: proc() {
 		if game_data.party_membership[pc_idx] {
 			origin_tile: Tile = {1, 1} + {2 * (p % 2), 2 * (p / 2)}
 			origin := tile_to_pixel(origin_tile)
-			draw_sprite(pc_menu_sprite(pc_idx), origin)
+			draw_character_sprite(playable_characters[pc_idx], origin)
 			p += 1
 		}
 	}

@@ -8,7 +8,7 @@ import "core:time"
 take_turn :: proc(actor_idx: int) {
 	start := time.tick_now()
 
-	c := &battle.combatants[actor_idx]
+	c := battle.combatants[actor_idx]
 	available_skills: [dynamic]int; defer delete(available_skills)
 	for cs, cs_idx in c.skills {
 		if cs.charge == CHARGE_MAX {

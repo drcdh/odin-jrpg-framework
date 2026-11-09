@@ -28,31 +28,54 @@ pc_sprite :: proc(pc_idx: int, layer: i32 = 0) -> Sprite_State {
 	return walker_sprite(.Man_Ps, PC_PALETTES[pc_idx - 1][:], layer)
 }
 
-health_tag :: proc(health: Stat) -> Sprite_Tag {
-	if health > .25 do return .Idle
-	if health > 0 do return .Kneeled
-	return .Downed
-}
-
-pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0, health: Maybe(Stat) = nil, statuses: Maybe(Statuses) = nil) -> (s: Sprite_State) {
-	c := playable_characters[pc_idx]
-	t := health_tag(health.? or_else Stat(c.hitpoints)/get_stat(c, .Hitpoints))
-	if has_status(statuses.? or_else c.statuses, .Paralyze) do t = .Kneeled
-	if has_status(statuses.? or_else c.statuses, .Sleep) do t = .Downed
+pc_battle_sprite :: proc(pc_idx: int, layer: i32 = 0) -> (s: Sprite_State) {
 	if pc_idx == 0 {
-		s = create_sprite_state(.Player_Battle, t, play = true, layer = layer)
+		s = create_sprite_state(.Player_Battle, .Idle, play = true, layer = layer)
 	} else {
-		s = create_sprite_state(.Man_Battle_Ps, t, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
+		s = create_sprite_state(.Man_Battle_Ps, .Idle, PC_PALETTES[pc_idx - 1][:], play = true, layer = layer)
 	}
-	if has_status(statuses.? or_else c.statuses, .Confuse) do s.flip_x = true
-	if has_status(statuses.? or_else c.statuses, .Control) do s.flip_x = true
-	if has_status(statuses.? or_else c.statuses, .Poison) do s.tint = rl.LIME
-	if has_status(statuses.? or_else c.statuses, .Zombie) do s.tint = rl.GRAY
 	return
 }
 
-pc_menu_sprite :: proc(pc_idx: int, health: Maybe(Stat) = nil, statuses: Maybe(Statuses) = nil) -> Sprite_State {
-	s := pc_battle_sprite(pc_idx, health=health, statuses=statuses)
-	s.origin = {0, 0}
+apply_character_look :: proc(s: ^Sprite_State, health: Stat, statuses: Statuses) {
+	t := Sprite_Tag.Idle
+	if health <= 0 {
+		t = .Downed
+	} else if health <= .25 {
+		t = .Kneeled
+	}
+	if has_status(statuses, .Paralyze) do t = .Kneeled
+	if has_status(statuses, .Sleep)    do t = .Downed
+	if s.tag != t do set_sprite_tag(s, t)
+
+	s.flip_x = has_status(statuses, .Confuse) || has_status(statuses, .Control)
+
+	tint := rl.WHITE
+	if has_status(statuses, .Poison) do tint = rl.LIME
+	if has_status(statuses, .Zombie) do tint = rl.GRAY
+	s.tint = {tint.r, tint.g, tint.b, s.tint.a} // don't mess with alpha
+}
+
+update_character_sprite :: proc(c: Character) {
+	e, ok := entity_get(c.eid)
+	if !ok do return
+	apply_character_look(&e.sprite, Stat(c.hitpoints) / get_stat(c, .Hitpoints), c.statuses)
+}
+
+// A PC's battle sprite with the given look, for when there's no entity (save
+// file previews).
+pc_look_sprite :: proc(pc_idx: int, health: Stat, statuses: Statuses) -> Sprite_State {
+	s := pc_battle_sprite(pc_idx)
+	apply_character_look(&s, health, statuses)
 	return s
+}
+
+// Draws `s` with its top-left corner at `top_left`, whatever its origin.
+draw_sprite_top_left :: proc(s: Sprite_State, top_left: [2]f32) {
+	draw_sprite(s, top_left + s.origin * sprite_size(s) * [2]f32{abs(s.scale.x), abs(s.scale.y)})
+}
+
+// Draws `c`'s entity sprite with its top-left corner at `top_left` (menus).
+draw_character_sprite :: proc(c: Character, top_left: [2]f32) {
+	if e, ok := entity_get(c.eid); ok do draw_sprite_top_left(e.sprite, top_left)
 }

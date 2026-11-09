@@ -33,14 +33,6 @@ Team :: enum { None, Baddy, Player }
 
 Ticks :: f32
 
-Combatant :: struct {
-	using character: ^Character,
-	controller:      ^Combatant,
-	team:            Team,
-	ticks:           Ticks,
-	windup:          bool, // TODO: change to Maybe(Skill_Play_Id)
-}
-
 Battle_Skill_Play :: struct {
 	actor_idx:  int,
 	targets:    Target_Selection,
@@ -74,11 +66,11 @@ Battle_Result :: enum {
 
 Battle :: struct {
 	active:					bool, // battle will be drawn if true, else world
-	players:        [dynamic]int,
 	baddies:      	[dynamic]int,
+	players:        [dynamic]int,
 	background:			Battle_Background,
 	camera:         Camera,
-	combatants:			[dynamic]Combatant,
+	combatants:			[dynamic]^Character,
 	encounter:    	^Encounter,
 	lose_proc:      Script_Proc,
 	paused:         bool, // true while running audiovisual stuff
@@ -104,7 +96,7 @@ autobattle: bool // debug mode
 check_win :: proc() -> Maybe(Battle_Result) {
 	players_alive := false
 	for c_idx in battle.players {
-		if combatant_alive(battle.combatants[c_idx]) {
+		if alive(battle.combatants[c_idx]^) {
 			players_alive = true
 		}}
 	if !players_alive {
@@ -112,7 +104,7 @@ check_win :: proc() -> Maybe(Battle_Result) {
 	}
 	baddies_alive := false
 	for c_idx in battle.baddies {
-		if combatant_alive(battle.combatants[c_idx]) {
+		if alive(battle.combatants[c_idx]^) {
 			baddies_alive = true
 		}
 	}
@@ -122,19 +114,11 @@ check_win :: proc() -> Maybe(Battle_Result) {
 	return nil
 }
 
-combatant_alive :: proc(c: Combatant) -> bool {
-	return alive(c.character^)
+ready :: proc(c: Character) -> bool {
+	return c.ticks >= READY_TICKS && alive(c) && !winding_up(c)
 }
 
-combatant_downed :: proc(c: Combatant) -> bool {
-	return downed(c.character^)
-}
-
-combatant_ready :: proc(c: Combatant) -> bool {
-	return c.ticks >= READY_TICKS && combatant_alive(c) && !combatant_winding_up(c)
-}
-
-combatant_winding_up :: proc(c: Combatant) -> bool {
+winding_up :: proc(c: Character) -> bool {
 	return c.windup
 }
 
@@ -147,9 +131,9 @@ get_combatant_skill_play_idx :: proc(c_idx: int) -> Maybe(int) {
 	return nil
 }
 
-get_combatant_skill_play_ptr :: proc(c: ^Combatant) -> Maybe(int) {
+get_combatant_skill_play_ptr :: proc(c: ^Character) -> Maybe(int) {
 	for sp, i in battle.skill_plays {
-		if &battle.combatants[sp.actor_idx] == c {
+		if battle.combatants[sp.actor_idx] == c {
 			return i
 		}
 	}
@@ -174,9 +158,9 @@ battle_tick :: proc() {
 	take_turns()
 
 	for &c in battle.combatants {
-		if combatant_downed(c) do continue
-		if combatant_winding_up(c) do continue
-		c.ticks += (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c, .Speed))/SPEED_PAR
+		if downed(c^) do continue
+		if winding_up(c^) do continue
+		c.ticks += (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c^, .Speed))/SPEED_PAR
 		if c.ticks > READY_TICKS do c.ticks = READY_TICKS
 		charge_skills(&c.skills, battle = true)
 	}
@@ -184,7 +168,7 @@ battle_tick :: proc() {
 	// remove invalid Skill_Plays
 	for i := 0; i < len(battle.skill_plays); {
 		c := battle.combatants[battle.skill_plays[i].actor_idx]
-		if !c.windup || !combatant_alive(c) {
+		if !c.windup || !alive(c^) {
 			fmt.printfln("removing Battle_Skill_Play %d after combatant interrupted or downed", i)
 			unordered_remove(&battle.skill_plays, i)
 		} else {
@@ -193,7 +177,7 @@ battle_tick :: proc() {
 	}
 
 	for &s in battle.skill_plays {
-		s.windup -= (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx], .Speed))/SPEED_PAR
+		s.windup -= (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx]^, .Speed))/SPEED_PAR
 	}
 
 	for i := 0; i < len(battle.skill_plays); {
@@ -207,8 +191,8 @@ battle_tick :: proc() {
 	}
 }
 
-player_controllable :: proc(c: Combatant) -> bool {
-	if !combatant_ready(c) do return false
+player_controllable :: proc(c: Character) -> bool {
+	if !ready(c) do return false
 	if is_uncontrollable(c) do return false
 	if c.team == .Player do return !has_status(c, .Control)
 	return has_status(c, .Control)
@@ -218,7 +202,7 @@ get_next_player_controlled_combatant :: proc(previous: int) -> Maybe(int) {
 	first: Maybe(int)
 	met_previous: bool // loop passed `previous`
 	for c, c_idx in battle.combatants {
-		if player_controllable(c) {
+		if player_controllable(c^) {
 			if met_previous do return c_idx
 			first = first.? or_else c_idx
 		}
@@ -229,10 +213,10 @@ get_next_player_controlled_combatant :: proc(previous: int) -> Maybe(int) {
 
 take_turns :: proc() {
 	for c, c_idx in battle.combatants {
-		if combatant_ready(c) {
-			assert(can_take_turn(c), "combatant is ready but has invalidating status")
-			if is_uncontrollable(c) || autobattle do take_turn(c_idx)
-			if (c.team == .Baddy && has_status(c, .Control)) || (c.team == .Player && !has_status(c, .Control)) {
+		if ready(c^) {
+			assert(can_take_turn(c^), "combatant is ready but has invalidating status")
+			if is_uncontrollable(c^) || autobattle do take_turn(c_idx)
+			if (c.team == .Baddy && has_status(c^, .Control)) || (c.team == .Player && !has_status(c^, .Control)) {
 				if battle_menu.ui_state == .Idle do battle_menu_select_combatant(c_idx)
 				continue
 			}
@@ -252,14 +236,14 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 	fmt.printfln("Processing skill play: %#v", skill_play)
 
 	skill := skills[skill_play.skill_name]
-	actor := &battle.combatants[skill_play.actor_idx]
+	actor := battle.combatants[skill_play.actor_idx]
 	actor.windup = false
 
 	battle.results_actor = skill_play.actor_idx
 	battle.results_skill = skill_play.skill_name
 
-	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Combatant, target_idx: int, skill: Skill) {
-		r := do_skill_combatant(actor, &battle.combatants[target_idx], skill)
+	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Character, target_idx: int, skill: Skill) {
+		r := do_skill(actor, battle.combatants[target_idx], skill)
 		append(&battle.skill_result, Battle_Effect_Result{
 			source     = .Skill,
 			actor_idx  = skill_play.actor_idx,
@@ -274,13 +258,11 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 		affect(skill_play, actor, battle.players[targets.i], skill)
 	case Target_One_Baddy:
 		affect(skill_play, actor, battle.baddies[targets.i], skill)
-	// case Target_One_Combatant:
-	// 	affect(skill_play, actor, targets.i, skill)
 	case Target_All_Players:
 		for target_idx in battle.players do affect(skill_play, actor, target_idx, skill)
 	case Target_All_Baddies:
 		for target_idx in battle.baddies do affect(skill_play, actor, target_idx, skill)
-	case Target_All_Combatants:
+	case Target_All:
 		for _, target_idx in battle.combatants do affect(skill_play, actor, target_idx, skill)
 	}
 }
@@ -288,8 +270,8 @@ process_skill_play :: proc(skill_play: Battle_Skill_Play) {
 // TODO: per-combatant poison timers and severity
 battle_poison_tick :: proc() -> bool {
 	for &c, c_idx in battle.combatants {
-		if !combatant_alive(c) || !has_status(c, .Poison) do continue
-		hp_loss := take_poison_damage(c.character)
+		if !alive(c^) || !has_status(c^, .Poison) do continue
+		hp_loss := take_poison_damage(c)
 		log.infof("%s takes %d damage from poison", c.name, hp_loss)
 		append(&battle.skill_result, Battle_Effect_Result{
 			source     = .Passive,
@@ -302,7 +284,7 @@ battle_poison_tick :: proc() -> bool {
 }
 
 // Breaks `target`'s windup. Returns false if they weren't winding up.
-interrupt_windup :: proc(target: ^Combatant) -> bool {
+interrupt_windup :: proc(target: ^Character) -> bool {
 	if !target.windup {
 		log.infof("Tried to interrupt %s but they weren't winding up", target.name)
 		return false
@@ -312,7 +294,7 @@ interrupt_windup :: proc(target: ^Combatant) -> bool {
 	return true
 }
 
-roll_for_counter :: proc(actor, target: ^Combatant, risk: f32 = 1) {
+roll_for_counter :: proc(actor, target: ^Character, risk: f32 = 1) {
 }
 
 encounter_init :: proc(encounter_name: Encounter_Name, start_proc, win_proc, lose_proc: Script_Proc) {
@@ -339,9 +321,10 @@ battle_clear :: proc() {
 	for c_idx in battle.baddies {
 		// free new Characters created with new_baddy in start_encounter
 		delete(battle.combatants[c_idx].skills)
-		free(battle.combatants[c_idx].character)
+		destroy_entity(battle.combatants[c_idx].eid)
+		free(battle.combatants[c_idx])
 	}
-	for c in battle.combatants do destroy_entity(c.eid)
+	// the players' entities persist; battle_deactivate hid them
 	clear(&battle.players)
 	clear(&battle.baddies)
 	clear(&battle.combatants)
@@ -357,6 +340,11 @@ battle_deactivate :: proc() {
 	clear(&battle.results)
 	clear_popups()
 	battle_menu_end()
+	for c_idx in battle.players {
+		c := battle.combatants[c_idx]
+		set_visible(c.eid, false)
+		update_character_sprite(c^) // undo battle poses like Cheer
+	}
 	battle.active = false
 }
 
@@ -411,7 +399,9 @@ spawn_combatants :: proc(name: Encounter_Name) {
 	party_idx := 0
 	for pc_idx in 0 ..< NUM_PC {
 		if !game_data.party_membership[pc_idx] do continue
-		battle.combatants[battle.players[party_idx]].eid = spawn_combatant(playable_characters[pc_idx].name, {x, y}, pc_battle_sprite(pc_idx, COMBATANT_LAYER))
+		eid := pc_entity(pc_idx) // sets the PC's eid
+		set_tile(eid, {x, y})
+		set_visible(eid, true)
 		party_idx += 1
 		x += 1
 		if party_idx != 3 {
@@ -457,7 +447,7 @@ draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxe
 @(private = "file")
 draw_battle_combatants :: proc() {
 	for c, c_idx in battle.combatants {
-		if combatant_downed(c) do continue
+		if downed(c^) do continue
 		tile := entity_tile(c.eid)
 
 		if battle_menu.ui_state != .Idle {
@@ -543,7 +533,7 @@ show_skill_results :: proc(_: Entity_Id) {
 	// passive effects (e.g. poison) have no actor, text, or animations
 	is_skill := battle.results[0].source == .Skill
 
-	actor: Combatant
+	actor: ^Character
 	actor_eid: Entity_Id
 
 	if is_skill {
@@ -578,7 +568,7 @@ show_skill_results :: proc(_: Entity_Id) {
 			set_sprite_tag_of(actor_eid, .Walk)
 			play_anim(actor_eid)
 			move_entity(actor_eid, {PARTY_DX, 0}, ATTACK_TIME)
-			set_sprite_tag_of(actor_eid, .Idle)
+			update_character_sprite(actor^)
 		}
 	}
 
@@ -617,7 +607,7 @@ default_win_proc :: proc(_: Entity_Id) {
 	battle_menu.ui_state = .Idle
 	for c_idx in battle.players {
 		c := battle.combatants[c_idx]
-		if combatant_alive(c) {
+		if alive(c^) {
 			set_sprite_tag_of(c.eid, .Cheer)
 			set_anim_when(c.eid, .Always)
 			play_anim(c.eid)
@@ -663,16 +653,15 @@ show_skill_result :: proc(target_id: Entity_Id) {
 	}
 	r := effect_result.result
 	c := battle.combatants[effect_result.target_idx]
-	if combatant_downed(c) && !r.downed {
+	if downed(c^) && !r.downed {
 		log.warnf("effect result tried to down the already downed combatant %s (c_idx=%d)", c.name, effect_result.target_idx)
 		return
 	}
 
 	if effect_result.source == .Skill {
-		prev_tag: Maybe(Sprite_Tag)
 		if c.team == .Player {
 			if new_tag, ok := effect_reaction_tag(r).?; ok {
-				prev_tag = set_sprite_tag_of(target_id, new_tag)
+				set_sprite_tag_of(target_id, new_tag)
 				play_anim(target_id)
 			}
 		}
@@ -680,36 +669,15 @@ show_skill_result :: proc(target_id: Entity_Id) {
 		skill := skills[effect_result.skill_name]
 		play_sound(skill.sound)
 		if !play_skill_anim(target_id, skill.animation) do return
-
-		// restore previous tag
-		if c.team == .Player {
-			if t, ok := prev_tag.?; ok {
-				set_sprite_tag_of(target_id, t)
-			}
-		}
 	}
 
-	if r.status_result == .Added {
-		switch r.status {
-		case .Confuse:
-			set_flip(c.eid, flip_x = true)
-		case .Control:
-			set_flip(c.eid, flip_x = true)
-		case .Poison:
-			set_tint(c.eid, rl.LIME)
-		}
-	} else if r.status_result == .Removed {
-		switch r.status {
-		case .Confuse:
-			set_flip(c.eid)
-		case .Control:
-			set_flip(c.eid)
-		case .Poison:
-			set_tint(c.eid)
-		}
-	}
+	// the new look (statuses, health) replaces the reaction pose; a downed
+	// target's look comes from player_down or baddy_down instead
+	if !r.downed do update_character_sprite(c^)
 
-	battle_effect_popups(c.eid, r)
+	if n := show_effect_popups(c^, r); n > 1 {
+		if !pause(POPUP_GAP * f32(n - 1)) do return
+	}
 
 	if r.downed {
 		if c.team == .Player {
@@ -732,7 +700,8 @@ skill_result_for :: proc(target: Entity_Id) -> (Battle_Effect_Result, bool) {
 @(private = "file")
 play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name) -> bool {
 	s := create_sprite_state(sprite, play = true, layer = SKILL_ANIM_LAYER)
-	fx := spawn_entity(Entity{name = "skill animation", tile = entity_tile(target), sprite = s, ghost = true, battle = true})
+	fx := spawn_entity(Entity{name = "skill animation", sprite = s, ghost = true, battle = true})
+	if e, ok := entity_get(fx); ok do e.pos = entity_pos(target) // over the target, wherever it's drawn
 	defer destroy_entity(fx)
 	return pause(max(animation_length(s), .25)) // a static sprite still shows a moment
 }
@@ -776,13 +745,11 @@ targeted :: proc(c_idx: int, team: Team) -> bool {
 			return team == .Baddy && c_idx == battle.baddies[ts.i]
 		case Target_One_Player:
 			return team == .Player && c_idx == battle.players[ts.i]
-		// case Target_One_Combatant:
-		// 	return c_idx == ts.i
 		case Target_All_Players:
 			return team == .Player
 		case Target_All_Baddies:
 			return team == .Baddy
-		case Target_All_Combatants:
+		case Target_All:
 			return true
 		}
 	}

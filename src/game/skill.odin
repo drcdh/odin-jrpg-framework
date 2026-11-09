@@ -78,19 +78,22 @@ charge_skills :: proc(cs: ^Charged_Skills, battle := false) {
 }
 
 is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
-	return false // TODO
+	return !skills[skill_name].offensive
 }
 
 // `actor` is nil for an item.
-do_skill_character :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
-	return do_effect_character(actor, target, skill.effect_data, skill.effect_type)
+do_skill :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
+	return do_effect(actor, target, skill.effect_data, skill.effect_type)
 }
 
-do_skill_combatant :: proc(actor, target: ^Combatant, skill: Skill) -> Effect_Result {
-	return do_effect_combatant(actor, target, skill.effect_data, skill.effect_type)
+// Does the skill and shows the result right away at the target's entity: the
+// sound, the target's new look and the popups. `actor` is nil for an item.
+// The battle shows its results later, in show_skill_results.
+use_skill :: proc(actor, target: ^Character, skill_name: Skill_Name) -> (r: Effect_Result) {
+	skill := skills[skill_name]
+	r = do_skill(actor, target, skill)
+	play_sound(skill.sound)
+	update_character_sprite(target^)
+	show_effect_popups(target^, r)
+	return
 }
-
-// do_skill :: proc {
-// 	do_skill_character,
-// 	do_skill_combatant,
-// }

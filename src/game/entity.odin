@@ -14,6 +14,7 @@ Entity :: struct {
 	autotag: bool,      // when moving, automatically change sprite within walking_tags_groups (without resetting animation)
 	ghost:   bool,      // neither blocks nor is blocked by other entities
 	battle:  bool,      // a combatant or skill animation; drawn by draw_battle, not draw_world
+	persistent: bool,   // survives clear_level (the PCs' entities)
 	on_step: proc(self, by: Entity_Id), // runs on the main thread when another entity finishes a step onto this tile
 	sprite:  Sprite_State,
 	trigger: Trigger,

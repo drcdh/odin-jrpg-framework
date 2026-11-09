@@ -17,6 +17,11 @@ Character :: struct {
 	skill_set:     Skill_Set,
 	skills:        Charged_Skills,
 	eid:           Entity_Id,
+	// battle stuff
+	controller:    ^Character,
+	team:          Team,
+	ticks:         Ticks,
+	windup:        bool, // TODO: change to Maybe(Skill_Play_Id)
 }
 
 alive :: proc(c: Character) -> bool {

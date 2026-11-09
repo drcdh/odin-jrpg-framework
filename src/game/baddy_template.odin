@@ -24,6 +24,7 @@ sudden_death: bool // debug mode
 new_baddy :: proc(template: Baddy_Template) -> ^Character {
 	baddy := new(Character)
 	baddy.name = template.name
+	baddy.team = .Baddy
 	baddy.hitpoints = 1 if sudden_death else int(get_stat(template.stats, .Hitpoints))
 	baddy.skills = new_charged_skills(template.skills)
 	baddy.stats = template.stats
