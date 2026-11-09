@@ -18,6 +18,7 @@ Status_Name :: enum {
 	Sick,       // s
 	Sleep,      // S
 	Slow,       // W
+	Sprain,     // a
 	Zombie,     // Z
 }
 
@@ -38,6 +39,7 @@ status_glyph_keys := [Status_Name]string {
 	.Sick       = "s",
 	.Sleep      = "S",
 	.Slow       = "W",
+	.Sprain     = "a",
 	.Zombie     = "Z",
 }
 
@@ -69,7 +71,10 @@ add_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 
 add_status_Character :: proc(c: ^Character, status: Status_Name) {
 	add_status_Statuses(&c.statuses, status)
-	update_character_sprite(c^)
+	if status == .Berserk || status == .Confuse || status == .Control || status == .Paralyze || status == .Rage || status == .Sleep || status == .Zombie {
+		c.ticks = 0
+		interrupt_windup(c)
+	}
 }
 
 add_status :: proc {
@@ -89,7 +94,6 @@ remove_status_Character :: proc(c: ^Character, status: Status_Name) {
 		c.controller = nil
 		remove_status(controller, .Controller)
 	}
-	update_character_sprite(c^)
 }
 
 remove_status :: proc {
@@ -157,6 +161,7 @@ cancel_statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 		remove_status(statuses, .Rage)
 	case .Slow:
 		remove_status(statuses, .Haste)
+	case .Sprain:
 	case .Zombie:
 		remove_status(statuses, .Berserk)
 		remove_status(statuses, .Confuse)

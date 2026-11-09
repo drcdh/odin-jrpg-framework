@@ -101,6 +101,11 @@ battle_menu_end :: proc() {
 	battle_menu.ui_state = .Inactive
 }
 
+battle_menu_check_selection_valid :: proc() {
+	c := battle.combatants[battle_menu.c_idx]
+	if !ready(c^) || is_uncontrollable(c^) do battle_menu_next_combatant()
+}
+
 battle_menu_select_combatant :: proc(c_idx: int) {
 	// Called by battle when a valid combatant's turn comes up
 	// and there isn't already a combatant being controlled or

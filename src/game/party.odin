@@ -209,7 +209,7 @@ do_party_step_effects :: proc() {
 			if has_status(pc, .Poison) {
 				take_poison_damage(&pc)
 			}
-			charge_skills(&pc.skills, battle = false)
+			charge_skills(&pc.skills, 1, migraine = has_status(pc, .Migraine), sprain = has_status(pc, .Sprain), battle = false)
 		}
 	}
 }

@@ -15,7 +15,7 @@ assert(len(damage_letters) == len(set(damage_letters)))
 
 status_icons = [
 	"kBCcHMOP",
-	"pRGsSWZ ",
+	"pRGsSWZa",
 ]
 assert(len(status_icons) == len(set(status_icons)))
 

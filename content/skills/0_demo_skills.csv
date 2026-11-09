@@ -1,8 +1,8 @@
 name,target,offensive,ally_only,effect_type,constant,power,psy_power,pierce,psy_pierce,hit_acc,risk,ranged,sts_acc,status,stg_acc,stagger,int_acc,windup,cost,cooldown,animation,sound,description
 Potion,One,,x,Heal,50,,,,,,,,,,,,,10,50,,Heal,Warp,
 Super Potion,One,,x,Heal,500,,,,,,,,,,,,,10,50,,Heal,Warp,
-Antidote,One,,x,Heal,,,,,,,,,100,.Poison,,,,10,50,,Heal,Warp,
-Poisonous Mushroom,One,,x,Attack,,,,,,,,,100,.Poison,,,,10,50,,Heal,Warp,
+Antidote,One,,x,Heal,,,,,,,,,100,Poison,,,,10,50,,Heal,Warp,
+Poisonous Mushroom,One,,x,Attack,,,,,,,,,100,Poison,,,,10,50,,Heal,Warp,
 Level Up,One,,x,Level_Up,1,,,,,,,,,,,,,,,,Heal,Warp,
 Suicide,One,,x,Death,,,,,,100,,,,,,,,,,,Heal,Blerp,
 Small Smoke Bomb,One,x,,Attack,,,,,,,,,,,,50,90,20,50,,Smack,Warp,
@@ -17,16 +17,29 @@ Slash All,Team,x,,Attack,,100,,,,,,,,,,,,30,150,100,Slash,Whack,Attack all enemi
 Quake Smash,Team,x,,Attack,,300,,,,,,ranged,,,,,,60,150,500,Smack,Whack,Slam your weapon on the ground so hard it cracks the earth.
 Tickle,One,x,,Attack,,,,,,,200,,,,30,10,10,,,,Ffvi_Stars,Warp,Distract an enemy.
 Tangle,One,x,,Attack,,,100,,,,,ranged,,,100,200,100,40,,300,Green_Swirl,Whack,Grow vines to trap and restrict an enemy.
-Pommel Strike,One,x,,Attack,,20,,,,,200,,100,.Confuse,100,50,,,110,,Smack,Whack,Concussive force confuses an enemy.
-Plague Bite,One,x,,Attack,,150,,,,,,,100,.Poison,,,,,,200,Ffvi_Stars,Whack,Icky chomp!
+Pommel Strike,One,x,,Attack,,20,,,,,200,,100,Confuse,100,50,,,110,,Smack,Whack,Concussive force confuses an enemy.
+Plague Bite,One,x,,Attack,,150,,,,,,,100,Poison,,,,,,200,Ffvi_Stars,Whack,Icky chomp!
 Fire,Some,x,,Attack,,,100,,,,,ranged,,,,,,,,,Small_Flame,Warp,Singe an enemy.
 Gust,One,x,,Attack,,,10,,,,,ranged,,,90,10,2,,,,Blue_Swirl,Warp,Stagger an enemy slightly with a gust of wind.
 Frost,One,x,,Attack,,,80,30,,,,ranged,,,75,20,,,,200,Blue_Stars,Warp,Chill an enemy.
 Heal,One,,,Heal,,,100,,,,,,,,,,,20,,50,Heal,Warp,Heal an ally.
 Heal All,Team,,,Heal,,,50,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
 Healing Hymn,Team,,,Heal,,,70,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
-Mind Control,One,x,,Attack,,,,,,,,ranged,100,.Control,,,,50,,200,Heal,Warp,Attempt to control an enemy's actions.
+Mind Control,One,x,,Attack,,,,,,,,ranged,100,Control,,,,50,,200,Heal,Warp,Attempt to control an enemy's actions.
 Ultimagnitude 9000,All,x,,Attack,,1000,1000,50,50,,,ranged,,,,90,90,500,500,0,Heal,Warp,Flip the table of reality.
 Super Hyper Slash,One,x,,Attack,,1000,,150,,,,,,,,,,500,500,,Slash,Whack,God stays out of the way.
 Debug Stagger,One,x,,Attack,,,,,,,,,,,,50,,,,,,,you shouldn’t be here
 Debug Interrupt,One,x,,Attack,,,,,,,,,,,,50,100,,,,,,you shouldn’t be here
+Berserk,Some,x,,Attack,,,,,,,,,100,Berserk,,,,,,,Wave_Berserk,Warp,
+Blind,Some,x,,Attack,,,,,,,,,100,Blind,,,,,,,Wave_Blind,Warp,
+Confuse,Some,x,,Attack,,,,,,,,,100,Confuse,,,,,,,Wave_Confuse,Warp,
+Migraine,Some,x,,Attack,,,,,,,,,100,Migraine,,,,,,,Wave_Migraine,Warp,
+Overheat,Some,x,,Attack,,,,,,,,,100,Overheat,,,,,,,Wave_Overheat,Warp,
+Paralyze,Some,x,,Attack,,,,,,,,,100,Paralyze,,,,,,,Wave_Paralyze,Warp,
+Poison,Some,x,,Attack,,,,,,,,,100,Poison,,,,,,,Wave_Poison,Warp,
+Rage,Some,x,,Attack,,,,,,,,,100,Rage,,,,,,,Wave_Rage,Warp,
+Sick,Some,x,,Attack,,,,,,,,,100,Sick,,,,,,,Wave_Sick,Warp,
+Sleep,Some,x,,Attack,,,,,,,,,100,Sleep,,,,,,,Wave_Sleep,Warp,
+Slow,Some,x,,Attack,,,,,,,,,100,Slow,,,,,,,Wave_Slow,Warp,
+Sprain,Some,x,,Attack,,,,,,,,,100,Sprain,,,,,,,Wave_Sprain,Warp,
+Zombify,Some,x,,Attack,,,,,,,,,100,Zombie,,,,,,,Wave_Zombie,Warp,

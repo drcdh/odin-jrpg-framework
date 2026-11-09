@@ -32,9 +32,14 @@ skills = []
 def effect_data(row):
 	return {k: str(bool(v)).lower() if k == "ranged" else TYPES.get(k, int)(v if v != "" else DEFAULTS[k]) for k, v in row.items() if k in DEFAULTS}
 
+def blah(k, v):
+	if k == "status" and v != "nil":
+		return f".{v}"
+	return v
+
 def effect_data_str(row):
 	d = effect_data(row)
-	return "{" + ",".join([f"{k}={v}" for k, v in d.items()]) + "}"
+	return "{" + ",".join([f"{k}={blah(k, v)}" for k, v in d.items()]) + "}"
 
 def odin_skill(row):
 	return {

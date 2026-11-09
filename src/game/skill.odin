@@ -59,10 +59,12 @@ modify_charged_skills :: proc(cs: ^Charged_Skills, new_skill_set: Skill_Set) {
 	}
 }
 
-charge_skill :: proc(cs: ^Charged_Skill, battle := false) {
+charge_skill :: proc(cs: ^Charged_Skill, ticks: Ticks, migraine, sprain: bool, battle := false) {
 	k := cs.skill
 	if battle { 	//|| k.world {
-		dc := u8(500 / skills[k].cooldown) if skills[k].cooldown > 0 else CHARGE_MAX
+		dc := u8(ticks) if skills[k].cooldown > 0 else CHARGE_MAX
+		// dc := u8(500 / skills[k].cooldown) if skills[k].cooldown > 0 else CHARGE_MAX
+		// TODO: apply migraine/sprain penalty if power/psy power > 0
 		if CHARGE_MAX - cs.charge <= dc {
 			cs.charge = CHARGE_MAX
 		} else {
@@ -71,9 +73,9 @@ charge_skill :: proc(cs: ^Charged_Skill, battle := false) {
 	}
 }
 
-charge_skills :: proc(cs: ^Charged_Skills, battle := false) {
+charge_skills :: proc(cs: ^Charged_Skills, ticks: Ticks, migraine, sprain: bool, battle := false) {
 	for &_cs in cs {
-		charge_skill(&_cs, battle)
+		charge_skill(&_cs, ticks, migraine, sprain, battle)
 	}
 }
 

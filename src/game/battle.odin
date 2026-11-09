@@ -157,12 +157,8 @@ battle_tick :: proc() {
 
 	take_turns()
 
-	for &c in battle.combatants {
-		if downed(c^) do continue
-		if winding_up(c^) do continue
-		c.ticks += (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c^, .Speed))/SPEED_PAR
-		if c.ticks > READY_TICKS do c.ticks = READY_TICKS
-		charge_skills(&c.skills, battle = true)
+	for c in battle.combatants {
+		character_battle_tick(c)
 	}
 
 	// remove invalid Skill_Plays
@@ -215,7 +211,7 @@ take_turns :: proc() {
 	for c, c_idx in battle.combatants {
 		if ready(c^) {
 			assert(can_take_turn(c^), "combatant is ready but has invalidating status")
-			if is_uncontrollable(c^) || autobattle do take_turn(c_idx)
+			if is_uncontrollable(c^) || autobattle { take_turn(c_idx); continue }
 			if (c.team == .Baddy && has_status(c^, .Control)) || (c.team == .Player && !has_status(c^, .Control)) {
 				if battle_menu.ui_state == .Idle do battle_menu_select_combatant(c_idx)
 				continue
@@ -434,17 +430,15 @@ draw_battle :: proc() {
 
 @(private = "file")
 draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxed_color: rl.Color) {
-	roundness := f32(1)
-	segments := i32(1)
 	x, y := origin.x, origin.y
 	w, h := f32(16), f32(4)
 	if v < full {
-		rl.DrawRectangleRounded({x, y, w, h}, roundness, segments, empty_color)
-		rl.DrawRectangleRounded({x, y, w * v / full, h}, roundness, segments, filled_color)
+		rl.DrawRectangleRec({x, y, w, h}, empty_color)
+		rl.DrawRectangleRec({x, y, w * v / full, h}, filled_color)
 	} else {
-		rl.DrawRectangleRounded({x, y, w, h}, roundness, segments, maxed_color)
+		rl.DrawRectangleRec({x, y, w, h}, maxed_color)
 	}
-	rl.DrawRectangleRoundedLinesEx({x, y, w, h}, roundness, segments, 1, rl.BLACK) // border
+	rl.DrawRectangleLinesEx({x-1, y-1, w+2, h+2}, 1, rl.BLACK) // border
 }
 
 @(private = "file")
@@ -464,7 +458,7 @@ draw_battle_combatants :: proc() {
 
 		// Under the combatant's tile.
 		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * TILE_SIZE}
-		draw_gauge(gauge_origin, c.ticks, READY_TICKS, rl.WHITE, rl.GRAY, rl.YELLOW)
+		draw_gauge(gauge_origin, c.ticks, READY_TICKS, rl.BLUE if has_status(c^, .Slow) else rl.WHITE, rl.GRAY, rl.YELLOW)
 		if skill_play_idx, ok := get_combatant_skill_play(c_idx).?; ok {
 			gauge_origin += {0, 0.35 * TILE_SIZE}
 			v := battle.skill_plays[skill_play_idx].windup
@@ -574,6 +568,8 @@ show_skill_results :: proc(_: Entity_Id) {
 			update_character_sprite(actor^)
 		}
 	}
+
+	battle_menu_check_selection_valid()
 
 	battle_menu_set_stale(.Baddies)
 	battle_menu_set_stale(.Party)

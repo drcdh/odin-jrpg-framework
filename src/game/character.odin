@@ -107,3 +107,16 @@ character_unequip_all :: proc(character: ^Character, to_inventory := true) {
 	unequip_all(&character.equipment, to_inventory)
 	set_eq_stats(character)
 }
+
+character_battle_tick :: proc(c: ^Character) {
+	if downed(c^) do return
+	if winding_up(c^) do return
+	if has_any_status(c^, .Paralyze, .Sleep) do return
+	ticks := (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c^, .Speed))/SPEED_PAR
+	slow := has_status(c^, .Slow)
+	c.ticks += ticks * (slow ? .75 : 1)
+	if c.ticks > READY_TICKS do c.ticks = READY_TICKS
+	migraine := has_status(c^, .Migraine)
+	sprain   := has_status(c^, .Sprain)
+	charge_skills(&c.skills, ticks, battle = true, migraine = migraine, sprain = sprain)
+}

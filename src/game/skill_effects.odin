@@ -56,6 +56,7 @@ Effect_Result :: struct {
 	interrupted:   bool, // the target's windup was broken (Characters only)
 }
 
+@(private = "file")
 calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool) #optional_ok {
 	if effect.power <= 0 && effect.psy_power <= 0 {return 0, false}
 
@@ -159,6 +160,7 @@ effect_heal :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effec
 	return
 }
 
+@(private = "file")
 _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
 	s, ok := status.?
 	if !ok do return .None
@@ -179,6 +181,7 @@ _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)
 	return .Added
 }
 
+@(private = "file")
 _remove_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
 	s, ok := status.?
 	if !ok do return .None
@@ -194,6 +197,7 @@ _remove_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Na
 }
 
 // Takes `stagger` ticks from the target and may interrupt their windup.
+@(private = "file")
 _stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (staggered, interrupted: bool) {
 	if stagger <= 0 && int_acc <= 0 do return
 	acc := Stat(stg_acc)
@@ -211,7 +215,7 @@ _stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (stagger
 		} else {
 			log.infof("Staggering %s turn by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
 			target.ticks -= Ticks(stagger)
-			if target == battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
+			// if target == battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
 			staggered = true
 		}
 	}
