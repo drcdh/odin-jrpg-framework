@@ -61,7 +61,6 @@ set_eq_stats :: proc(c: ^Character) {
 set_effective_stats :: proc(c: ^Character) {
 	c.stats = effective_stats(c.eq_stats, c.statuses)
 	c.hitpoints = min(c.hitpoints, int(get_stat(c^, .Hitpoints)))
-	set_all_skills() // FIXME
 }
 
 instakill :: proc(c: ^Character) {

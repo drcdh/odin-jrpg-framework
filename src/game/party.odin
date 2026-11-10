@@ -166,7 +166,7 @@ get_generic_skill_set :: proc(equipment: Equipment, level: int, stats: Stats) ->
 
 set_skills :: proc(pc_idx: int) {
 	pc := &playable_characters[pc_idx]
-	pc.skill_set = get_skill_set(pc_idx, pc.equipment, pc.level, pc.stats)
+	pc.skill_set = get_skill_set(pc_idx, pc.equipment, pc.level, pc.eq_stats)
 	modify_charged_skills(&pc.skills, pc.skill_set)
 }
 
