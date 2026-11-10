@@ -2,6 +2,7 @@ package game
 
 import "core:log"
 import "core:math"
+import "core:math/rand"
 
 Character :: struct {
 	base_stats:    Stats,
@@ -18,9 +19,9 @@ Character :: struct {
 	skills:        Charged_Skills,
 	eid:           Entity_Id,
 	// battle stuff
-	controller:    ^Character,
+	charge:        Charge, // charge to get turn
+	controller:    ^Character, // TODO: will become part of status struct data
 	team:          Team,
-	ticks:         Ticks,
 	windup:        bool, // TODO: change to Maybe(Skill_Play_Id)
 }
 
@@ -112,11 +113,25 @@ character_battle_tick :: proc(c: ^Character) {
 	if downed(c^) do return
 	if winding_up(c^) do return
 	if has_any_status(c^, .Paralyze, .Sleep) do return
+
 	ticks := (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c^, .Speed))/SPEED_PAR
-	slow := has_status(c^, .Slow)
-	c.ticks += ticks * (slow ? .75 : 1)
-	if c.ticks > READY_TICKS do c.ticks = READY_TICKS
+
 	migraine := has_status(c^, .Migraine)
 	sprain   := has_status(c^, .Sprain)
 	charge_skills(&c.skills, ticks, battle = true, migraine = migraine, sprain = sprain)
+
+	if has_status(c^, .Slow) do ticks *= .5
+	if has_status(c^, .Haste) do ticks *= 1.5
+	update_charge(&c.charge, ticks)
+}
+
+new_character_charge :: proc(c: Character) -> Charge {
+	max: Ticks = 100
+	value: Ticks = f32(get_stat(c, .Speed))*rand.float32_uniform(.5, 1)
+	return new_charge(max=max, value=value)
+}
+
+reset_character_charge :: proc(c: ^Character, max: Ticks = DEFAULT_CHARGE_MAX) {
+	reset_charge(&c.charge, max)
+	log.infof("%s charge reset with max=%f", c.name, max)
 }

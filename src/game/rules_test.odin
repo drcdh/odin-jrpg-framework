@@ -191,31 +191,32 @@ pcs_keep_damage_and_status_after_battle :: proc(t: ^testing.T) {
 }
 
 @(test)
-skill_plays_stagger_affects_turn_ticks :: proc(t: ^testing.T) {
+skill_plays_stagger_delays_turn_charge :: proc(t: ^testing.T) {
 	baddy, player := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
-	// stagger should affect ticks when the target isn't winding up
-	player.ticks = 100
+	// stagger should delay the turn charge when the target isn't winding up
+	player.charge = new_charge(max = 100, value = 100)
 	player.windup = false
 
 	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Player{0}, skill_name = .Debug_Stagger})
-	testing.expect_value(t, player.ticks, 50)
+	testing.expect_value(t, player.charge.value, 100)
+	testing.expect_value(t, player.charge.delay, 50)
 	testing.expect(t, !baddy.windup, "the actor is still winding up")
 }
 
 @(test)
-skill_plays_stagger_affects_windup :: proc(t: ^testing.T) {
+skill_plays_stagger_delays_windup_charge :: proc(t: ^testing.T) {
 	baddy, player := setup_rat_battle(); defer headless_core_shutdown(); defer destroy(); defer battle_destroy(); defer battle_deactivate()
 
-	// stagger should affect windup when the target is winding up
-	player.ticks = 100
+	// stagger should delay the skill play's charge when the target is winding up
+	player.charge = new_charge(max = 100, value = 100)
 	player.windup = true
-	append(&battle.skill_plays, Battle_Skill_Play{actor_idx = battle.players[0], targets = Target_One_Baddy{0}, skill_name = .Slash, windup = Ticks(100)})
-	testing.expect_value(t, battle.skill_plays[0].windup, 100)
+	append(&battle.skill_plays, Battle_Skill_Play{actor_idx = battle.players[0], targets = Target_One_Baddy{0}, skill_name = .Slash, charge = new_charge(max = 100, value = 50)})
 
 	process_skill_play({actor_idx = battle.baddies[0], targets = Target_One_Player{0}, skill_name = .Debug_Stagger})
-	testing.expect_value(t, player.ticks, 100)
-	testing.expect_value(t, battle.skill_plays[0].windup, 150)
+	testing.expect_value(t, player.charge, new_charge(max = 100, value = 100)) // the turn charge is untouched
+	testing.expect_value(t, battle.skill_plays[0].charge.value, 50)
+	testing.expect_value(t, battle.skill_plays[0].charge.delay, 50)
 	testing.expect(t, !baddy.windup, "the actor is still winding up")
 }
 

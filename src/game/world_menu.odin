@@ -624,8 +624,9 @@ draw_skills_content :: proc() {
 		if r >= len(pc.skills) {break}
 		cs := pc.skills[r + origin_idx]
 		k := cs.skill
-		draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", skills[k].name, 100 * f16(cs.charge) / CHARGE_MAX))
-		// draw_text(1, 1 + f32(r), fmt.ctprint(skills[k].name))
+		// draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", skills[k].name, 100 * f16(cs.charge) / CHARGE_MAX))
+		draw_text(1, 5 + .5 * f32(r), fmt.ctprint(skills[k].name))
+		// TODO: draw charge for world-usable skills
 		if r + origin_idx == selection_row(menu.skill_sel) {
 			draw_text(1, 3.5, strings.clone_to_cstring(skills[k].description, context.temp_allocator))
 		}

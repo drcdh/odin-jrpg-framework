@@ -22,10 +22,6 @@ Skill :: struct {
 	description: string,
 }
 
-Charge :: u8
-CHARGE_MAX :: 255
-CHARGE_DECAY :: 10
-
 Skill_Set :: bit_set[Skill_Name]
 
 Charged_Skill :: struct {
@@ -37,7 +33,7 @@ Charged_Skills :: [dynamic]Charged_Skill
 
 new_charged_skills :: proc(skill_set: Skill_Set) -> (cs: Charged_Skills) {
 	for k in skill_set {
-		append(&cs, Charged_Skill{skill = k})
+		append(&cs, Charged_Skill{skill = k, charge = new_charge(max=Ticks(skills[k].cooldown))})
 	}
 	return
 }
@@ -55,21 +51,19 @@ modify_charged_skills :: proc(cs: ^Charged_Skills, new_skill_set: Skill_Set) {
 
 	new_skills := new_skill_set - kept
 	for k in new_skills {
-		append(cs, Charged_Skill{skill = k})
+		append(cs, Charged_Skill{skill = k, charge = new_charge(max=Ticks(skills[k].cooldown))})
 	}
 }
 
 charge_skill :: proc(cs: ^Charged_Skill, ticks: Ticks, migraine, sprain: bool, battle := false) {
 	k := cs.skill
+	if skills[k].cooldown == 0 do return // cantrip
 	if battle { 	//|| k.world {
-		dc := u8(ticks) if skills[k].cooldown > 0 else CHARGE_MAX
-		// dc := u8(500 / skills[k].cooldown) if skills[k].cooldown > 0 else CHARGE_MAX
-		// TODO: apply migraine/sprain penalty if power/psy power > 0
-		if CHARGE_MAX - cs.charge <= dc {
-			cs.charge = CHARGE_MAX
-		} else {
-			cs.charge += dc
-		}
+		ticks := ticks
+		// TODO: affect charge as a function of phys/psy power balance
+		if is_physical_skill(k) && sprain   do ticks *= .75
+		if is_psychic_skill(k)  && migraine do ticks *= .75
+		update_charge(&cs.charge, ticks)
 	}
 }
 
@@ -77,6 +71,14 @@ charge_skills :: proc(cs: ^Charged_Skills, ticks: Ticks, migraine, sprain: bool,
 	for &_cs in cs {
 		charge_skill(&_cs, ticks, migraine, sprain, battle)
 	}
+}
+
+is_physical_skill :: proc(k: Skill_Name) -> bool {
+	return skills[k].effect_data.power > 0
+}
+
+is_psychic_skill :: proc(k: Skill_Name) -> bool {
+	return skills[k].effect_data.psy_power > 0
 }
 
 is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {

@@ -208,14 +208,12 @@ _stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (stagger
 	}
 	if stagger > 0 {
 		if skill_play_idx, ok := get_combatant_skill_play(target).?; ok {
-			log.infof("Staggering %s windup by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
-			// TODO: confusingly, skill play windup counts down to zero, while combatant ATB counts up to READY_TICKS
-			battle.skill_plays[skill_play_idx].windup += Ticks(stagger)
+			log.infof("Staggering %s skill charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+			delay_charge(&battle.skill_plays[skill_play_idx].charge, Ticks(stagger))
 			staggered = true
 		} else {
-			log.infof("Staggering %s turn by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
-			target.ticks -= Ticks(stagger)
-			// if target == battle.combatants[battle_menu.c_idx] do battle_menu_next_combatant()
+			log.infof("Staggering %s turn charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+			delay_charge(&target.charge, Ticks(stagger))
 			staggered = true
 		}
 	}

@@ -16,8 +16,6 @@ MULTI_TARGET_DELAY :: .2 // seconds
 
 POISON_PERIOD :: 5 // seconds of battle time between poison damage
 
-READY_TICKS :: 100 // ticks per turn
-
 BATTLE_POPUP_TIME :: f32(1)
 MAX_BATTLE_POPUPS :: 32
 
@@ -37,7 +35,7 @@ Battle_Skill_Play :: struct {
 	actor_idx:  int,
 	targets:    Target_Selection,
 	skill_name: Skill_Name,
-	windup:     Ticks,
+	charge:     Charge,
 }
 
 // Where an effect result came from. Passive effects (poison, and later other
@@ -115,7 +113,7 @@ check_win :: proc() -> Maybe(Battle_Result) {
 }
 
 ready :: proc(c: Character) -> bool {
-	return c.ticks >= READY_TICKS && alive(c) && !winding_up(c)
+	return charge_full(c.charge) && alive(c) && !winding_up(c)
 }
 
 winding_up :: proc(c: Character) -> bool {
@@ -173,11 +171,11 @@ battle_tick :: proc() {
 	}
 
 	for &s in battle.skill_plays {
-		s.windup -= (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx]^, .Speed))/SPEED_PAR
+		update_charge(&s.charge, (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx]^, .Speed))/SPEED_PAR)
 	}
 
 	for i := 0; i < len(battle.skill_plays); {
-		if battle.skill_plays[i].windup <= 0 {
+		if charge_full(battle.skill_plays[i].charge) {
 			process_skill_play(battle.skill_plays[i])
 			unordered_remove(&battle.skill_plays, i)
 			break
@@ -223,10 +221,10 @@ take_turns :: proc() {
 
 queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name: Skill_Name) {
 	skill := skills[skill_name]
-	battle.combatants[actor_idx].ticks -= Ticks(skill.cost)
+	reset_character_charge(battle.combatants[actor_idx], Ticks(skill.cost))
 	battle.combatants[actor_idx].windup = true
 	update_character_sprite(battle.combatants[actor_idx]^)
-	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, Ticks(skill.windup)})
+	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, new_charge(max=Ticks(skill.windup))})
 }
 
 process_skill_play :: proc(skill_play: Battle_Skill_Play) {
@@ -428,19 +426,6 @@ draw_battle :: proc() {
 }
 
 @(private = "file")
-draw_gauge :: proc(origin: [2]f32, v, full: f32, filled_color, empty_color, maxed_color: rl.Color) {
-	x, y := origin.x, origin.y
-	w, h := f32(16), f32(4)
-	if v < full {
-		rl.DrawRectangleRec({x, y, w, h}, empty_color)
-		rl.DrawRectangleRec({x, y, w * v / full, h}, filled_color)
-	} else {
-		rl.DrawRectangleRec({x, y, w, h}, maxed_color)
-	}
-	rl.DrawRectangleLinesEx({x-1, y-1, w+2, h+2}, 1, rl.BLACK) // border
-}
-
-@(private = "file")
 draw_battle_combatants :: proc() {
 	for c, c_idx in battle.combatants {
 		if downed(c^) do continue
@@ -457,11 +442,31 @@ draw_battle_combatants :: proc() {
 
 		// Under the combatant's tile.
 		gauge_origin := tile_to_pixel(tile) + {0, 1.05 * TILE_SIZE}
-		draw_gauge(gauge_origin, c.ticks, READY_TICKS, rl.BLUE if has_status(c^, .Slow) else rl.WHITE, rl.GRAY, rl.YELLOW)
-		if skill_play_idx, ok := get_combatant_skill_play(c_idx).?; ok {
-			gauge_origin += {0, 0.35 * TILE_SIZE}
-			v := battle.skill_plays[skill_play_idx].windup
-			draw_gauge(gauge_origin, v, READY_TICKS, rl.LIME, rl.GRAY, rl.GREEN)
+		if c.windup {
+			if skill_play_idx, ok := get_combatant_skill_play(c_idx).?; ok {
+				skill_play := battle.skill_plays[skill_play_idx]
+				gauge_origin += {0, 0.35 * TILE_SIZE}
+				gauge_tint := rl.WHITE
+				if has_status(c^, .Migraine) && is_psychic_skill(skill_play.skill_name) do gauge_tint = rl.ColorTint(gauge_tint, rl.BLUE)
+				if has_status(c^, .Sprain) && is_physical_skill(skill_play.skill_name) do gauge_tint = rl.ColorTint(gauge_tint, rl.ORANGE)
+				draw_charge(
+					gauge_origin,
+					skill_play.charge,
+					gauge_tint,
+					rl.PINK,
+					rl.GRAY,
+					rl.GREEN,
+				)
+			}
+		} else {
+			draw_charge(
+				gauge_origin,
+				c.charge,
+				rl.BLUE if has_status(c^, .Slow) else rl.WHITE,
+				rl.PINK,
+				rl.GRAY,
+				rl.YELLOW,
+			)
 		}
 	}
 }

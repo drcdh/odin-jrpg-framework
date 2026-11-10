@@ -16,8 +16,8 @@ Encounter :: struct {
 
 @(private = "file")
 add_combatant :: proc(c: ^Character) {
-	// PCs carry these over from the last battle
-	c.ticks = 0
+	// make sure playable character stuff is reset
+	c.charge = new_character_charge(c^)
 	c.windup = false
 	c.controller = nil
 	update_character_sprite(c^)
@@ -42,7 +42,7 @@ add_combatants_for_encounter :: proc(name: Encounter_Name) {
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
 			for &cs in playable_characters[pc_idx].skills {
-				cs.charge = 0
+				reset_charge(&cs.charge)
 			}
 			add_combatant(&playable_characters[pc_idx])
 		}

@@ -76,7 +76,7 @@ draw_debug_battle :: proc() {
 	for c in battle.combatants {
 		e := hm.get(&game.entities, c.eid)
 		rl.DrawRectangleLinesEx(tile_rect(e.tile), 1, rl.GREEN)
-		rl.DrawText(fmt.ctprintf("%.0f", c.ticks), i32(e.pos.x), i32(e.pos.y), 10, rl.PURPLE)
+		rl.DrawText(fmt.ctprintf("%.0f-%.0f/%.0f", c.charge.value, c.charge.delay, c.charge.max), i32(e.pos.x), i32(e.pos.y), 10, rl.PURPLE)
 	}
 }
 

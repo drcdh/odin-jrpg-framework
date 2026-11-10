@@ -72,7 +72,7 @@ add_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 add_status_Character :: proc(c: ^Character, status: Status_Name) {
 	add_status_Statuses(&c.statuses, status)
 	if status == .Berserk || status == .Confuse || status == .Control || status == .Paralyze || status == .Rage || status == .Sleep || status == .Zombie {
-		c.ticks = 0
+		reset_character_charge(c)
 		interrupt_windup(c)
 	}
 }

@@ -183,7 +183,7 @@ battle_menu_update :: proc() {
 		if get_input(.ENTER) {
 			c := battle.combatants[battle_menu.c_idx]
 			remove_status(c, .Controller) // will remove .Control from target
-			c.ticks = 0
+			reset_character_charge(c)
 			battle_menu.ui_state = .Idle
 		} else if get_input(.MENU) {
 			battle_menu_next_combatant()
@@ -192,7 +192,7 @@ battle_menu_update :: proc() {
 	case .Skills:
 		if get_input(.ENTER) {
 			cs := battle.combatants[battle_menu.c_idx].skills[battle_menu.skill_sel.select_idx]
-			if cs.charge == CHARGE_MAX {
+			if charge_full(cs.charge) {
 				battle_menu.skill = cs.skill
 				battle_menu.ui_state = .Skill_Target
 				battle_menu.targets = default_target_selection(skills[cs.skill].targeting, skills[cs.skill].offensive)
@@ -214,7 +214,7 @@ battle_menu_update :: proc() {
 	case .Skill_Target:
 		if get_input(.ENTER) {
 			cs := &battle.combatants[battle_menu.c_idx].skills[battle_menu.skill_sel.select_idx]
-			cs.charge = 0
+			reset_charge(&cs.charge)
 			queue_battle_skill(battle_menu.c_idx, battle_menu.targets, cs.skill)
 			battle_menu.ui_state = .Idle
 		} else if get_input(.CANCEL) {
@@ -401,14 +401,24 @@ battle_redraw_skills_pane :: proc() {
 		if r == selection_row(battle_menu.skill_sel) {
 			tint = rl.YELLOW
 		}
-		if cs.charge < CHARGE_MAX {
+		if !charge_full(cs.charge) {
 			tint = rl.ColorTint(tint, rl.GRAY)
 		}
 		draw_text(
 			.5,
 			.5 + f32(r) * .5,
-			fmt.ctprintf("%s % 3.0f", skills[cs.skill].name, 100 * f16(cs.charge) / CHARGE_MAX),
+			fmt.ctprintf("%s", skills[cs.skill].name),
 			tint,
+		)
+		GAUGE_WIDTH :: 2 // Tiles
+		draw_charge(
+			tile_to_pixel(9.5-GAUGE_WIDTH, .5 + f32(r) * .5),
+			cs.charge,
+			rl.PINK if has_status(pc^, .Overheat) else rl.WHITE,
+			rl.PURPLE, // at the time of this writing, there's no way to delay skill cooldown
+			rl.GRAY,
+			rl.YELLOW,
+			{GAUGE_WIDTH*TILE_SIZE, 8},
 		)
 	}
 }
