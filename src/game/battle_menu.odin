@@ -392,11 +392,11 @@ battle_draw_top_icons :: proc() {
 
 @(private = "file")
 battle_redraw_skills_pane :: proc() {
-	pc := battle.combatants[battle_menu.c_idx]
+	c := battle.combatants[battle_menu.c_idx]
 	// fmt.printfln("\n%#v\n", c_skills)
 	for r in 0 ..< BATTLE_MENU_SKILLS_ROWS {
-		if r >= len(pc.skills) {break}
-		cs := pc.skills[r + battle_menu.skill_sel.origin_idx]
+		if r >= len(c.skills) {break}
+		cs := c.skills[r + battle_menu.skill_sel.origin_idx]
 		tint := rl.WHITE
 		if r == selection_row(battle_menu.skill_sel) {
 			tint = rl.YELLOW
@@ -411,10 +411,14 @@ battle_redraw_skills_pane :: proc() {
 			tint,
 		)
 		GAUGE_WIDTH :: 2 // Tiles
+		gauge_tint := rl.WHITE
+		// Migraine and Sprain affect windup
+		if has_status(c^, .Migraine) && is_psychic_skill(cs.skill) do gauge_tint = rl.ColorTint(gauge_tint, rl.BLUE)
+		if has_status(c^, .Sprain) && is_physical_skill(cs.skill) do gauge_tint = rl.ColorTint(gauge_tint, rl.ORANGE)
 		draw_charge(
 			tile_to_pixel(9.5-GAUGE_WIDTH, .5 + f32(r) * .5),
 			cs.charge,
-			rl.PINK if has_status(pc^, .Overheat) else rl.WHITE,
+			gauge_tint,
 			rl.PURPLE, // at the time of this writing, there's no way to delay skill cooldown
 			rl.GRAY,
 			rl.YELLOW,

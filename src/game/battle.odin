@@ -171,7 +171,7 @@ battle_tick :: proc() {
 	}
 
 	for &s in battle.skill_plays {
-		update_charge(&s.charge, (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(battle.combatants[s.actor_idx]^, .Speed))/SPEED_PAR)
+		update_skill_play(&s)
 	}
 
 	for i := 0; i < len(battle.skill_plays); {
@@ -183,6 +183,12 @@ battle_tick :: proc() {
 			i += 1
 		}
 	}
+}
+
+update_skill_play :: proc(s: ^Battle_Skill_Play) {
+	c := battle.combatants[s.actor_idx]
+	ticks := (BATTLE_SPEED*BATTLE_TICK_TIME) * f32(get_stat(c^, .Speed))/SPEED_PAR
+	update_charge(&s.charge, migraine_sprain_modify_charge(ticks, s.skill_name, has_status(c^, .Migraine), has_status(c^, .Sprain)))
 }
 
 player_controllable :: proc(c: Character) -> bool {
@@ -447,6 +453,7 @@ draw_battle_combatants :: proc() {
 				skill_play := battle.skill_plays[skill_play_idx]
 				gauge_origin += {0, 0.35 * TILE_SIZE}
 				gauge_tint := rl.WHITE
+				// Migraine and Sprain affect windup
 				if has_status(c^, .Migraine) && is_psychic_skill(skill_play.skill_name) do gauge_tint = rl.ColorTint(gauge_tint, rl.BLUE)
 				if has_status(c^, .Sprain) && is_physical_skill(skill_play.skill_name) do gauge_tint = rl.ColorTint(gauge_tint, rl.ORANGE)
 				draw_charge(

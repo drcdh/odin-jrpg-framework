@@ -10,7 +10,6 @@ Status_Name :: enum {
 	Controller, //
 	Haste,      // H
 	Migraine,   // M
-	Overheat,   // O
 	Paralyze,   // P
 	Poison,     // p
 	Rage,       // R
@@ -31,7 +30,6 @@ status_glyph_keys := [Status_Name]string {
 	.Controller = " ",
 	.Haste      = "H",
 	.Migraine   = "M",
-	.Overheat   = "O",
 	.Paralyze   = "P",
 	.Poison     = "p",
 	.Rage       = "R",
@@ -144,9 +142,8 @@ cancel_statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 	case .Haste:
 		remove_status(statuses, .Slow)
 	case .Migraine:
-	case .Overheat:
 	case .Paralyze:
-		// remove_status(statuses, .Controller) // ?
+		remove_status(statuses, .Controller)
 	case .Poison:
 	case .Rage:
 		remove_status(statuses, .Berserk)
@@ -191,4 +188,12 @@ is_uncontrollable :: proc(c: Character) -> bool {
 		.Sleep,
 		.Zombie,
 	)
+}
+
+migraine_sprain_modify_charge :: proc(ticks: Ticks, k: Skill_Name, migraine, sprain: bool) -> Ticks {
+	// TODO: affect charge as a function of phys/psy power balance
+	ticks := ticks
+	if is_physical_skill(k) && sprain   do ticks *= .75
+	if is_psychic_skill(k)  && migraine do ticks *= .75
+	return ticks
 }

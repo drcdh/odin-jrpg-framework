@@ -11,4 +11,4 @@ Ghost,9,1,1,1,10,8,40,0,0,90,"Heal,Heal_All",,,,,,
 Bad Box,1,1000,1,1,1,1,1,0,0,0,"Smash,Quake_Smash",,,,,,
 Magic Serpent,15,50,15,28,20,40,44,19,1,25,"Bite,Fire",,,,,,
 Powerful Pebble,8,1,10,90,1,1,50,0,5,0,Ultimagnitude_9000,,,,,,pebble
-Malboro,20,100,40,60,40,20,20,10,0,0,"Smack,Bite,Sleep,Poison,Confuse,Blind,Berserk,Migraine,Overheat,Paralyze,Rage,Sick,Slow,Sprain,Zombify",,,,,,ffvi_malboro
+Malboro,20,100,40,60,40,20,20,10,0,0,"Smack,Bite,Sleep,Poison,Confuse,Blind,Berserk,Migraine,Paralyze,Rage,Sick,Slow,Sprain,Zombify",,,,,,ffvi_malboro

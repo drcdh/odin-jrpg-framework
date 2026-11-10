@@ -59,11 +59,8 @@ charge_skill :: proc(cs: ^Charged_Skill, ticks: Ticks, migraine, sprain: bool, b
 	k := cs.skill
 	if skills[k].cooldown == 0 do return // cantrip
 	if battle { 	//|| k.world {
-		ticks := ticks
-		// TODO: affect charge as a function of phys/psy power balance
-		if is_physical_skill(k) && sprain   do ticks *= .75
-		if is_psychic_skill(k)  && migraine do ticks *= .75
-		update_charge(&cs.charge, ticks)
+		// Migraine and Sprain affect skill cooldown
+		update_charge(&cs.charge, migraine_sprain_modify_charge(ticks, k, migraine, sprain))
 	}
 }
 

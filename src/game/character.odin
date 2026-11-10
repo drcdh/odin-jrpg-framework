@@ -120,6 +120,7 @@ character_battle_tick :: proc(c: ^Character) {
 	sprain   := has_status(c^, .Sprain)
 	charge_skills(&c.skills, ticks, battle = true, migraine = migraine, sprain = sprain)
 
+	// Haste and Slow affect character turn charge
 	if has_status(c^, .Slow) do ticks *= .5
 	if has_status(c^, .Haste) do ticks *= 1.5
 	update_charge(&c.charge, ticks)
