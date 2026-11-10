@@ -9,17 +9,18 @@ Target_Type :: enum {
 
 Skill :: struct {
 	name:        string,
-	effect_data: Effect_Data,
-	effect_type: Effect_Type,
+	// effect_data: Effect_Data,
+	// effect_type: Effect_Type,
 	targeting:   Target_Type,
 	offensive:   bool,
 	// ally_only:   bool,
 	windup:      int,
 	cost:        int,
 	cooldown:    int,
-	animation:   Sprite_Name,
-	sound:       Sound_Name,
+	// animation:   Sprite_Name,
+	// sound:       Sound_Name,
 	description: string,
+	procedure: proc(),
 }
 
 Skill_Set :: bit_set[Skill_Name]

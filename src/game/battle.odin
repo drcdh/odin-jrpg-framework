@@ -74,12 +74,14 @@ Battle :: struct {
 	paused:         bool, // true while running audiovisual stuff
 	poison_ticks:   int, // battle ticks since poison last did damage
 	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
-	results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
-	results_actor:  int,
-	results_script: Script_Id,
-	results_skill:  Skill_Name,
-	skill_plays:    [dynamic]Battle_Skill_Play,
-	skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
+	// results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
+	// results_actor:  int,
+	// results_script: Script_Id,
+	// results_skill:  Skill_Name,
+	skill_play: Battle_Skill_Play, // current, popped from queue
+	skill_play_queue:    [dynamic]Battle_Skill_Play,
+	skill_play_script: Script_Id,
+	// skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
 	start_proc:     Script_Proc,
 	start_proc_run: bool,
 	ui_disabled:    bool, // don't draw the menu or accept input while true
@@ -144,9 +146,10 @@ get_combatant_skill_play :: proc {
 }
 
 battle_tick :: proc() {
-	clear(&battle.skill_result)
+	// clear(&battle.skill_result)
 
 	// Poison gets a tick to itself so its results are never shown with a skill play's.
+	// TODO: Character statuses will have data for status-specific procedures (e.g. poison dmg, paralysis or sleep wearing off)
 	battle.poison_ticks += 1
 	if f32(battle.poison_ticks) * BATTLE_TICK_TIME >= POISON_PERIOD {
 		battle.poison_ticks = 0
@@ -160,6 +163,7 @@ battle_tick :: proc() {
 	}
 
 	// remove invalid Skill_Plays
+	// TODO: do this when a character is interrupted or downed in the specific procedure
 	for i := 0; i < len(battle.skill_plays); {
 		c := battle.combatants[battle.skill_plays[i].actor_idx]
 		if !winding_up(c^) || !alive(c^) {
@@ -176,8 +180,9 @@ battle_tick :: proc() {
 
 	for i := 0; i < len(battle.skill_plays); {
 		if charge_full(battle.skill_plays[i].charge) {
-			process_skill_play(battle.skill_plays[i])
-			unordered_remove(&battle.skill_plays, i)
+			battle.skill_play = battle.skill_plays[i] // copy skill play
+			unordered_remove(&battle.skill_plays, i) // remove from queue
+			battle.skill_play_script = spawn(proc(_: Entity_Id) { process_skill_play_2() } )
 			break
 		} else {
 			i += 1
@@ -484,10 +489,10 @@ battle_time_tick :: proc(dt: f32) {
 	if time_since_tick >= BATTLE_TICK_TIME {
 		time_since_tick -= BATTLE_TICK_TIME
 		battle_tick()
-		process_skill_results()
+		// process_skill_results()
 		// visually update gauges
-		battle_menu_set_stale(.Party)
-		battle_menu_set_stale(.Skills)
+		// battle_menu_set_stale(.Party)
+		// battle_menu_set_stale(.Skills)
 	}
 }
 
@@ -708,8 +713,8 @@ skill_result_for :: proc(target: Entity_Id) -> (Battle_Effect_Result, bool) {
 
 // Plays `sprite` once over `target`'s tile and waits for it to end.
 @(private = "file")
-play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name) -> bool {
-	s := create_sprite_state(sprite, play = true, layer = SKILL_ANIM_LAYER)
+play_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name, flip_x := false) -> bool {
+	s := create_sprite_state(sprite, play = true, layer = SKILL_ANIM_LAYER, flip_x = flip_x)
 	fx := spawn_entity(Entity{name = "skill animation", sprite = s, ghost = true, battle = true})
 	if e, ok := entity_get(fx); ok do e.pos = entity_pos(target) // over the target, wherever it's drawn
 	defer destroy_entity(fx)

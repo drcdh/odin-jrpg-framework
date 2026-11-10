@@ -44,19 +44,21 @@ def effect_data_str(row):
 def odin_skill(row):
 	return {
 		"name": row["name"],
-		"effect": effect_data_str(row),
-		"effect_type": row["effect_type"],
+		# "effect": effect_data_str(row),
+		# "effect_type": row["effect_type"],
 		"target": "." + row["target"],
 		"offensive": "true" if bool(row["offensive"]) else "false",
 		"windup": row["windup"] or 0,
 		"cost": row["cost"] or 100,
 		"cooldown": row["cooldown"] or 0,
-		"animation": ("." + row["animation"]) if row["animation"] else "nil",
-		"sound": ("." + row["sound"]) if row["sound"] else "nil",
+		# "animation": ("." + row["animation"]) if row["animation"] else "nil",
+		# "sound": ("." + row["sound"]) if row["sound"] else "nil",
 		"description": process_text(row.get("description", "")),
+		"procedure": "skill_proc_" + name_to_enum(row["name"]).lower(),
 	}
 def write_skill(f, oskill):
-	f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {target}, {offensive}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
+	f.write("\t{{ \"{name}\", {target}, {offensive}, {windup}, {cost}, {cooldown}, \"{description}\", {procedure} }},\n".format(**oskill))
+	# f.write("\t{{ \"{name}\", {effect}, .{effect_type}, {target}, {offensive}, {windup}, {cost}, {cooldown}, {animation}, {sound}, \"{description}\" }},\n".format(**oskill))
 
 
 for file in sorted(pathlib.Path(ROOT).rglob("*.csv")):
