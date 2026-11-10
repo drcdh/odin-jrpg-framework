@@ -202,7 +202,6 @@ debug_update :: proc() {
 		force_drops = !force_drops
 		fmt.printfln("Force item drops mode %s", force_drops ? "ACTIVE" : "INACTIVE")
 	}
-	if rl.IsKeyPressed(.T) {debug_text = !debug_text}
 	// if rl.IsKeyPressed(.H) {
 	// 	shop_enter(&demo_shop)
 	// 	// fmt.printfln("%#v", shop_menu_data)
@@ -226,6 +225,21 @@ debug_update :: proc() {
 	// if rl.IsKeyPressed(.R) {
 	// 	fmt.printfln("%#v", runners)
 	// }
+	if rl.IsKeyPressed(.T) {debug_text = !debug_text}
+
+	if rl.IsKeyPressed(.U) {
+		// print equipped stats (before statuses) and effective stats (after statuses) for each party member
+		for pc_idx in 0 ..< NUM_PC {
+			if !game_data.party_membership[pc_idx] do continue
+			c := playable_characters[pc_idx]
+			fmt.printfln("~~ %s ~~", c.name)
+			for s in Stat_Name {
+				eq, eff := c.eq_stats[s], c.stats[s]
+				fmt.printfln("  % 12s: % 3.0f -> % 3.0f  %s", s, eq, eff, "" if eq == eff else (eff < eq ? "-" : "+"))
+			}
+			fmt.println("~~ ~~~ ~~")
+		}
+	}
 
 	if rl.IsKeyPressed(.ONE) {
 		debug_toggle_pc(0)

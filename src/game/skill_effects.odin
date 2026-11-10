@@ -88,6 +88,11 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 	swing := f16(rand.float32()) / SPREAD
 	hp_loss_f -= hp_loss_f * swing
 
+	if actor.team == target.team && !has_any_status(actor, .Confuse, .Control, .Rage, .Zombie) {
+		log.info("reducing damage because actor and target are on same team and actor is not afflicted")
+		hp_loss_f *= 0.2
+	}
+
 	hp_loss_f += C
 	hp_loss := int(hp_loss_f + .5)
 
@@ -102,6 +107,7 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 
 effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
 	acc := Stat(effect.hit_acc) // percentage
+	// TODO: accuracy is affected by Berserk, Blind, etc.
 	roll := Stat(rand.int_max(100)) // [0, n)
 	if roll >= acc {
 		log.infof("Miss! (%s)", target.name)
@@ -117,6 +123,10 @@ effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Eff
 	// TODO: "actor-agnostic" calc_damage for items
 	if actor != nil {
 		if hp_loss, ok := calc_damage(actor^, target^, effect); ok {
+			if has_status(target^, .Sleep) {
+				log.info("removing Sleep from hit target")
+				remove_status(target, .Sleep)
+			}
 			take_damage(target, hp_loss)
 			log.infof("%s takes %d damage", target.name, hp_loss)
 			r.hp_change = -hp_loss
@@ -138,12 +148,14 @@ effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Eff
 		target.controller = actor
 	}
 	r.stagger, r.interrupted = _stagger(target, effect.stg_acc, effect.stagger, effect.int_acc)
+	// TODO: risk is affected by Berserk, Blind, Confuse
 	roll_for_counter(target, actor, f32(effect.risk) / 100)
 	return
 }
 
 // `actor` may be nil (an item), which adds no psy power.
 effect_heal :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
+	// TODO: accuracy is affected by Migraine
 	psy_power := Stat(effect.psy_power) / 100
 	hp_gain_f := Stat(effect.constant)
 	if psy_power > 0 && actor != nil {
@@ -164,7 +176,8 @@ effect_heal :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effec
 _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
 	s, ok := status.?
 	if !ok do return .None
-	acc := Stat(sts_acc)
+	// Think of prior status as affecting the accuracy of incoming status, NOT as granting resistance
+	acc := Stat(sts_acc) * interstatus_accuracy_mod(target^, s)
 	roll := Stat(rand.int_max(100))
 	if roll >= acc {
 		log.infof("Ineffective status %s on %s (rolled %.0f >= %.0f)", s, target.name, roll, acc)

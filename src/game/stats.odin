@@ -99,8 +99,13 @@ equipped_stats :: proc(lstats: Stats, equipment: Equipment) -> Stats {
 	return get_modded_stats(lstats, mul, add)
 }
 
-effective_stats :: proc(stats: Stats, statuses: Statuses) -> Stats {
-	return stats // TODO
+effective_stats :: proc(eq_stats: Stats, statuses: Statuses) -> Stats {
+	stats: Stats
+	for s in Stat_Name {
+		stats[s] = eq_stats[s] * statuses_stat_modifier(statuses, s)
+		stats[s] = max(stats[s], MIN_STATS[s])
+	}
+	return stats
 }
 
 change_tint :: proc(prev, next: Stat) -> (tint := rl.WHITE) {

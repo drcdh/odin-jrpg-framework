@@ -69,6 +69,7 @@ add_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 
 add_status_Character :: proc(c: ^Character, status: Status_Name) {
 	add_status_Statuses(&c.statuses, status)
+	set_effective_stats(c)
 	if status == .Berserk || status == .Confuse || status == .Control || status == .Paralyze || status == .Rage || status == .Sleep || status == .Zombie {
 		reset_character_charge(c)
 		interrupt_windup(c)
@@ -86,6 +87,7 @@ remove_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 
 remove_status_Character :: proc(c: ^Character, status: Status_Name) {
 	remove_status_Statuses(&c.statuses, status)
+	set_effective_stats(c)
 	// only a Character controlled in battle has a controller
 	if status == .Control && c.controller != nil {
 		controller := c.controller // TODO: extract from status struct data
@@ -196,4 +198,91 @@ migraine_sprain_modify_charge :: proc(ticks: Ticks, k: Skill_Name, migraine, spr
 	if is_physical_skill(k) && sprain   do ticks *= .75
 	if is_psychic_skill(k)  && migraine do ticks *= .75
 	return ticks
+}
+
+status_stat_modifier :: proc(status_name: Status_Name, stat_name: Stat_Name) -> Stat {
+	switch status_name {
+	case .Berserk:
+		if stat_name == .Vigor        do return 1.5
+		if stat_name == .Psy_Power    do return 0.25
+		if stat_name == .Psy_Defense  do return 0.5
+	case .Blind:
+		if stat_name == .Evasion      do return 0.25
+	case .Confuse:
+		if stat_name == .Psy_Defense  do return 0.5
+	case .Control:
+	case .Controller:
+	case .Haste:
+		if stat_name == .Speed        do return 1.5
+	case .Migraine:
+	case .Paralyze:
+		if stat_name == .Evasion      do return 0.
+	case .Poison:
+	case .Rage:
+		if stat_name == .Psy_Power    do return 1.5
+		if stat_name == .Weapon_Power do return 1.5
+	case .Regen:
+	case .Sick:
+	case .Sleep:
+		if stat_name == .Evasion      do return 0.
+		if stat_name == .Psy_Defense  do return 0.1
+	case .Slow:
+		if stat_name == .Speed        do return 0.5
+	case .Sprain:
+		if stat_name == .Evasion      do return 0.5
+	case .Zombie:
+		if stat_name == .Evasion      do return 0.1
+		if stat_name == .Psy_Power    do return 0.
+		if stat_name == .Psy_Defense  do return 0.
+	}
+	return 1.
+}
+
+statuses_stat_modifier :: proc(statuses: Statuses, stat_name: Stat_Name) -> (m: Stat) {
+	m = 1
+	for status_name in Status_Name {
+		if statuses[status_name] do m *= status_stat_modifier(status_name, stat_name)
+	}
+	return
+}
+
+interstatus_accuracy_mod :: proc(target: Character, s: Status_Name) -> Stat {
+	m := Stat(1)
+	if has_status(target, .Berserk) {
+		if s == .Confuse  do m *= 1.25
+	}
+	if has_status(target, .Confuse) {
+		if s == .Berserk  do m *= 1.25
+		if s == .Sleep    do m *= 1.25
+	}
+	if has_status(target, .Control) {
+		if s == .Confuse  do m *= 1.25
+	}
+	if has_status(target, .Migraine) {
+		if s == .Confuse  do m *= 1.25
+		if s == .Control  do m *= 1.25
+	}
+	if has_status(target, .Rage) {
+		if s == .Berserk  do m *= 0
+		if s == .Confuse  do m *= 0.25
+		if s == .Control  do m *= 0.25
+		if s == .Sleep    do m *= 0.25
+	}
+	if has_status(target, .Sleep) {
+		if s == .Berserk  do m *= 0
+		if s == .Confuse  do m *= 0
+		if s == .Control  do m *= 0
+		if s == .Rage     do m *= 0
+	}
+	if has_status(target, .Zombie) {
+		if s == .Berserk  do m *= 0
+		if s == .Confuse  do m *= 0
+		if s == .Control  do m *= 0
+		if s == .Migraine do m *= 0
+		if s == .Rage     do m *= 0
+		if s == .Regen    do m *= 0
+		if s == .Sick     do m *= 0
+		if s == .Sleep    do m *= 0
+	}
+	return m
 }

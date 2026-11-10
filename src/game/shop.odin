@@ -393,9 +393,10 @@ shop_redraw_stats_pane :: proc() {
 	slot := Equipment_Slot(shop_menu_data.ui_data.slot_idx)
 	pc := get_party_member(party_idx)
 	changing_stats := equipped_stats(pc.leveled_stats, changed_equipment(pc.equipment, item_name, slot))
+	changing_effective := effective_stats(changing_stats, pc.statuses)
 	for s in Stat_Name {
-		tint := change_tint(get_stat(pc.stats, s), get_stat(changing_stats, s))
-		draw_text(1, 1 + f32(s), stat_string_short(changing_stats, s), tint)
+		tint := change_tint(get_stat(pc.eq_stats, s), get_stat(changing_stats, s))
+		draw_text(1, 1 + f32(s), stat_string_short(changing_effective, s), tint)
 	}
 }
 

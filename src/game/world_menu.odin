@@ -529,10 +529,11 @@ draw_character_content :: proc() {
 		item_name := equippables_order[menu.equip_sel.select_idx]
 		slot_idx := menu.slot_idx
 		changing_stats := equipped_stats(pc.leveled_stats, changed_equipment(pc.equipment, item_name, slot_idx))
+		changing_effective := effective_stats(changing_stats, pc.statuses)
 		for s in Stat_Name {
 			draw_text(13.5, 5 + f32(s), ">")
-			tint := change_tint(get_stat(pc, s), get_stat(changing_stats, s))
-			draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", get_stat(changing_stats, s)), tint)
+			tint := change_tint(get_stat(pc.eq_stats, s), get_stat(changing_stats, s))
+			draw_text(14.0, 5 + f32(s), fmt.ctprintf("% 3.0f", get_stat(changing_effective, s)), tint)
 		}
 	}
 

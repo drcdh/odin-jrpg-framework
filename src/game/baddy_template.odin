@@ -27,7 +27,8 @@ new_baddy :: proc(template: Baddy_Template) -> ^Character {
 	baddy.team = .Baddy
 	baddy.hitpoints = 1 if sudden_death else int(get_stat(template.stats, .Hitpoints))
 	baddy.skills = new_charged_skills(template.skills)
-	baddy.stats = template.stats
+	baddy.eq_stats = template.stats
 	baddy.level = template.level
+	set_effective_stats(baddy)
 	return baddy
 }
