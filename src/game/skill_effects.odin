@@ -326,8 +326,8 @@ try_heal :: proc(actor, target: ^Character, effect: Heal_Data) -> (r: Heal_Resul
 	return
 }
 
-try_add_status :: proc(target: ^Character, sts_acc: int, status: Status_Name) -> Status_Result {
-	log.infof("attempting to affect %s with %v", target.name, status)
+try_add_status :: proc(actor, target: ^Character, sts_acc: int, status: Status_Name) -> Status_Result {
+	log.infof("%s attempting to affect %s with %v", actor.name, target.name, status)
 	// Think of prior status as affecting the accuracy of incoming status, NOT as granting resistance
 	acc := Stat(sts_acc) * interstatus_accuracy_mod(target^, status)
 	roll := Stat(rand.int_max(100))
@@ -342,7 +342,10 @@ try_add_status :: proc(target: ^Character, sts_acc: int, status: Status_Name) ->
 	}
 	log.infof("Adding status %s to %s (rolled %.0f < %.0f)", status, target.name, roll, acc - res)
 	add_status(target, status)
-	// FIXME: Character.controller needs to get set when adding .Control status
+	if status == .Control {
+		add_status(actor, .Controller)
+		target.controller = actor
+	}
 	return .Added
 }
 

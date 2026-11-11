@@ -1,7 +1,7 @@
 package game
 
 // import "core:log"
-// import "core:math/rand"
+import "core:math/rand"
 import rl "vendor:raylib"
 
 Skill_Proc :: #type proc(actor: ^Character, targets: []^Character)
@@ -29,7 +29,7 @@ skill_proc_poisonous_mushroom :: proc(actor: ^Character, targets: []^Character) 
 	run_anim(target_eid, .Wave_Poison)
 	restore_hitpoints(target, 20)
 	popup_2(target_eid, rl.GREEN, "%d", 20, dmg=true)
-	try_add_status(target, sts_acc=100, status=.Poison)
+	try_add_status(actor, target, sts_acc=100, status=.Poison)
 	walk_back(actor^)
 }
 
@@ -137,11 +137,52 @@ skill_proc_healing_hymn :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_mind_control :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	assert(len(targets) == 1)
+	// skill_proc_basic_attack_some("Mind Control", {}, .Warp, .Heal, actor, targets, {{100, .Control}})
+	skill_proc_add_status("Mind Control", .Control, 100, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_ultimagnitude_9000 :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	name := "Ultimagnitude 9000"
+	attack := Attack_Data{acc=200, power=1000, psy_power=1000, pierce=50, psy_pierce=50}
+	flashing := spawn(proc(_: Entity_Id) {
+		end := time() + 5 // seconds
+		for time() < end {
+			color := rl.Color{
+				u8(rand.int_max(256)),
+				u8(rand.int_max(256)),
+				u8(rand.int_max(256)),
+				160, // starting alpha; each flash fades from this to clear
+			}
+			play_sound(.Warp)
+			if !flash_screen(color, .25) do return
+		}
+	})
+
+	skill_say(name)
+	lunge_forward(actor^)
+	results: [dynamic]ASI_Result; defer clear(&results)
+	for target in targets {
+		r: ASI_Result
+		if downed(target^) {
+			append(&results, r)
+			continue
+		}
+		r = try_attack(actor^, target^, attack)
+		append(&results, r)
+	}
+
+	wait_script(flashing)
+
+	for r, i in results {
+		target := targets[i]
+		if r.attack_result == .Hit do take_damage(target, r.damage)
+		if r.stagger_result == .Hit do stagger_character(target, r.stagger)
+		if r.interrupt_result == .Hit do interrupt_windup(target)
+		show_attack_results(target, r)
+	}
+
+	walk_back(actor^)
 }
 
 skill_proc_super_hyper_slash :: proc(actor: ^Character, targets: []^Character) {
@@ -306,6 +347,23 @@ Status_Effect :: struct {
 	status: Status_Name,
 }
 
+@(private = "file")
+show_attack_results :: proc(target: ^Character, r: ASI_Result) {
+	target_eid := target.eid
+	switch top_result(r) {
+	case .None:
+	case .Miss:
+		popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
+	case .Evade:
+		popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
+	case .Resist:
+		popup_2(target_eid, rl.GRAY, "Res", dmg=true)
+	case .Hit:
+	}
+	if r.attack_result == .Hit do popup_2(target_eid, rl.WHITE, "%d", r.damage, dmg=true)
+	// TODO: shudder animation for stagger hit
+}
+
 skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character, status_effects: []Status_Effect = {}) {
 	skill_say(name)
 	lunge_forward(actor^)
@@ -334,22 +392,6 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 		run_anim(target.eid, sprite, flip_x = target.team == .Player)
 	}
 
-	show_attack_results :: proc(target: ^Character, r: ASI_Result) {
-		target_eid := target.eid
-		switch top_result(r) {
-		case .None:
-		case .Miss:
-			popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
-		case .Evade:
-			popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
-		case .Resist:
-			popup_2(target_eid, rl.GRAY, "Res", dmg=true)
-		case .Hit:
-		}
-		if r.attack_result == .Hit do popup_2(target_eid, rl.WHITE, "%d", r.damage, dmg=true)
-		// TODO: shudder animation for stagger hit
-	}
-
 	for r, i in results {
 		target := targets[i]
 		if r.attack_result == .Hit do take_damage(target, r.damage)
@@ -358,7 +400,7 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 		show_attack_results(target, r)
 
 		for status_effect in status_effects {
-			try_add_status(target, status_effect.acc, status_effect.status)
+			try_add_status(actor, target, status_effect.acc, status_effect.status)
 		}
 	}
 
@@ -406,7 +448,7 @@ skill_proc_add_status :: proc(name: string, status: Status_Name, sts_acc: int, s
 		target_eid := target.eid
 		play_sound(sound)
 		run_anim(target_eid, sprite)
-		try_add_status(target, sts_acc=sts_acc, status=status)
+		try_add_status(actor, target, sts_acc=sts_acc, status=status)
 	}
 	walk_back(actor^)
 }

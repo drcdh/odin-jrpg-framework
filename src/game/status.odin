@@ -86,6 +86,7 @@ remove_status_Statuses :: proc(statuses: ^Statuses, status: Status_Name) {
 }
 
 remove_status_Character :: proc(c: ^Character, status: Status_Name) {
+	if !has_status(c^, status) do return
 	remove_status_Statuses(&c.statuses, status)
 	set_effective_stats(c)
 	// only a Character controlled in battle has a controller
@@ -93,6 +94,13 @@ remove_status_Character :: proc(c: ^Character, status: Status_Name) {
 		controller := c.controller // TODO: extract from status struct data
 		c.controller = nil
 		remove_status(controller, .Controller)
+	} else if status == .Controller {
+		// TODO: extract from status struct data
+		// find controlled character
+		for other in battle.combatants {
+			if has_status(other^, .Control) && other.controller == c do remove_status(other, .Control)
+			reset_character_charge(other)
+		}
 	}
 }
 

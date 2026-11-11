@@ -502,10 +502,9 @@ battle_time_tick :: proc(dt: f32) {
 	if time_since_tick >= BATTLE_TICK_TIME {
 		time_since_tick -= BATTLE_TICK_TIME
 		battle_tick()
-		// process_skill_results()
 		// visually update gauges
 		// battle_menu_set_stale(.Party)
-		// battle_menu_set_stale(.Skills)
+		battle_menu_set_stale(.Skills)
 	}
 }
 
