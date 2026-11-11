@@ -103,8 +103,9 @@ effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Popups) {
 
 	switch r.hit {
 	case .None:
-	case .Miss:  popup(rl.GRAY, "Mi", dmg=true)
-	case .Evade: popup(rl.GRAY, "Eva", dmg=true)
+	case .Miss:   popup(rl.GRAY, "Mi", dmg=true)
+	case .Evade:  popup(rl.GRAY, "Eva", dmg=true)
+	case .Resist: popup(rl.GRAY, "Res", dmg=true)
 	case .Hit:
 	}
 	if r.hp_change < 0 do popup(rl.WHITE, "%d", -r.hp_change, dmg=true)

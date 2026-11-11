@@ -21,10 +21,10 @@ process_skill_play_2 :: proc(_: Entity_Id) {
 	reset_character_charge(actor, Ticks(skill.cost))
 	actor.windup = false
 
-	update_character_sprite(battle.combatants[sp.actor_idx]^)
-	battle_menu_set_stale(.Party)
+	update_character_sprite(actor^)
+	for target in targets { update_character_sprite(target^) }
 
-	// battle.script = downed_proc()
+	battle_menu_set_stale(.Party)
 }
 
 // TODO: analogue for world menu skill plays

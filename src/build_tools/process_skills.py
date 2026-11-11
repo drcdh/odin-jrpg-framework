@@ -54,7 +54,7 @@ def odin_skill(row):
 		# "animation": ("." + row["animation"]) if row["animation"] else "nil",
 		# "sound": ("." + row["sound"]) if row["sound"] else "nil",
 		"description": process_text(row.get("description", "")),
-		"procedure": "skill_proc_slash", #"skill_proc_" + name_to_enum(row["name"]).lower(),
+		"procedure": "skill_proc_" + name_to_enum(row["name"]).lower(),
 	}
 def write_skill(f, oskill):
 	f.write("\t{{ \"{name}\", {target}, {offensive}, {windup}, {cost}, {cooldown}, \"{description}\", {procedure} }},\n".format(**oskill))

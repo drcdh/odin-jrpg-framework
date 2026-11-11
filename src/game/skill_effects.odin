@@ -14,12 +14,25 @@ Effect_Type :: enum {
 }
 
 Attack_Data :: struct {
+	acc:        int,
 	power:      int,
 	psy_power:  int,
 	pierce:     int,
 	psy_pierce: int,
+	stg_acc:    int,
+	stagger:    int,
+	int_acc:    int,
 	// ranged:     bool,
 	// risk:       int,
+}
+
+Stagger_Data :: struct {
+	acc:    int,
+	stagger:    int,
+}
+
+Interrupt_Data :: struct {
+	acc:    int,
 }
 
 Effect_Data :: struct {
@@ -41,9 +54,10 @@ Effect_Data :: struct {
 
 Hit_Result :: enum {
 	None, // no attempt made (e.g., a downed character was a candidate target for an all-team attack)
-	Hit,
-	Miss,
-	Evade,
+	Miss, // skill failed
+	Evade, // target evaded (think of dodging with body)
+	Resist, // target resisted (think of armor or enchantments)
+	Hit, // damage or stagger done
 }
 
 Status_Result :: enum {
@@ -64,6 +78,39 @@ Effect_Result :: struct {
 	levels:        int,
 	stagger:       bool, // the target lost ticks (Characters only)
 	interrupted:   bool, // the target's windup was broken (Characters only)
+}
+
+ASI_Result :: struct {
+	attack_result: Hit_Result,
+	damage: int,
+	stagger_result: Hit_Result,
+	stagger: int,
+	interrupt_result: Hit_Result,
+}
+
+try_attack_damage :: proc(actor, target: Character, attack: Attack_Data) -> (h: Hit_Result, d: int) {
+	h = try_attack_hit(actor, target, attack.acc)
+	if h == .Hit do d = attack_damage(actor, target, attack)
+	return
+}
+
+try_attack_stagger :: proc(actor, target: Character, attack: Attack_Data) -> (h: Hit_Result, d: int) {
+	h = try_stagger_hit(actor, target, attack.stg_acc)
+	if h == .Hit do d = attack.stagger
+	return
+}
+
+try_attack_interrupt :: proc(actor, target: Character, attack: Attack_Data) -> Hit_Result {
+	return try_interrupt_hit(actor, target, attack.int_acc)
+}
+
+try_attack :: proc(actor, target: Character, attack: Attack_Data) -> (r: ASI_Result) {
+	r.attack_result, r.damage = try_attack_damage(actor, target, attack)
+	if r.attack_result == .Hit {
+		r.stagger_result, r.stagger = try_attack_stagger(actor, target, attack)
+		if r.stagger_result == .Hit do r.interrupt_result = try_attack_interrupt(actor, target, attack)
+	}
+	return
 }
 
 attack_damage :: proc(actor, target: Character, effect: Attack_Data) -> (int, bool) #optional_ok {
@@ -112,9 +159,13 @@ attack_damage :: proc(actor, target: Character, effect: Attack_Data) -> (int, bo
 	return hp_loss, true
 }
 
-attack_hit :: proc(actor, target: Character, acc: Stat) -> Hit_Result {
-	acc := acc
-	// acc *= get_stat(actor, .Acc) // TODO
+try_attack_hit :: proc(actor, target: Character, skill_acc: int) -> Hit_Result {
+	// TODO: Character accuracy
+	// c_acc := get_stat(actor, .Acc)
+	// acc = skill_acc * c_acc
+	acc := Stat(skill_acc)
+	log.infof("%s rolling for attack on %s with accuracy = %.0f", actor.name, target.name, acc)
+	// log.infof("%s rolling for attack on %s with accuracy = %.0f * %.0f = %.0f", actor.name, target.name, skill_acc, c_acc, acc)
 	roll := Stat(rand.int_max(100)) // [0, n)
 	if roll >= acc {
 		log.infof("Miss (%s)", target.name)
@@ -124,6 +175,46 @@ attack_hit :: proc(actor, target: Character, acc: Stat) -> Hit_Result {
 		log.infof("Evade (%s)", target.name)
 		return .Evade
 	}
+	log.infof("Hit (%s)", target.name)
+	return .Hit
+}
+
+try_stagger_hit :: proc(actor, target: Character, skill_acc: int) -> Hit_Result {
+	// TODO: Character accuracy
+	// c_acc := get_stat(actor, .Acc)
+	// acc = skill_acc * c_acc
+	acc := Stat(skill_acc)
+	log.infof("%s rolling for stagger on %s with accuracy = %.0f", actor.name, target.name, acc)
+	// log.infof("%s rolling for stagger on %s with accuracy = %.0f * %.0f = %.0f", actor.name, target.name, skill_acc, c_acc, acc)
+	roll := Stat(rand.int_max(100)) // [0, n)
+	if roll >= acc {
+		log.infof("Miss (%s)", target.name)
+		return .Miss
+	}
+	// if roll >= acc - get_stat(target, .Stagger_Resist) {
+	// 	log.infof("Resist (%s)", target.name)
+	// 	return .Evade
+	// }
+	log.infof("Hit (%s)", target.name)
+	return .Hit
+}
+
+try_interrupt_hit :: proc(actor, target: Character, skill_acc: int) -> Hit_Result {
+	// TODO: Character accuracy
+	// c_acc := get_stat(actor, .Acc)
+	// acc = skill_acc * c_acc
+	acc := Stat(skill_acc)
+	log.infof("%s rolling for interrupt on %s with accuracy = %.0f", actor.name, target.name, acc)
+	// log.infof("%s rolling for interrupt on %s with accuracy = %.0f * %.0f = %.0f", actor.name, target.name, skill_acc, c_acc, acc)
+	roll := Stat(rand.int_max(100)) // [0, n)
+	if roll >= acc {
+		log.infof("Miss (%s)", target.name)
+		return .Miss
+	}
+	// if roll >= acc - get_stat(target, .Interrupt_Resist) {
+	// 	log.infof("Resist (%s)", target.name)
+	// 	return .Evade
+	// }
 	log.infof("Hit (%s)", target.name)
 	return .Hit
 }
