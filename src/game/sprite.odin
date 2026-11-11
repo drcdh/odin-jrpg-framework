@@ -93,6 +93,7 @@ Anim_When :: enum u8 {
 	Always,
 	Moving, // one loop per tile (Entity.step_time); starts halfway through frame 0, so a stride is centered on the tile
 	Never,
+	Once_And_Hide,
 }
 
 Sprite_State :: struct {
@@ -371,6 +372,8 @@ sprites_update :: proc(dt: f32) {
 				update_sprite(dt, s)
 			}
 		case .Never:
+		case .Once_And_Hide:
+			if update_sprite(dt, s) do s.hidden = false
 		}
 	}
 }

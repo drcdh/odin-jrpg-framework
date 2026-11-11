@@ -13,6 +13,13 @@ Effect_Type :: enum {
 	Death,
 }
 
+Attack_Data :: struct {
+	power:      int,
+	psy_power:  int,
+	pierce:     int,
+	psy_pierce: int,
+}
+
 Effect_Data :: struct {
 	constant:   int,
 	power:      int,
@@ -56,14 +63,12 @@ Effect_Result :: struct {
 	interrupted:   bool, // the target's windup was broken (Characters only)
 }
 
-@(private = "file")
-calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool) #optional_ok {
+attack_damage :: proc(actor, target: Character, effect: Attack_Data) -> (int, bool) #optional_ok {
 	if effect.power <= 0 && effect.psy_power <= 0 {return 0, false}
 
 	ATTACK_COEFF :: 4
 	SPREAD :: 10
 
-	C := f16(effect.constant)
 	Km := f16(effect.power) / 100
 	Im := f16(effect.pierce) / 100
 	Kp := f16(effect.psy_power) / 100
@@ -93,7 +98,6 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 		hp_loss_f *= 0.2
 	}
 
-	hp_loss_f += C
 	hp_loss := int(hp_loss_f + .5)
 
 	when VERBOSE {
@@ -105,53 +109,69 @@ calc_damage :: proc(actor, target: Character, effect: Effect_Data) -> (int, bool
 	return hp_loss, true
 }
 
-effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
-	acc := Stat(effect.hit_acc) // percentage
-	// TODO: accuracy is affected by Berserk, Blind, etc.
+attack_hit :: proc(actor, target: Character, acc: Stat) -> Hit_Result {
+	acc := acc
+	// acc *= get_stat(actor, .Acc) // TODO
 	roll := Stat(rand.int_max(100)) // [0, n)
 	if roll >= acc {
-		log.infof("Miss! (%s)", target.name)
-		r.hit = .Miss
-		return
+		log.infof("Miss (%s)", target.name)
+		return .Miss
 	}
-	if roll >= acc - get_stat(target^, .Evasion) {
-		log.infof("Evade! (%s)", target.name)
-		r.hit = .Evade
-		return
+	if roll >= acc - get_stat(target, .Evasion) {
+		log.infof("Evade (%s)", target.name)
+		return .Evade
 	}
-
-	// TODO: "actor-agnostic" calc_damage for items
-	if actor != nil {
-		if hp_loss, ok := calc_damage(actor^, target^, effect); ok {
-			if has_status(target^, .Sleep) {
-				log.info("removing Sleep from hit target")
-				remove_status(target, .Sleep)
-			}
-			take_damage(target, hp_loss)
-			log.infof("%s takes %d damage", target.name, hp_loss)
-			r.hp_change = -hp_loss
-			if target.hitpoints == 0 {
-				// battle: the target's downed callback
-				log.infof("%s is down", target.name)
-				r.downed = true
-				return
-			}
-		}
-	}
-
-	r.status = effect.status
-	r.status_result = _add_status(target, effect.sts_acc, effect.status)
-
-	if r.hit != .Hit || r.downed do return
-	if r.status == .Control && r.status_result == .Added {
-		add_status(actor, .Controller)
-		target.controller = actor
-	}
-	r.stagger, r.interrupted = _stagger(target, effect.stg_acc, effect.stagger, effect.int_acc)
-	// TODO: risk is affected by Berserk, Blind, Confuse
-	roll_for_counter(target, actor, f32(effect.risk) / 100)
-	return
+	log.infof("Hit (%s)", target.name)
+	return .Hit
 }
+
+// effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
+// 	acc := Stat(effect.hit_acc) // percentage
+// 	// TODO: accuracy is affected by Berserk, Blind, etc.
+// 	roll := Stat(rand.int_max(100)) // [0, n)
+// 	if roll >= acc {
+// 		log.infof("Miss! (%s)", target.name)
+// 		r.hit = .Miss
+// 		return
+// 	}
+// 	if roll >= acc - get_stat(target^, .Evasion) {
+// 		log.infof("Evade! (%s)", target.name)
+// 		r.hit = .Evade
+// 		return
+// 	}
+//
+// 	// TODO: "actor-agnostic" calc_damage for items
+// 	if actor != nil {
+// 		if hp_loss, ok := calc_damage(actor^, target^, effect); ok {
+// 			if has_status(target^, .Sleep) {
+// 				log.info("removing Sleep from hit target")
+// 				remove_status(target, .Sleep)
+// 			}
+// 			take_damage(target, hp_loss)
+// 			log.infof("%s takes %d damage", target.name, hp_loss)
+// 			r.hp_change = -hp_loss
+// 			if target.hitpoints == 0 {
+// 				// battle: the target's downed callback
+// 				log.infof("%s is down", target.name)
+// 				r.downed = true
+// 				return
+// 			}
+// 		}
+// 	}
+//
+// 	r.status = effect.status
+// 	r.status_result = _add_status(target, effect.sts_acc, effect.status)
+//
+// 	if r.hit != .Hit || r.downed do return
+// 	if r.status == .Control && r.status_result == .Added {
+// 		add_status(actor, .Controller)
+// 		target.controller = actor
+// 	}
+// 	r.stagger, r.interrupted = _stagger(target, effect.stg_acc, effect.stagger, effect.int_acc)
+// 	// TODO: risk is affected by Berserk, Blind, Confuse
+// 	roll_for_counter(target, actor, f32(effect.risk) / 100)
+// 	return
+// }
 
 // `actor` may be nil (an item), which adds no psy power.
 effect_heal :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
@@ -259,18 +279,18 @@ effect_death :: proc(_, target: ^Character, effect: Effect_Data) -> (r: Effect_R
 	r.downed = true
 	return
 }
-
-do_effect :: proc(actor, target: ^Character, effect: Effect_Data, effect_type: Effect_Type) -> Effect_Result {
-	if actor != nil {
-		when VERBOSE do log.debugf("%s -> %s: %v", actor.name, target.name, effect)
-	} else {
-		log.debugf("%s: %v", target.name, effect)
-	}
-	switch effect_type {
-	case .Attack:   return effect_attack(actor, target, effect)
-	case .Heal:     return effect_heal(actor, target, effect)
-	case .Level_Up: return effect_level_up(actor, target, effect)
-	case .Death:    return effect_death(actor, target, effect)
-	}
-	return {}
-}
+//
+// do_effect :: proc(actor, target: ^Character, effect: Effect_Data, effect_type: Effect_Type) -> Effect_Result {
+// 	if actor != nil {
+// 		when VERBOSE do log.debugf("%s -> %s: %v", actor.name, target.name, effect)
+// 	} else {
+// 		log.debugf("%s: %v", target.name, effect)
+// 	}
+// 	switch effect_type {
+// 	case .Attack:   return effect_attack(actor, target, effect)
+// 	case .Heal:     return effect_heal(actor, target, effect)
+// 	case .Level_Up: return effect_level_up(actor, target, effect)
+// 	case .Death:    return effect_death(actor, target, effect)
+// 	}
+// 	return {}
+// }

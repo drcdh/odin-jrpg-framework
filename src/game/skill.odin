@@ -20,7 +20,7 @@ Skill :: struct {
 	// animation:   Sprite_Name,
 	// sound:       Sound_Name,
 	description: string,
-	procedure: proc(),
+	procedure: proc(Battle_Skill_Play),
 }
 
 Skill_Set :: bit_set[Skill_Name]
@@ -72,11 +72,11 @@ charge_skills :: proc(cs: ^Charged_Skills, ticks: Ticks, migraine, sprain: bool,
 }
 
 is_physical_skill :: proc(k: Skill_Name) -> bool {
-	return skills[k].effect_data.power > 0
+	return true // TODO return skills[k].effect_data.power > 0
 }
 
 is_psychic_skill :: proc(k: Skill_Name) -> bool {
-	return skills[k].effect_data.psy_power > 0
+	return true // TODO return skills[k].effect_data.psy_power > 0
 }
 
 is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
@@ -84,18 +84,18 @@ is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
 }
 
 // `actor` is nil for an item.
-do_skill :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
-	return do_effect(actor, target, skill.effect_data, skill.effect_type)
-}
+// do_skill :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
+// 	return do_effect(actor, target, skill.effect_data, skill.effect_type)
+// }
 
 // Does the skill and shows the result right away at the target's entity: the
 // sound, the target's new look and the popups. `actor` is nil for an item.
 // The battle shows its results later, in show_skill_results.
-use_skill :: proc(actor, target: ^Character, skill_name: Skill_Name) -> (r: Effect_Result) {
-	skill := skills[skill_name]
-	r = do_skill(actor, target, skill)
-	play_sound(skill.sound)
-	update_character_sprite(target^)
-	show_effect_popups(target^, r)
-	return
-}
+// use_skill :: proc(actor, target: ^Character, skill_name: Skill_Name) -> (r: Effect_Result) {
+// 	skill := skills[skill_name]
+// 	r = do_skill(actor, target, skill)
+// 	play_sound(skill.sound)
+// 	update_character_sprite(target^)
+// 	show_effect_popups(target^, r)
+// 	return
+// }

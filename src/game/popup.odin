@@ -79,37 +79,44 @@ show_effect_popups :: proc(c: Character, r: Effect_Result) -> int {
 	return sa.len(new_popups)
 }
 
-@(private = "file")
+// @(private = "file")
 push_popup :: proc(p: Popup) {
 	if !sa.push(&popups, p) do log.warnf("Too many popups; dropped %q", p.text)
+}
+
+popup_2 :: proc(eid: Entity_Id, color: rl.Color, format: string, args: ..any, dmg := false) {
+	pos := entity_pos(eid) - {0, TILE_SIZE / 2}
+	p := Popup{pos = pos, color = color, dmg = dmg}
+	fmt.bprintf(p.text[:len(p.text) - 1], format, ..args)
+	sa.push(&popups, p)
 }
 
 // The popups for `r`, in order: the hit or HP change, then levels, then
 // status (unless `status` is false).
 @(private = "file")
 effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Popups) {
-	popup :: proc(popups: ^Popups, color: rl.Color, format: string, args: ..any, dmg := false) {
+	popup :: proc(color: rl.Color, format: string, args: ..any, dmg := false) {
 		p := Popup{color = color, dmg = dmg}
 		fmt.bprintf(p.text[:len(p.text) - 1], format, ..args)
-		sa.push(popups, p)
+		sa.push(&popups, p)
 	}
 
 	switch r.hit {
-	case .Miss:  popup(&popups, rl.GRAY, "Mi", dmg=true)
-	case .Evade: popup(&popups, rl.GRAY, "Eva", dmg=true)
+	case .Miss:  popup(rl.GRAY, "Mi", dmg=true)
+	case .Evade: popup(rl.GRAY, "Eva", dmg=true)
 	case .Hit:
 	}
-	if r.hp_change < 0 do popup(&popups, rl.WHITE, "%d", -r.hp_change, dmg=true)
-	if r.hp_change > 0 do popup(&popups, rl.GREEN, "%d", r.hp_change, dmg=true)
-	if r.levels > 0 do popup(&popups, rl.PURPLE, "%d", r.levels, dmg=true)
+	if r.hp_change < 0 do popup(rl.WHITE, "%d", -r.hp_change, dmg=true)
+	if r.hp_change > 0 do popup(rl.GREEN, "%d", r.hp_change, dmg=true)
+	if r.levels > 0 do popup(rl.PURPLE, "%d", r.levels, dmg=true)
 	if s, ok := r.status.?; ok && status {
 		switch r.status_result {
 		case .None:
-		case .Added:         popup(&popups, rl.RED, "%v", s) // TODO: status animations?
-		case .Ineffective:   popup(&popups, rl.PURPLE, "Ine", dmg=true)
-		case .Resisted:      popup(&popups, rl.PURPLE, "Res", dmg=true)
-		case .Removed:       popup(&popups, rl.GREEN, "Cur", dmg=true)
-		case .Remove_Missed: popup(&popups, rl.PURPLE, "Mi", dmg=true)
+		case .Added:         popup(rl.RED, "%v", s) // TODO: status animations?
+		case .Ineffective:   popup(rl.PURPLE, "Ine", dmg=true)
+		case .Resisted:      popup(rl.PURPLE, "Res", dmg=true)
+		case .Removed:       popup(rl.GREEN, "Cur", dmg=true)
+		case .Remove_Missed: popup(rl.PURPLE, "Mi", dmg=true)
 		}
 	}
 	return
