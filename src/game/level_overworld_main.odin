@@ -1,5 +1,7 @@
 package game
 
+import "core:log"
+
 pebble_fought: bool
 
 init_overworld_main :: proc() {
@@ -30,7 +32,7 @@ init_overworld_main :: proc() {
 			} else if battle_result() == .Lose {
 				heal_party()
 				say("The powerful pebble sits there, inert and oddly satisfied looking.")
-			}
+			} else { log.errorf("battle_result() returned %v", battle_result()) }
 			pebble_fought = true
 		}),
 	})

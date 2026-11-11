@@ -1,7 +1,6 @@
 package game
 
 import sa "core:container/small_array"
-import "core:fmt"
 import "core:log"
 
 import rl "vendor:raylib"
@@ -147,6 +146,22 @@ get_combatant_skill_play :: proc {
 	get_combatant_skill_play_ptr,
 }
 
+interrupt_skill_play :: proc(c: ^Character) {
+	if i, ok := get_combatant_skill_play(c).(int); ok {
+		log.infof("interrupting skill play %d", i)
+		remove_skill_play(i)
+	} else {
+		log.warnf("%s does not have a queued skill play", c.name)
+	}
+}
+
+remove_skill_play :: proc(i: int) {
+  // remove from queue. Must be ordered so ties are broken correctly
+	// this may be called when a skill play is executed or is interrupted
+	log.infof("removing skill play %d: %v", i, battle.skill_plays[i])
+	ordered_remove(&battle.skill_plays, i)
+}
+
 pause_battle :: proc(paused := true) {
 	prev := battle.paused
 	log.infof("battle paused %v (was %v)", paused, prev)
@@ -170,17 +185,17 @@ battle_tick :: proc() {
 		character_battle_tick(c)
 	}
 
-	// remove invalid Skill_Plays
-	// TODO: do this when a character is interrupted or downed in the specific procedure
-	for i := 0; i < len(battle.skill_plays); {
-		c := battle.combatants[battle.skill_plays[i].actor_idx]
-		if !winding_up(c^) || !alive(c^) {
-			fmt.printfln("removing Battle_Skill_Play %d after combatant interrupted or downed", i)
-			unordered_remove(&battle.skill_plays, i)
-		} else {
-			i += 1
-		}
-	}
+	// // remove invalid Skill_Plays
+	// // TODO: do this when a character is interrupted or downed in the specific procedure
+	// for i := 0; i < len(battle.skill_plays); {
+	// 	c := battle.combatants[battle.skill_plays[i].actor_idx]
+	// 	if !winding_up(c^) || !alive(c^) {
+	// 		fmt.printfln("removing Battle_Skill_Play %d after combatant interrupted or downed", i)
+	// 		remove_skill_play(i)
+	// 	} else {
+	// 		i += 1
+	// 	}
+	// }
 
 	for &s in battle.skill_plays {
 		update_skill_play(&s)
@@ -189,7 +204,7 @@ battle_tick :: proc() {
 	for i := 0; i < len(battle.skill_plays); {
 		if charge_full(battle.skill_plays[i].charge) {
 			battle.skill_play = battle.skill_plays[i] // copy skill play
-			ordered_remove(&battle.skill_plays, i) // remove from queue. Must be ordered so ties are broken correctly
+			remove_skill_play(i)
 			battle.script = spawn(process_skill_play_2)
 			break
 		} else {
@@ -240,7 +255,7 @@ take_turns :: proc() {
 
 queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name: Skill_Name) {
 	skill := skills[skill_name]
-	// reset_character_charge(battle.combatants[actor_idx], Ticks(skill.cost))
+	reset_character_charge(battle.combatants[actor_idx], Ticks(skill.cost))
 	battle.combatants[actor_idx].windup = true
 	update_character_sprite(battle.combatants[actor_idx]^)
 	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, new_charge(max=Ticks(skill.windup))})
@@ -296,18 +311,6 @@ battle_poison_tick :: proc() -> bool {
 	// 	})
 	// }
 	// return len(battle.skill_result) > 0
-}
-
-// Breaks `target`'s windup. Returns false if they weren't winding up.
-interrupt_windup :: proc(target: ^Character) -> bool {
-	if !target.windup {
-		log.infof("Tried to interrupt %s but they weren't winding up", target.name)
-		return false
-	}
-	target.windup = false
-	update_character_sprite(target^)
-	log.infof("Break! %s is interrupted", target.name)
-	return true
 }
 
 roll_for_counter :: proc(actor, target: ^Character, risk: f32 = 1) {
@@ -693,6 +696,7 @@ default_win_proc :: proc(_: Entity_Id) {
 	party_get_experience(battle.encounter.exp) // blocks with say
 	// get_spoils()
 	fade_screen(1, .5)
+	battle.result = .Win
 	battle_deactivate() // stop drawing battle and draw world
 	play_prev_music()
 	fade_screen(0, .5)
@@ -704,6 +708,7 @@ default_lose_proc :: proc(_: Entity_Id) {
 	music_fade_down()
 	say("Defeat|", hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
 	fade_screen(1, .5)
+	battle.result = .Lose
 	battle_deactivate() // stop drawing battle and draw world
 	game_over()
 }

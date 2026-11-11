@@ -59,8 +59,7 @@ skill_proc_suicide :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_small_smoke_bomb :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
-	// skill_proc_basic_stagger_one("Small Smoke Bomb", 100, 50, 90, .Warp, .Wave_Blind, actor, targets)
+	skill_proc_basic_attack_some("Small Smoke Bomb", {stg_acc=100, stagger=50, int_acc=90}, .Warp, .Wave_Blind, actor, targets)
 }
 
 skill_proc_smack :: proc(actor: ^Character, targets: []^Character) {
@@ -100,7 +99,6 @@ skill_proc_quake_smash :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_tickle :: proc(actor: ^Character, targets: []^Character) {
-	// skill_proc_basic_stagger_one("Tickle", 30, 10, 10, .Warp, .Ffvi_Stars, actor, targets)
 	skill_proc_basic_attack_some("Tickle", {stg_acc=30, stagger=10, int_acc=10}, .Warp, .Ffvi_Stars, actor, targets)
 }
 
@@ -326,8 +324,8 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 
 	for r, i in results {
 		target := targets[i]
-		take_damage(target, r.damage)
-		stagger_character(target, r.stagger)
+		if r.attack_result == .Hit do take_damage(target, r.damage)
+		if r.stagger_result == .Hit do stagger_character(target, r.stagger)
 		if r.interrupt_result == .Hit do interrupt_windup(target)
 		show_attack_results(target, r)
 	}

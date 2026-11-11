@@ -79,6 +79,17 @@ stagger_character :: proc(c: ^Character, stagger: int) {
 	}
 }
 
+interrupt_windup :: proc(c: ^Character) {
+	if !c.windup {
+		log.infof("Tried to interrupt %s but they weren't winding up", c.name)
+		return
+	}
+	c.windup = false
+	interrupt_skill_play(c)
+	update_character_sprite(c^)
+	log.infof("Break! %s is interrupted", c.name)
+}
+
 restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
 	hp_gain := hp_gain
 	sick := has_status(c^, .Sick)
@@ -86,6 +97,7 @@ restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
 	prev := c.hitpoints
 	max_hp := int(get_stat(c^, .Hitpoints))
 	c.hitpoints = min(c.hitpoints + hp_gain, max_hp)
+	update_character_sprite(c^)
 	log.infof("%s gained %d hitpoints%s: %d -> %d/%d", c.name, hp_gain, " (Sick)" if sick else "", prev, c.hitpoints, max_hp)
 }
 

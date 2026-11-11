@@ -105,8 +105,13 @@ try_attack_interrupt :: proc(actor, target: Character, attack: Attack_Data) -> H
 }
 
 try_attack :: proc(actor, target: Character, attack: Attack_Data) -> (r: ASI_Result) {
-	r.attack_result, r.damage = try_attack_damage(actor, target, attack)
-	if r.attack_result == .Hit {
+	// if attack never does damage, skip the attack attempt and go immediately to the stagger attempt
+	if attack.power + attack.psy_power > 0 {
+		r.attack_result, r.damage = try_attack_damage(actor, target, attack)
+	} else {
+		r.attack_result, r.damage = .None, 0
+	}
+	if r.attack_result == .Hit || r.attack_result == .None {
 		r.stagger_result, r.stagger = try_attack_stagger(actor, target, attack)
 		if r.stagger_result == .Hit do r.interrupt_result = try_attack_interrupt(actor, target, attack)
 	}
@@ -355,31 +360,31 @@ _remove_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Na
 }
 
 // Takes `stagger` ticks from the target and may interrupt their windup.
-@(private = "file")
-_stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (staggered, interrupted: bool) {
-	if stagger <= 0 && int_acc <= 0 do return
-	acc := Stat(stg_acc)
-	roll := Stat(rand.int_max(100))
-	if roll >= acc {
-		log.infof("Stagger resisted by %s (rolled %.0f >= %.0f)", target.name, roll, acc)
-		return
-	}
-	if stagger > 0 {
-		if skill_play_idx, ok := get_combatant_skill_play(target).?; ok {
-			log.infof("Staggering %s skill charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
-			delay_charge(&battle.skill_plays[skill_play_idx].charge, Ticks(stagger))
-			staggered = true
-		} else {
-			log.infof("Staggering %s turn charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
-			delay_charge(&target.charge, Ticks(stagger))
-			staggered = true
-		}
-	}
-	if rand.int_max(100) < int_acc {
-		interrupted = interrupt_windup(target)
-	}
-	return
-}
+// @(private = "file")
+// _stagger :: proc(target: ^Character, stg_acc, stagger, int_acc: int) -> (staggered, interrupted: bool) {
+// 	if stagger <= 0 && int_acc <= 0 do return
+// 	acc := Stat(stg_acc)
+// 	roll := Stat(rand.int_max(100))
+// 	if roll >= acc {
+// 		log.infof("Stagger resisted by %s (rolled %.0f >= %.0f)", target.name, roll, acc)
+// 		return
+// 	}
+// 	if stagger > 0 {
+// 		if skill_play_idx, ok := get_combatant_skill_play(target).?; ok {
+// 			log.infof("Staggering %s skill charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+// 			delay_charge(&battle.skill_plays[skill_play_idx].charge, Ticks(stagger))
+// 			staggered = true
+// 		} else {
+// 			log.infof("Staggering %s turn charge by %d (rolled %.0f < %.0f)", target.name, stagger, roll, acc)
+// 			delay_charge(&target.charge, Ticks(stagger))
+// 			staggered = true
+// 		}
+// 	}
+// 	if rand.int_max(100) < int_acc {
+// 		interrupted = interrupt_windup(target)
+// 	}
+// 	return
+// }
 
 effect_level_up :: proc(_, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
 	n := effect.constant

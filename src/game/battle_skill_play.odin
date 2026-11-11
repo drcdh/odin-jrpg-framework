@@ -18,7 +18,6 @@ process_skill_play_2 :: proc(_: Entity_Id) {
 	target_selection_characters(sp.targets, &targets)
 	skill.procedure(actor, targets[:]) // blocks
 
-	reset_character_charge(actor, Ticks(skill.cost))
 	actor.windup = false
 
 	update_character_sprite(actor^)
