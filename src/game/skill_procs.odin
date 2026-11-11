@@ -53,11 +53,64 @@ skill_proc_slash :: proc(actor: ^Character, targets: Target_Selection) {
 	}
 
 	walk_back(actor^)
+}
 
-	// if hit_result == .Hit {
-	// 	pause(.5)
-	// 	wake_up(target) // TODO
-	// }
+skill_proc_slash_all :: proc(actor: ^Character, targets: Target_Selection) {
+	ACC    :: Stat(100)
+	ATTACK :: Attack_Data{power = 100}
+	NAME   :: "Slash All"
+	SOUND  :: Sound_Name.Whack
+
+	say(NAME, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1)
+
+	target_team := get_team_target(targets)
+
+	// TODO: consolidate into a struct
+	targets: [dynamic]^Character
+	hit_results: [dynamic]Hit_Result
+	damage: [dynamic]int
+
+	if target_team == .Baddy {
+		for c_idx in battle.baddies {
+			target := battle.combatants[c_idx]
+			if downed(target^) do continue
+			append(&targets, target)
+			hit_result := attack_hit(actor^, target^, ACC)
+			append(&hit_results, hit_result)
+			append(&damage, 0 if hit_result != .Hit else attack_damage(actor^, target^, ATTACK))
+		}
+	}
+
+	lunge_forward(actor^)
+
+	for target, i in targets {
+		switch hit_results[i] {
+		case .Evade:
+			// play_sound(.Ting)
+		case .Hit:
+			play_sound(SOUND)
+		case .Miss:
+			// play_sound(.Whiff)
+		}
+		run_anim(target.eid, .Slash, flip_x = target.team == .Player)
+	}
+
+	for hit_result, i in hit_results {
+		target := targets[i]
+		target_eid := target.eid
+		switch hit_result {
+		case .Evade:
+			popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
+		case .Hit:
+			damage, _ := attack_damage(actor^, target^, ATTACK)
+			take_damage(target, damage)
+			popup_2(target_eid, rl.WHITE, "%d", damage, dmg=true)
+		case .Miss:
+			popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
+		}
+	}
+
+	walk_back(actor^)
 }
 
 @(private = "file")

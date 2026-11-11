@@ -12,7 +12,7 @@ WINDOW_WIDTH :: ZOOM*game.WINDOW_WIDTH
 WINDOW_HEIGHT :: ZOOM*game.WINDOW_HEIGHT
 
 main :: proc() {
-	context.logger = log.create_console_logger()
+	context.logger = log.create_console_logger(opt={})
 	defer log.destroy_console_logger(context.logger)
 
 	when ODIN_DEBUG {

@@ -138,7 +138,7 @@
  <objectgroup id="4" name="Chests">
   <object id="56" template="../CHEST.tx" x="40" y="72">
    <properties>
-    <property name="encounter" value="Rat"/>
+    <property name="encounter" value="Rats_2"/>
     <property name="items" value="Potion"/>
    </properties>
   </object>

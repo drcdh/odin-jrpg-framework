@@ -1,6 +1,6 @@
 package game
 
-// import sa "core:container/small_array"
+import sa "core:container/small_array"
 import "core:fmt"
 import "core:log"
 
@@ -58,6 +58,7 @@ Battle_Effect_Result :: struct {
 // Turn_Proc :: proc(actor_idx: int)
 
 Battle_Result :: enum {
+	None,
 	Lose,
 	Win,
 }
@@ -71,16 +72,17 @@ Battle :: struct {
 	combatants:			[dynamic]^Character,
 	encounter:    	^Encounter,
 	lose_proc:      Script_Proc,
-	paused:         bool, // true while running audiovisual stuff
+	new_downed: [dynamic]^Character,
+	paused:         bool, // true while visualizing skill plays and results
 	poison_ticks:   int, // battle ticks since poison last did damage
-	result:         Maybe(Battle_Result), // set once a team has won and the last skill play has been shown
+	result:         Battle_Result,
 	// results:        [dynamic]Battle_Effect_Result, // the skill play being shown; see process_skill_results
 	// results_actor:  int,
 	// results_script: Script_Id,
 	// results_skill:  Skill_Name,
+	script:     Script_Id,
 	skill_play: Battle_Skill_Play, // current, popped from queue
 	skill_plays:    [dynamic]Battle_Skill_Play,
-	skill_play_script: Script_Id,
 	// skill_result:   [dynamic]Battle_Effect_Result, // used for visualization; cleared after every tick
 	start_proc:     Script_Proc,
 	start_proc_run: bool,
@@ -188,7 +190,7 @@ battle_tick :: proc() {
 		if charge_full(battle.skill_plays[i].charge) {
 			battle.skill_play = battle.skill_plays[i] // copy skill play
 			ordered_remove(&battle.skill_plays, i) // remove from queue. Must be ordered so ties are broken correctly
-			battle.skill_play_script = spawn(process_skill_play_2)
+			battle.script = spawn(process_skill_play_2)
 			break
 		} else {
 			i += 1
@@ -350,7 +352,7 @@ battle_clear :: proc() {
 battle_deactivate :: proc() {
 	clear(&battle.skill_plays)
 	// clear(&battle.skill_result)
-	script_cancel(battle.skill_play_script)
+	script_cancel(battle.script)
 	// clear(&battle.results)
 	clear_popups()
 	battle_menu_end()
@@ -517,6 +519,30 @@ update_battle :: proc(dt: f32) {
 		battle_menu_update()
 	}
 
+	check_downed_combatants()
+
+	if !script_alive(battle.script) {
+		switch check_win() {
+		case .None:
+		case .Lose:
+			if battle.lose_proc != nil {
+				log.info("LOSE - spawning special lose_proc")
+				battle.script = spawn(battle.lose_proc)
+			} else {
+				log.info("LOSE - spawning default_lose_proc")
+				battle.script = spawn(default_lose_proc)
+			}
+		case .Win:
+			if battle.win_proc != nil {
+				log.info("WIN - spawning special win_proc")
+				battle.script = spawn(battle.win_proc)
+			} else {
+				log.info("WIN - spawning default_win_proc")
+				battle.script = spawn(default_win_proc)
+			}
+		}
+	}
+
 	if !battle.paused && battle.result == nil {
 		battle_time_tick(dt)
 	}
@@ -525,6 +551,34 @@ update_battle :: proc(dt: f32) {
 
 	targeting_ease += dt / .5
 	if targeting_ease > 1 {targeting_ease = 0}
+}
+
+queue_downed :: proc(c: ^Character) {
+	if !battle_active() {
+		log.infof("%s downed while battle not active", c.name)
+		return
+	}
+	append(&battle.new_downed, c)
+	log.infof("queued %s for down proc", c.name)
+}
+
+// Spawn and wait on animations for any characters downed in last battle tick
+// TODO: reimplement special down procs; prioritize combatants with default
+check_downed_combatants :: proc() {
+	if len(battle.new_downed) == 0 do return
+	battle.script = spawn(proc(_: Entity_Id) {
+		pause_battle(); defer pause_battle(false)
+		log.infof("downing %d combatants", len(battle.new_downed))
+		scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
+		// for i := 0; i < sa.len(battle.downed_combatants); i += 1 {
+		for c in battle.new_downed {
+			sa.push(&scripts, spawn(baddy_down if c.team == .Baddy else player_down, c.eid))
+		}
+		clear(&battle.new_downed)
+		for script in sa.slice(&scripts) {
+			if !wait_script(script) do return
+		}
+	}, name = "down combatants")
 }
 
 set_autobattle :: proc(v := true) {
@@ -735,6 +789,7 @@ effect_reaction_tag :: proc(r: Effect_Result) -> Maybe(Sprite_Tag) {
 }
 
 baddy_down :: proc(self: Entity_Id) {
+	log.infof("downing baddy eid=%v", self)
 	pause(.25)
 	play_sound(.Down)
 	set_tint(self, rl.RED)
@@ -744,6 +799,7 @@ baddy_down :: proc(self: Entity_Id) {
 }
 
 player_down :: proc(self: Entity_Id) {
+	log.infof("downing player eid=%v", self)
 	set_sprite_tag_of(self, .Kneeled)
 	pause(.25)
 	play_sound(.Down)

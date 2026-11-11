@@ -19,6 +19,7 @@ Character :: struct {
 	skills:        Charged_Skills,
 	eid:           Entity_Id,
 	// battle stuff
+	c_idx:         int,
 	charge:        Charge, // charge to get turn
 	controller:    ^Character, // TODO: will become part of status struct data
 	team:          Team,
@@ -83,7 +84,9 @@ take_damage :: proc(c: ^Character, hp_loss: int) {
 	c.hitpoints = max(0, c.hitpoints - hp_loss)
 	log.infof("%s took %d damage: %d -> %d/%.0f", c.name, hp_loss, prev, c.hitpoints, get_stat(c^, .Hitpoints))
 	if c.hitpoints == 0 {
+		log.infof("%s hitpoints went to zero", c.name)
 		remove_all_statuses(c)
+		queue_downed(c)
 	}
 }
 

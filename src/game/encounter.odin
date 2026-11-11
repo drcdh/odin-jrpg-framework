@@ -16,7 +16,9 @@ Encounter :: struct {
 
 @(private = "file")
 add_combatant :: proc(c: ^Character) {
+	c_idx := len(battle.combatants)
 	// make sure playable character stuff is reset
+	c.c_idx = c_idx
 	c.charge = new_character_charge(c^)
 	c.windup = false
 	c.controller = nil
@@ -25,9 +27,9 @@ add_combatant :: proc(c: ^Character) {
 	case .None:
 		panic("Don't know what to do with Combatant with Team.None")
 	case .Baddy:
-		append(&battle.baddies, len(battle.combatants))
+		append(&battle.baddies, c_idx)
 	case .Player:
-		append(&battle.players, len(battle.combatants))
+		append(&battle.players, c_idx)
 	}
 	append(&battle.combatants, c)
 }
