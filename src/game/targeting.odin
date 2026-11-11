@@ -241,3 +241,26 @@ get_team_target :: proc(target_selection: Target_Selection) -> (team: Team, ok: 
 	if !ok do log.errorf("get_team_target got %v", target_selection)
 	return
 }
+
+target_selection_characters :: proc(target_selection: Target_Selection, targets: ^[dynamic]^Character) {
+	assert(battle_active(), "battle not active")
+	assert(len(targets) == 0, "targets should be empty")
+	switch ts in target_selection {
+	case Target_One_Baddy:
+		append(targets, battle.combatants[battle.baddies[ts.i]])
+	case Target_One_Player:
+		append(targets, battle.combatants[battle.players[ts.i]])
+	case Target_All_Baddies:
+		for c_idx in battle.baddies {
+			append(targets, battle.combatants[c_idx])
+		}
+	case Target_All_Players:
+		for c_idx in battle.players {
+			append(targets, battle.combatants[c_idx])
+		}
+	case Target_All:
+		for c in battle.combatants {
+			append(targets, c)
+		}
+	}
+}

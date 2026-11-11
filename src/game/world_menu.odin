@@ -281,22 +281,26 @@ world_menu_update :: proc() {
 		if get_input(.CANCEL) {
 			menu.ui_state = .Inventory
 		} else if get_input(.ENTER) {
-			// item_name := inventory_order[menu.inven_sel.select_idx]
-			// party_idx := menu.party_idx
-			// if consumable, ok := items[item_name].data.(Consumable); ok {
-			// 	pc := get_party_member(party_idx)
-			// 	use_skill(nil, pc, consumable)
-			// 	remove_item(item_name)
-			// 	if game_data.inventory[item_name] == 0 {
-			// 		menu.ui_state = .Inventory
+			// spawn(proc(_: Entity_Id) {
+			// 	item_name := inventory_order[menu.inven_sel.select_idx]
+			// 	if consumable, ok := items[item_name].data.(Consumable); ok {
+			// 		pc := get_party_member(menu.party_idx)
+			// 		targets: [dynamic]^Character; defer clear(&targets)
+			// 		append(&targets, pc)
+			// 		// use_skill(nil, pc, consumable)
+			// 		skills[consumable].procedure(nil, targets[:]) // blocks
+			// 		remove_item(item_name)
+			// 		if game_data.inventory[item_name] == 0 {
+			// 			menu.ui_state = .Inventory
+			// 		}
+			// 		set_stale(.Top)
+			// 		set_stale(.Inventory)
+			// 		set_stale(.Targeting)
+			// 		fmt.printfln("Used item %s on %s", item_name, pc.name)
+			// 	} else {
+			// 		fmt.println("Uh oh! Tried to use non-consumable %s", item_name)
 			// 	}
-			// 	set_stale(.Top)
-			// 	set_stale(.Inventory)
-			// 	set_stale(.Targeting)
-			// 	fmt.printfln("Used item %s on %s", item_name, pc.name)
-			// } else {
-			// 	fmt.println("Uh oh! Tried to use non-consumable %s", item_name)
-			// }
+			// }, name = "world menu use item")
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
 			menu.party_idx %%= party_size()

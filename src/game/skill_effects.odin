@@ -40,6 +40,7 @@ Effect_Data :: struct {
 }
 
 Hit_Result :: enum {
+	None, // no attempt made (e.g., a downed character was a candidate target for an all-team attack)
 	Hit,
 	Miss,
 	Evade,

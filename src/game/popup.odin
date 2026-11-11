@@ -102,6 +102,7 @@ effect_popups :: proc(r: Effect_Result, status := true) -> (popups: Popups) {
 	}
 
 	switch r.hit {
+	case .None:
 	case .Miss:  popup(rl.GRAY, "Mi", dmg=true)
 	case .Evade: popup(rl.GRAY, "Eva", dmg=true)
 	case .Hit:

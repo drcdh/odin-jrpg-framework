@@ -69,6 +69,16 @@ instakill :: proc(c: ^Character) {
 	remove_all_statuses(c)
 }
 
+stagger_character :: proc(c: ^Character, stagger: int) {
+	if skill_play_idx, ok := get_combatant_skill_play(c).?; ok {
+		log.infof("staggering %s skill charge by %d", c.name, stagger)
+		delay_charge(&battle.skill_plays[skill_play_idx].charge, Ticks(stagger))
+	} else {
+		log.infof("staggering %s turn charge by %d", c.name, stagger)
+		delay_charge(&c.charge, Ticks(stagger))
+	}
+}
+
 restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
 	hp_gain := hp_gain
 	sick := has_status(c^, .Sick)

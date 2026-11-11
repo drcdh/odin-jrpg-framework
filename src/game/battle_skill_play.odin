@@ -14,7 +14,9 @@ process_skill_play_2 :: proc(_: Entity_Id) {
 
 	actor := battle.combatants[sp.actor_idx]
 	skill := skills[sp.skill_name]
-	skill.procedure(actor, sp.targets) // blocks
+	targets: [dynamic]^Character; defer clear(&targets)
+	target_selection_characters(sp.targets, &targets)
+	skill.procedure(actor, targets[:]) // blocks
 
 	reset_character_charge(actor, Ticks(skill.cost))
 	actor.windup = false
