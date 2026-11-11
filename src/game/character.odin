@@ -68,8 +68,20 @@ instakill :: proc(c: ^Character) {
 	remove_all_statuses(c)
 }
 
+restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
+	hp_gain := hp_gain
+	sick := has_status(c^, .Sick)
+	if sick do hp_gain /= 2
+	prev := c.hitpoints
+	max_hp := int(get_stat(c^, .Hitpoints))
+	c.hitpoints = min(c.hitpoints + hp_gain, max_hp)
+	log.infof("%s gained %d hitpoints%s: %d -> %d/%d", c.name, hp_gain, " (Sick)" if sick else "", prev, c.hitpoints, max_hp)
+}
+
 take_damage :: proc(c: ^Character, hp_loss: int) {
+	prev := c.hitpoints
 	c.hitpoints = max(0, c.hitpoints - hp_loss)
+	log.infof("%s took %d damage: %d -> %d/%.0f", c.name, hp_loss, prev, c.hitpoints, get_stat(c^, .Hitpoints))
 	if c.hitpoints == 0 {
 		remove_all_statuses(c)
 	}

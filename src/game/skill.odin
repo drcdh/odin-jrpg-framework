@@ -20,7 +20,7 @@ Skill :: struct {
 	// animation:   Sprite_Name,
 	// sound:       Sound_Name,
 	description: string,
-	procedure: proc(Battle_Skill_Play),
+	procedure: Skill_Proc,
 }
 
 Skill_Set :: bit_set[Skill_Name]

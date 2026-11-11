@@ -373,7 +373,7 @@ sprites_update :: proc(dt: f32) {
 			}
 		case .Never:
 		case .Once_And_Hide:
-			if update_sprite(dt, s) do s.hidden = false
+			if update_sprite(dt, s) do s.hidden = true
 		}
 	}
 }

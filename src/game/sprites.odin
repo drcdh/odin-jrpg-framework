@@ -86,7 +86,7 @@ run_anim :: proc(target: Entity_Id, sprite: Sprite_Name, flip_x := false) -> boo
 	s := create_sprite_state(sprite, play = true, layer = SKILL_ANIM_LAYER, anim_when = .Once_And_Hide)
 	s.flip_x = flip_x
 	eid := spawn_entity(Entity{name = "animation", sprite = s, ghost = true, battle = true}) // TODO: fmt to make specific Entity name
-	if e, ok := entity_get(eid); ok do e.pos = entity_pos(target) // over the target, wherever it's drawn
+	if e, ok := entity_get(eid); ok do e.pos = entity_pos(target)
 	defer destroy_entity(eid)
 	return pause(max(animation_length(s), .25)) // a static sprite still shows a moment
 }
