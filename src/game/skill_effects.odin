@@ -18,6 +18,8 @@ Attack_Data :: struct {
 	psy_power:  int,
 	pierce:     int,
 	psy_pierce: int,
+	// ranged:     bool,
+	// risk:       int,
 }
 
 Effect_Data :: struct {
@@ -192,6 +194,25 @@ effect_heal :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effec
 	return
 }
 
+try_add_status :: proc(target: ^Character, sts_acc: int, status: Status_Name) -> Status_Result {
+	// Think of prior status as affecting the accuracy of incoming status, NOT as granting resistance
+	acc := Stat(sts_acc) * interstatus_accuracy_mod(target^, status)
+	roll := Stat(rand.int_max(100))
+	if roll >= acc {
+		log.infof("Ineffective status %s on %s (rolled %.0f >= %.0f)", status, target.name, roll, acc)
+		return .Ineffective
+	}
+	res := Stat(0) // TODO: get_stat(target, resistance_stat(status))
+	if roll >= acc - res {
+		log.infof("%s resisted status %s (rolled %.0f >= %.0f)", target.name, status, roll, acc - res)
+		return .Resisted
+	}
+	log.infof("Adding status %s to %s (rolled %.0f < %.0f)", status, target.name, roll, acc - res)
+	add_status(target, status)
+	// FIXME: Character.controller needs to get set when adding .Control status
+	return .Added
+}
+
 @(private = "file")
 _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
 	s, ok := status.?
@@ -212,6 +233,18 @@ _add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)
 	add_status(target, s)
 	// FIXME: Character.controller needs to get set when adding .Control status
 	return .Added
+}
+
+try_remove_status :: proc(target: ^Character, sts_acc: int, status: Status_Name) -> Status_Result {
+	acc := Stat(sts_acc)
+	roll := Stat(rand.int_max(100))
+	if roll >= acc {
+		log.infof("Missed removing status %s on %s (rolled %.0f >= %.0f)", status, target.name, roll, acc)
+		return .Remove_Missed
+	}
+	log.infof("Removing status %s from %s (rolled %.0f < %.0f)", status, target.name, roll, acc)
+	remove_status(target, status)
+	return .Removed
 }
 
 @(private = "file")
