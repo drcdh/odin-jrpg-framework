@@ -119,7 +119,7 @@ get_skill_set :: proc(pc_idx: int, equipment: Equipment, level: int, stats: Stat
 	skill_set: Skill_Set
 	mh := equipped_item(equipment, Equipment_Slot.Mainhand)
 	if pc_idx == 0 {
-		if mh == .Sword || mh == .Knife {
+		if mh == .Atom_Slicer || mh == .Sword || mh == .Knife {
 			if level >= 2 {
 				skill_set += {.Pommel_Strike}
 			}

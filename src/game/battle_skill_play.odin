@@ -18,6 +18,7 @@ process_skill_play_2 :: proc(_: Entity_Id) {
 	target_selection_characters(sp.targets, &targets)
 	skill.procedure(actor, targets[:]) // blocks
 
+	reset_character_charge(actor, Ticks(skill.cost))
 	actor.windup = false
 
 	update_character_sprite(actor^)
@@ -26,9 +27,6 @@ process_skill_play_2 :: proc(_: Entity_Id) {
 	battle_menu_set_stale(.Party)
 }
 
-// TODO: analogue for world menu skill plays
-
-// TODO: move this somewhere better?
 // downed_proc :: proc() -> Script_Id {
 // 	return spawn(proc(_: Entity_Id) {
 // 		scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)

@@ -255,7 +255,8 @@ take_turns :: proc() {
 
 queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name: Skill_Name) {
 	skill := skills[skill_name]
-	reset_character_charge(battle.combatants[actor_idx], Ticks(skill.cost))
+	// Don't reset character charge yet, since we don't know whether the skill play will complete or be interrupted
+	// reset_character_charge(battle.combatants[actor_idx], Ticks(skill.cost))
 	battle.combatants[actor_idx].windup = true
 	update_character_sprite(battle.combatants[actor_idx]^)
 	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, new_charge(max=Ticks(skill.windup))})

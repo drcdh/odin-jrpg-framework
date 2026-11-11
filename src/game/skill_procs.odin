@@ -7,13 +7,11 @@ import rl "vendor:raylib"
 Skill_Proc :: #type proc(actor: ^Character, targets: []^Character)
 
 skill_proc_potion :: proc(actor: ^Character, targets: []^Character) {
-	assert(len(targets) == 1)
-	skill_proc_constant_heal_single_target_item("Potion", 50, actor, targets[0])
+	skill_proc_heal_some("Potion", {acc=100, constant=50}, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_super_potion :: proc(actor: ^Character, targets: []^Character) {
-	assert(len(targets) == 1)
-	skill_proc_constant_heal_single_target_item("Super Potion", 500, actor, targets[0])
+	skill_proc_heal_some("Super Potion", {acc=100, constant=500}, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_antidote :: proc(actor: ^Character, targets: []^Character) {
@@ -103,19 +101,15 @@ skill_proc_tickle :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_tangle :: proc(actor: ^Character, targets: []^Character) {
-	name := "Tangle"
-	sound := Sound_Name.Warp
-	sprite := Sprite_Name.Green_Swirl
-	attack_data := Attack_Data{acc=100, psy_power=100, stg_acc=100, stagger=100, int_acc=10}
-	skill_proc_basic_attack_some(name, attack_data, sound, sprite, actor, targets)
+	skill_proc_basic_attack_some("Tangle", {acc=100, psy_power=100, stg_acc=100, stagger=100, int_acc=10}, .Warp, .Green_Swirl, actor, targets)
 }
 
 skill_proc_pommel_strike :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_basic_attack_some("Pommel Strike", {acc=100, power=20, stg_acc=100, stagger=50}, .Whack, .Smack, actor, targets, {{100, .Confuse}})
 }
 
 skill_proc_plague_bite :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_basic_attack_some("Plague Bite", {acc=100, power=150}, .Whack, .Ffvi_Stars, actor, targets, {{100, .Poison}})
 }
 
 skill_proc_fire :: proc(actor: ^Character, targets: []^Character) {
@@ -131,15 +125,15 @@ skill_proc_frost :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_heal :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_heal_some("Heal", {acc=100, psy_power=100}, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_heal_all :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_heal_some("Heal All", {acc=100, psy_power=50}, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_healing_hymn :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_heal_some("Heal Hymn", {acc=100, psy_power=70}, .Warp, .Heal, actor, targets)
 }
 
 skill_proc_mind_control :: proc(actor: ^Character, targets: []^Character) {
@@ -151,15 +145,15 @@ skill_proc_ultimagnitude_9000 :: proc(actor: ^Character, targets: []^Character) 
 }
 
 skill_proc_super_hyper_slash :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_basic_attack_some("Super Hyper Slash", {acc=100, power = 1000, pierce=150}, .Whack, .Slash, actor, targets)
 }
 
 skill_proc_debug_stagger :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_basic_attack_some("Debug Stagger", {stg_acc=500, stagger=90}, .Warp, .Wave_Sprain, actor, targets)
 }
 
 skill_proc_debug_interrupt :: proc(actor: ^Character, targets: []^Character) {
-	panic("TODO")
+	skill_proc_basic_attack_some("Debug Interrupt", {int_acc=500}, .Warp, .Wave_Sleep, actor, targets)
 }
 
 skill_proc_berserk :: proc(actor: ^Character, targets: []^Character) {
@@ -214,14 +208,42 @@ skill_proc_zombify :: proc(actor: ^Character, targets: []^Character) {
 // ********************
 
 @(private = "file")
-skill_proc_constant_heal_single_target_item :: proc(name: string, constant: int, actor: ^Character, target: ^Character) {
-	target_eid := target.eid
+skill_proc_heal_some :: proc(name: string, heal_data: Heal_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character, status_heals: []Status_Effect = {}) {
 	skill_say(name)
 	item_forward(actor^)
-	play_sound(.Warp)
-	run_anim(target_eid, .Heal)
-	restore_hitpoints(target, constant)
-	popup_2(target_eid, rl.GREEN, "%d", constant, dmg=true)
+
+	results: [dynamic]Heal_Result; defer clear(&results)
+	gains: [dynamic]int; defer clear(&gains)
+
+	for target in targets {
+		r: Heal_Result
+		g: int
+		if downed(target^) {
+			append(&results, r)
+			continue
+		}
+		r, g = try_heal(actor, target, heal_data)
+		append(&results, r)
+		append(&gains, g)
+		play_sound(sound)
+		run_anim(target.eid, sprite, flip_x = target.team == .Player)
+	}
+
+	for r, i in results {
+		target := targets[i]
+		target_eid := target.eid
+		switch r {
+		case .None:
+		case .Miss:
+			popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
+		case .Ineffective:
+			popup_2(target_eid, rl.GRAY, "Ine", dmg=true)
+		case .Effective:
+			popup_2(target_eid, rl.GREEN, "%d", gains[i], dmg=true)
+			restore_hitpoints(target, gains[i])
+		}
+	}
+
 	walk_back(actor^)
 }
 
@@ -279,7 +301,12 @@ top_result :: proc(asi_result: ASI_Result) -> Hit_Result {
 	return asi_result.interrupt_result
 }
 
-skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character) {
+Status_Effect :: struct {
+	acc:    int,
+	status: Status_Name,
+}
+
+skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character, status_effects: []Status_Effect = {}) {
 	skill_say(name)
 	lunge_forward(actor^)
 
@@ -316,6 +343,7 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 		case .Evade:
 			popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
 		case .Resist:
+			popup_2(target_eid, rl.GRAY, "Res", dmg=true)
 		case .Hit:
 		}
 		if r.attack_result == .Hit do popup_2(target_eid, rl.WHITE, "%d", r.damage, dmg=true)
@@ -328,6 +356,10 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 		if r.stagger_result == .Hit do stagger_character(target, r.stagger)
 		if r.interrupt_result == .Hit do interrupt_windup(target)
 		show_attack_results(target, r)
+
+		for status_effect in status_effects {
+			try_add_status(target, status_effect.acc, status_effect.status)
+		}
 	}
 
 	walk_back(actor^)

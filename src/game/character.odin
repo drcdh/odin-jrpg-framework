@@ -86,6 +86,7 @@ interrupt_windup :: proc(c: ^Character) {
 	}
 	c.windup = false
 	interrupt_skill_play(c)
+	reset_character_charge(c)
 	update_character_sprite(c^)
 	log.infof("Break! %s is interrupted", c.name)
 }
