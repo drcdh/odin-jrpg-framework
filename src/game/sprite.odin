@@ -357,6 +357,7 @@ sprites_update :: proc(dt: f32) {
 	lazy_load_sprites()
 	it := hm.iterator_make(&game.entities)
 	for e, _ in hm.iterate(&it) {
+		if !entity_updating(e^) do continue
 		s := &e.sprite
 		switch s.anim_when {
 		case .Always:

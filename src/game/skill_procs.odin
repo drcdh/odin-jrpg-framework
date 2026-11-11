@@ -12,10 +12,12 @@ skill_proc_potion :: proc(actor: ^Character, targets: []^Character) {
 }
 
 skill_proc_super_potion :: proc(actor: ^Character, targets: []^Character) {
+	assert(len(targets) == 1)
 	skill_proc_constant_heal_single_target_item("Super Potion", 500, actor, targets[0])
 }
 
 skill_proc_antidote :: proc(actor: ^Character, targets: []^Character) {
+	assert(len(targets) == 1)
 	skill_proc_remove_status_single_target_item("Antidote", 100, .Poison, actor, targets[0])
 }
 
@@ -84,15 +86,13 @@ skill_proc_fire :: proc(actor: ^Character, targets: []^Character) {
 @(private = "file")
 skill_proc_constant_heal_single_target_item :: proc(name: string, constant: int, actor: ^Character, target: ^Character) {
 	target_eid := target.eid
-	if battle_active() {
 	say(name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1)
 	item_forward(actor^)
-	}
 	play_sound(.Warp)
 	run_anim(target_eid, .Heal)
 	restore_hitpoints(target, constant)
 	popup_2(target_eid, rl.GREEN, "%d", constant, dmg=true)
-	if battle_active() do walk_back(actor^)
+	walk_back(actor^)
 }
 
 @(private = "file")
@@ -109,11 +109,8 @@ skill_proc_remove_status_single_target_item :: proc(name: string, sts_acc: int, 
 @(private = "file")
 skill_proc_basic_attack_one :: proc(name: string, acc: Stat, attack: Attack_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character) {
 	assert(len(targets) == 1); target := targets[0]
-
 	say(name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1)
-
 	target_eid := target.eid
-
 	lunge_forward(actor^)
 
 	hit_result := attack_hit(actor^, target^, acc)
@@ -232,6 +229,7 @@ PLAYER_DX :: 2 // distance players move horizontally in tiles
 
 @(private = "file")
 lunge_forward :: proc(actor: Character) {
+	if !battle_active() do return
 	TIME :: .25 // time to animate approach and retreat
 	actor_eid := actor.eid
 	if actor.team == .Baddy {
@@ -247,6 +245,7 @@ lunge_forward :: proc(actor: Character) {
 
 @(private = "file")
 item_forward :: proc(actor: Character) {
+	if !battle_active() do return
 	TIME :: .5 // seconds
 	actor_eid := actor.eid
 	if actor.team == .Baddy {
@@ -262,6 +261,7 @@ item_forward :: proc(actor: Character) {
 
 @(private = "file")
 walk_back :: proc(actor: Character) {
+	if !battle_active() do return
 	TIME :: .5 // seconds
 	actor_eid := actor.eid
 	if actor.team == .Baddy {

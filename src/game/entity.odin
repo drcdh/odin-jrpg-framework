@@ -88,6 +88,12 @@ find :: proc(name: string, loc := #caller_location) -> Entity_Id {
 	return {}
 }
 
+// During a battle or the world menu only battle entities update (animate and
+// tween); the world's entities wait.
+entity_updating :: proc(e: Entity) -> bool {
+	return e.battle || !(battle_active() || world_menu_active())
+}
+
 entity_name :: proc(id: Entity_Id) -> string {
 	if e, ok := entity_get(id); ok do return e.name
 	return "MISSINGNO"

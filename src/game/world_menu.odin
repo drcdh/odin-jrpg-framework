@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import "core:log"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -17,6 +18,7 @@ World_Menu_UI_Data :: struct {
 	skill_sel: Selection,
 	inven_sel: Selection,
 	save_sel:  Selection,
+	item_name: Item_Name, // item being targeted
 }
 
 @(private = "file")
@@ -54,7 +56,6 @@ World_Menu :: struct {
 	textures:      [NUM_TEXTURES]rl.RenderTexture,
 	using ui_data: World_Menu_UI_Data,
 	ui_state:      World_Menu_UI_State,
-	was_paused:    bool, // the clock before the menu opened
 }
 
 @(private = "file")
@@ -91,36 +92,77 @@ world_menu_unload :: proc() {
 	menu = {}
 }
 
-// Opens the menu at the top screen and pauses the world. The player opens it
-// with MENU (player.odin), but only when free to act.
+// Opens the menu at the top screen. The world's entities wait while it's open
+// (entity_updating). The player opens it with MENU (player.odin), but only
+// when free to act.
 world_menu_enter :: proc() {
 	if world_menu_active() do return
 	menu.ui_data = World_Menu_UI_Data{}
-	menu.ui_state = .Top
 	menu.stale = true
-	menu.was_paused = game.clock.paused
-	set_paused(true)
-	// Put the party's entities at their targeting slots, so effects (popups)
-	// show over them there.
-	party_apply(proc(i, pc_idx: int) {
-		e, ok := entity_get(pc_entity(pc_idx))
-		if !ok do return
-		e.pos = targeting_slot(i) + e.sprite.origin * sprite_size(e.sprite)
-		e.sprite.hidden = false
-	})
+	set_ui_state(.Top)
 }
 
-// Closes the menu and restores the clock.
+// Closes the menu.
 world_menu_exit :: proc() {
 	if !world_menu_active() do return
 	menu.ui_state = .Inactive
 	clear_popups()
 	party_entities_hide()
-	set_paused(menu.was_paused)
 }
 
 world_menu_active :: proc() -> bool {
 	return menu.ui_state != .Inactive
+}
+
+// Changes the menu screen and moves the party's entities to where that screen
+// shows them (so popups over them line up too).
+@(private = "file")
+set_ui_state :: proc(s: World_Menu_UI_State) {
+	menu.ui_state = s
+	switch s {
+	case .Inactive:
+	case .Top, .Party, .Inventory, .System, .Save:
+		place_party_top()
+	case .Character, .Equipment, .Skills:
+		place_selected_pc()
+	case .Item_Target:
+		menu.item_name = inventory_order[menu.inven_sel.select_idx]
+		place_party_targeting()
+	case .Skill_Target:
+		place_party_targeting()
+	}
+}
+
+// Shows `pc_idx`'s entity with its sprite's top-left corner at `top_left`.
+@(private = "file")
+place_pc :: proc(pc_idx: int, top_left: [2]f32) {
+	e, ok := entity_get(pc_entity(pc_idx))
+	if !ok do return
+	e.pos = top_left + e.sprite.origin * sprite_size(e.sprite)
+	e.sprite.hidden = false
+}
+
+@(private = "file")
+place_party_top :: proc() {
+	party_apply(proc(i, pc_idx: int) { place_pc(pc_idx, top_slot(i)) })
+}
+
+@(private = "file")
+place_party_targeting :: proc() {
+	party_apply(proc(i, pc_idx: int) { place_pc(pc_idx, targeting_slot(i)) })
+}
+
+// Shows only the selected party member, at the Character/Skills screens' spot.
+@(private = "file")
+place_selected_pc :: proc() {
+	party_entities_hide()
+	place_pc(get_pc_idx(menu.party_idx), tile_to_pixel(1, 1))
+}
+
+// The screen position of party slot `i`'s sprite (top-left) in the Top pane.
+@(private = "file")
+top_slot :: proc(i: int) -> [2]f32 {
+	return tile_to_pixel(1, 1 + 2 * f32(i))
 }
 
 draw_world_menu :: proc() {
@@ -163,17 +205,17 @@ world_menu_update :: proc() {
 		} else if get_input(.ENTER) {
 			switch menu.top {
 			case 0:
-				menu.ui_state = .Inventory
+				set_ui_state(.Inventory)
 			case 1:
-				menu.ui_state = .Party
+				set_ui_state(.Party)
 			case 2:
-				menu.ui_state = .Party
+				set_ui_state(.Party)
 			case 3:
-				menu.ui_state = .System
+				set_ui_state(.System)
 			case 4:
 				metadata_load()
 				set_stale(.Save)
-				menu.ui_state = .Save
+				set_ui_state(.Save)
 			}
 		} else if dy, ok := get_y_input().?; ok {
 			menu.top = grid_change(menu.top, 0, dy, 1, 5)
@@ -181,15 +223,15 @@ world_menu_update :: proc() {
 
 	case .Party:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Top
+			set_ui_state(.Top)
 		} else if get_input(.ENTER) {
 			switch menu.top {
 			case 2:
-				menu.ui_state = .Character
+				set_ui_state(.Character)
 				set_stale(.Character)
 			case 1:
 				menu.skill_sel = Selection{}
-				menu.ui_state = .Skills
+				set_ui_state(.Skills)
 				set_stale(.Skills)
 			}
 		} else if dy, ok := get_y_input().?; ok {
@@ -199,16 +241,17 @@ world_menu_update :: proc() {
 
 	case .Character:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Party
+			set_ui_state(.Party)
 		} else if get_input(.ENTER) {
 			menu.equip_sel = Selection{}
-			menu.ui_state = .Equipment
+			set_ui_state(.Equipment)
 			set_stale(.Character)
 		} else {
 			m := get_menu_input()
 			if m.x != 0 {
 				menu.party_idx += m.x
 				menu.party_idx %%= party_size()
+				place_selected_pc()
 				set_stale(.Character)
 			} else if m.y != 0 {
 				menu.slot_idx += m.y
@@ -218,7 +261,7 @@ world_menu_update :: proc() {
 
 	case .Equipment:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Character
+			set_ui_state(.Character)
 			set_stale(.Character)
 		} else if get_input(.ENTER) {
 			equipment_slot := Equipment_Slot(menu.slot_idx)
@@ -226,7 +269,7 @@ world_menu_update :: proc() {
 			if fits_in_slot(item_name, equipment_slot) {
 				pc := get_party_member(menu.party_idx)
 				character_set_equipped_item(pc, equipment_slot, item_name)
-				menu.ui_state = .Character
+				set_ui_state(.Character)
 				set_stale(.Top)
 				set_stale(.Character)
 				set_stale(.Inventory)
@@ -242,12 +285,13 @@ world_menu_update :: proc() {
 
 	case .Skills:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Party
+			set_ui_state(.Party)
 		} else if get_input(.ENTER) {
 			// TODO
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
 			menu.party_idx %%= party_size()
+			place_selected_pc()
 			menu.skill_sel = Selection{}
 			set_stale(.Skills)
 		} else if dy, got_y := get_y_input().?; got_y {
@@ -263,11 +307,11 @@ world_menu_update :: proc() {
 	case .Inventory:
 		if get_input(.CANCEL) {
 			menu.inven_sel = Selection{}
-			menu.ui_state = .Top
+			set_ui_state(.Top)
 		} else if get_input(.ENTER) {
 			item_name := inventory_order[menu.inven_sel.select_idx]
 			if _, consumable := items[item_name].data.(Consumable); consumable {
-				menu.ui_state = .Item_Target
+				set_ui_state(.Item_Target)
 			} else {
 				fmt.printfln("%v isn't a Consumable", item_name)
 				play_sound(.Blerp)
@@ -279,28 +323,32 @@ world_menu_update :: proc() {
 
 	case .Item_Target:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Inventory
+			set_ui_state(.Inventory)
 		} else if get_input(.ENTER) {
-			// spawn(proc(_: Entity_Id) {
-			// 	item_name := inventory_order[menu.inven_sel.select_idx]
-			// 	if consumable, ok := items[item_name].data.(Consumable); ok {
-			// 		pc := get_party_member(menu.party_idx)
-			// 		targets: [dynamic]^Character; defer clear(&targets)
-			// 		append(&targets, pc)
-			// 		// use_skill(nil, pc, consumable)
-			// 		skills[consumable].procedure(nil, targets[:]) // blocks
-			// 		remove_item(item_name)
-			// 		if game_data.inventory[item_name] == 0 {
-			// 			menu.ui_state = .Inventory
-			// 		}
-			// 		set_stale(.Top)
-			// 		set_stale(.Inventory)
-			// 		set_stale(.Targeting)
-			// 		fmt.printfln("Used item %s on %s", item_name, pc.name)
-			// 	} else {
-			// 		fmt.println("Uh oh! Tried to use non-consumable %s", item_name)
-			// 	}
-			// }, name = "world menu use item")
+			spawn(proc(_: Entity_Id) {
+				item_name := menu.item_name
+				if game_data.inventory[item_name] == 0 {
+					play_sound(.Blerp)
+					return
+				}
+				if consumable, ok := items[item_name].data.(Consumable); ok {
+					remove_item(item_name)
+					pc := get_party_member(menu.party_idx)
+					targets: [dynamic]^Character; defer clear(&targets)
+					append(&targets, pc)
+					skills[consumable].procedure(nil, targets[:]) // blocks
+					if game_data.inventory[item_name] == 0 {
+						pause(1) // FIXME: wait for popups
+						set_ui_state(.Inventory)
+					}
+					set_stale(.Top)
+					set_stale(.Inventory)
+					set_stale(.Targeting)
+					log.infof("Used item %s on %s", item_name, pc.name)
+				} else {
+					log.warnf("Uh oh! Tried to use non-consumable %s", item_name)
+				}
+			}, name = "world menu use item")
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
 			menu.party_idx %%= party_size()
@@ -308,12 +356,12 @@ world_menu_update :: proc() {
 
 	case .System:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Top
+			set_ui_state(.Top)
 		}
 
 	case .Save:
 		if get_input(.CANCEL) {
-			menu.ui_state = .Top
+			set_ui_state(.Top)
 			menu.save_sel = Selection{}
 		} else if get_input(.ENTER) {
 			save_idx := menu.save_sel.select_idx
@@ -322,7 +370,7 @@ world_menu_update :: proc() {
 			} else {
 				save_game_now(metadata[save_idx].filepath)
 			}
-			menu.ui_state = .Top
+			set_ui_state(.Top)
 			menu.save_sel = Selection{}
 		} else if dy, ok := get_y_input().?; ok {
 			saves := metadata
@@ -413,7 +461,6 @@ draw_top_content :: proc() {
 		draw_text(origin + {2, 0}, strings.clone_to_cstring(pc.name, context.temp_allocator))
 		draw_text(origin + {2, 1}, "HP", LABEL_COLOR)
 		draw_text(origin + {3.5, 1}, fmt.ctprintf("%d/%d", hp, max_hp), hp_tint)
-		draw_character_sprite(pc, tile_to_pixel(origin.x, origin.y))
 	})
 
 	draw_pane(11, 0, 5, 6) // top
@@ -446,6 +493,7 @@ draw_top :: proc() {
 	h := f32(texture.height)
 	rect := rl.Rectangle{0, 0, w, -h}
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
+	draw_entities(battle = true) // the party
 
 	#partial switch menu.ui_state {
 	case .Top:
@@ -467,8 +515,6 @@ draw_character_content :: proc() {
 	draw_pane(0, 0, 16, 14)
 	draw_pane(12, 0, 4, 1.5)
 	draw_text(12.5, .5, "Status", LABEL_COLOR)
-
-	draw_character_sprite(pc, tile_to_pixel(1, 1))
 
 	draw_text(3.5, 1.0, strings.clone_to_cstring(pc.name,context.temp_allocator))
 	draw_text(3.5, 1.5, statuses_string(pc), font=Font.Status)
@@ -554,6 +600,7 @@ draw_character :: proc() {
 	h := f32(texture.height)
 	rect := rl.Rectangle{0, 0, w, -h}
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
+	draw_entities(battle = true) // the selected party member
 
 	#partial switch menu.ui_state {
 	case .Character:
@@ -619,7 +666,6 @@ draw_skills_content :: proc() {
 	draw_pane(12, 0, 4, 1.5)
 	draw_text(12.5, .5, "Skills", LABEL_COLOR)
 
-	draw_character_sprite(pc, tile_to_pixel(1, 1))
 	draw_text(3, 1, strings.clone_to_cstring(pc.name, context.temp_allocator))
 
 	draw_text(1, 3, "Description", LABEL_COLOR)
@@ -649,6 +695,8 @@ draw_skills :: proc() {
 	h := f32(texture.height)
 	rect := rl.Rectangle{0, 0, w, -h}
 	rl.DrawTexturePro(texture, rect, rect, {}, 0, rl.WHITE)
+	// the selected party member (when targeting, draw_targeting draws the party)
+	if menu.ui_state != .Skill_Target do draw_entities(battle = true)
 
 	r := f32(selection_row(menu.skill_sel))
 	draw_text_indicator(tile_to_pixel(1, 5 + .5 * r))
@@ -686,7 +734,6 @@ draw_targeting_content :: proc() {
 	party_apply(
 		proc(i, pc_idx: int) {
 			pc := playable_characters[pc_idx]
-			draw_character_sprite(pc, tile_to_pixel(1.5 + 2.5 * f32(i), 1))
 			hp_tint := rl.WHITE
 			hp := pc.hitpoints
 			max_hp := int(get_stat(pc, .Hitpoints))
@@ -722,6 +769,7 @@ draw_targeting :: proc() {
 	src := rl.Rectangle{0, 0, w, -h}
 	dest := rl.Rectangle{0, 10 * TILE_SIZE, w, -h}
 	rl.DrawTexturePro(texture, src, dest, {}, 0, rl.WHITE)
+	draw_entities(battle = true) // the party
 
 	draw_tile_indicator(targeting_slot(menu.party_idx), direction = Tile_Indicator_Direction.Down)
 }
