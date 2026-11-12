@@ -109,7 +109,6 @@ say_str :: proc(
 	line_width: int = 0,
 	loc := #caller_location,
 ) -> bool {
-	if world_menu_active() { log.debug("ignoring say while in world menu"); return true }
 	log.infof("say %v", text)
 	return dialogue_show(text, speaker, nil, hurry, pause, clear, justify, lines, line_width, loc)
 }

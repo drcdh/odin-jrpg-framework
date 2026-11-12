@@ -470,6 +470,7 @@ run_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name, flip_x := false) 
 }
 
 @(private = "file")
-skill_say :: proc(name: string) {
-	say(name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1)
+skill_say :: proc(name: string) -> bool {
+	if battle_active() do return say(name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1)
+	return true
 }

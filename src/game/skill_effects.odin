@@ -327,6 +327,7 @@ try_add_status :: proc(actor, target: ^Character, sts_acc: int, status: Status_N
 		add_status(actor, .Controller)
 		target.controller = actor
 	}
+	update_character_sprite(target^)
 	return .Added
 }
 

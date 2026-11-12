@@ -327,10 +327,10 @@ world_menu_update :: proc() {
 				target_selection_characters(menu.targets, &targets)
 				skills[cs.skill].procedure(actor, targets[:]) // blocks
 				log.infof("%s used skill %s", actor.name, skills[cs.skill].name)
-				pause(.5) // FIXME: wait for popups
 				set_stale(.Top)
 				set_stale(.Skills)
 				set_stale(.Targeting)
+				pause(.5) // FIXME: wait for popups
 				set_ui_state(.Skills)
 			}, name = "world menu use skill")
 		} else if m := get_menu_input(); m.x != 0 || m.y != 0 {
@@ -370,13 +370,13 @@ world_menu_update :: proc() {
 					targets: [dynamic]^Character; defer delete(targets)
 					target_selection_characters(menu.targets, &targets)
 					skills[consumable].procedure(nil, targets[:]) // blocks
+					set_stale(.Top)
+					set_stale(.Inventory)
+					set_stale(.Targeting)
 					if game_data.inventory[item_name] == 0 {
 						pause(.5) // FIXME: wait for popups
 						set_ui_state(.Inventory)
 					}
-					set_stale(.Top)
-					set_stale(.Inventory)
-					set_stale(.Targeting)
 					log.infof("Used item %s", item_name)
 				} else {
 					log.warnf("Uh oh! Tried to use non-consumable %s", item_name)
