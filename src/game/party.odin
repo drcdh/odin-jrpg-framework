@@ -119,7 +119,7 @@ get_skill_set :: proc(pc_idx: int, equipment: Equipment, level: int, stats: Stat
 	skill_set: Skill_Set
 	mh := equipped_item(equipment, Equipment_Slot.Mainhand)
 	if pc_idx == 0 {
-		if mh == .Sword || mh == .Knife {
+		if mh == .Atom_Slicer || mh == .Sword || mh == .Knife {
 			if level >= 2 {
 				skill_set += {.Pommel_Strike}
 			}
@@ -189,7 +189,7 @@ heal_party :: proc(f: f16 = 1) {
 	}
 }
 
-get_party_idx :: proc(character: ^Character) -> (int, bool) {
+get_party_idx :: proc(character: ^Character) -> (int, bool) #optional_ok {
 	party_idx: int
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
@@ -206,10 +206,7 @@ do_party_step_effects :: proc() {
 	game_data.steps += 1
 	for &pc, pc_idx in playable_characters {
 		if game_data.party_membership[pc_idx] {
-			if has_status(pc, .Poison) {
-				take_poison_damage(&pc)
-			}
-			charge_skills(&pc.skills, 1, migraine = has_status(pc, .Migraine), sprain = has_status(pc, .Sprain), battle = false)
+			character_world_tick(&pc)
 		}
 	}
 }

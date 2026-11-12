@@ -174,29 +174,52 @@ target_update :: proc(dx, dy: int, ts: Target_Selection, tt: Target_Type) -> Tar
 	return ts
 }
 
-default_target_selection :: proc(tt: Target_Type, offensive: bool) -> (ts: Target_Selection) {
+default_target_selection_item_name :: proc(n: Item_Name) -> (ts: Target_Selection) {
+	ts = nil
+	if k, ok := items[n].data.(Consumable); ok {
+		ts = default_target_selection_k(k)
+	}
+	return
+}
+
+default_target_selection_k :: proc(k: Skill_Name) -> (ts: Target_Selection) {
+	log.debugf("getting default target selection for %v", k)
+	skill := skills[k]
+	ts = default_target_selection_tt(skill.targeting, skill.offensive)
+	return
+}
+
+default_target_selection_tt :: proc(tt: Target_Type, offensive: bool) -> (ts: Target_Selection) {
 	// This assumes that the player is in control
 	switch tt {
 	case .One:
-		ts = offensive ? Target_One_Baddy{select_first_baddy()} : Target_One_Player{}
+		ts = offensive && battle_active() ? Target_One_Baddy{select_first_baddy()} : Target_One_Player{}
 	case .Some:
-		ts = offensive ? Target_One_Baddy{select_first_baddy()} : Target_One_Player{}
+		ts = offensive && battle_active() ? Target_One_Baddy{select_first_baddy()} : Target_One_Player{}
 	case .Team:
-		ts = offensive ? Target_All_Baddies{} : Target_All_Players{}
+		ts = offensive && battle_active() ? Target_All_Baddies{} : Target_All_Players{}
 	case .All:
-		ts = Target_All{}
+		ts = battle_active() ? Target_All{} : Target_All_Players{}
 	}
 	return
+}
+
+default_target_selection :: proc {
+	default_target_selection_item_name,
+	default_target_selection_k,
+	default_target_selection_tt,
 }
 
 select_first_baddy :: proc() -> int {
 	return change_baddy_selection(MAX_ENCOUNTER_SIZE, 1)
 }
 
+// `t` is a party index (c_idx in battle)
 change_player_selection :: proc(t, d: int) -> int {
+	n := party_size()
 	target := t + d
-	if target < 0 {target = len(battle.players) - 1}
-	if target >= len(battle.players) {target = 0}
+	if target < 0 {target = n - 1}
+	if target >= n {target = 0}
 	return target
 }
 
@@ -216,4 +239,50 @@ change_baddy_selection :: proc(t, d: int) -> int {
 		target += d
 	}
 	return target
+}
+
+target_selection_characters :: proc(target_selection: Target_Selection, targets: ^[dynamic]^Character) {
+	assert(len(targets) == 0, "targets should be empty")
+	switch ts in target_selection {
+	case Target_One_Baddy:
+		assert(battle_active(), "battle not active")
+		append(targets, battle.combatants[battle.baddies[ts.i]])
+	case Target_One_Player:
+		append(targets, get_party_member(ts.i))
+	case Target_All_Baddies:
+		assert(battle_active(), "battle not active")
+		for c_idx in battle.baddies {
+			append(targets, battle.combatants[c_idx])
+		}
+	case Target_All_Players:
+		for party_idx in 0 ..< party_size() {
+			append(targets, get_party_member(party_idx))
+		}
+	case Target_All:
+		if battle_active() {
+			for c in battle.combatants {
+				append(targets, c)
+			}
+		} else {
+			for party_idx in 0 ..< party_size() {
+				append(targets, get_party_member(party_idx))
+			}
+		}
+	}
+}
+
+world_target_update :: proc(dx, dy: int, ts: Target_Selection, tt: Target_Type) -> Target_Selection {
+	#partial switch ts in ts {
+	case Target_One_Player:
+		if dx != 0 {
+			return Target_One_Player{change_player_selection(ts.i, dx)}
+		} else if dy != 0 && tt == .Some {
+			return Target_All_Players{ts.i}
+		}
+	case Target_All_Players:
+		if dy != 0 && tt == .Some {
+			return Target_One_Player{ts.prev}
+		}
+	}
+	return ts
 }

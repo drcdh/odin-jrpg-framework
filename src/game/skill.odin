@@ -9,17 +9,18 @@ Target_Type :: enum {
 
 Skill :: struct {
 	name:        string,
-	effect_data: Effect_Data,
-	effect_type: Effect_Type,
+	// effect_data: Effect_Data,
+	// effect_type: Effect_Type,
 	targeting:   Target_Type,
 	offensive:   bool,
 	// ally_only:   bool,
 	windup:      int,
 	cost:        int,
 	cooldown:    int,
-	animation:   Sprite_Name,
-	sound:       Sound_Name,
+	// animation:   Sprite_Name,
+	// sound:       Sound_Name,
 	description: string,
+	procedure: Skill_Proc,
 }
 
 Skill_Set :: bit_set[Skill_Name]
@@ -58,7 +59,7 @@ modify_charged_skills :: proc(cs: ^Charged_Skills, new_skill_set: Skill_Set) {
 charge_skill :: proc(cs: ^Charged_Skill, ticks: Ticks, migraine, sprain: bool, battle := false) {
 	k := cs.skill
 	if skills[k].cooldown == 0 do return // cantrip
-	if battle { 	//|| k.world {
+	if battle || is_world_skill(k) { // world skills also recharge as the party walks
 		// Migraine and Sprain affect skill cooldown
 		update_charge(&cs.charge, migraine_sprain_modify_charge(ticks, k, migraine, sprain))
 	}
@@ -71,11 +72,11 @@ charge_skills :: proc(cs: ^Charged_Skills, ticks: Ticks, migraine, sprain: bool,
 }
 
 is_physical_skill :: proc(k: Skill_Name) -> bool {
-	return skills[k].effect_data.power > 0
+	return true // TODO return skills[k].effect_data.power > 0
 }
 
 is_psychic_skill :: proc(k: Skill_Name) -> bool {
-	return skills[k].effect_data.psy_power > 0
+	return true // TODO return skills[k].effect_data.psy_power > 0
 }
 
 is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
@@ -83,18 +84,18 @@ is_world_skill :: proc(skill_name: Skill_Name) -> (is: bool) {
 }
 
 // `actor` is nil for an item.
-do_skill :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
-	return do_effect(actor, target, skill.effect_data, skill.effect_type)
-}
+// do_skill :: proc(actor, target: ^Character, skill: Skill) -> Effect_Result {
+// 	return do_effect(actor, target, skill.effect_data, skill.effect_type)
+// }
 
 // Does the skill and shows the result right away at the target's entity: the
 // sound, the target's new look and the popups. `actor` is nil for an item.
 // The battle shows its results later, in show_skill_results.
-use_skill :: proc(actor, target: ^Character, skill_name: Skill_Name) -> (r: Effect_Result) {
-	skill := skills[skill_name]
-	r = do_skill(actor, target, skill)
-	play_sound(skill.sound)
-	update_character_sprite(target^)
-	show_effect_popups(target^, r)
-	return
-}
+// use_skill :: proc(actor, target: ^Character, skill_name: Skill_Name) -> (r: Effect_Result) {
+// 	skill := skills[skill_name]
+// 	r = do_skill(actor, target, skill)
+// 	play_sound(skill.sound)
+// 	update_character_sprite(target^)
+// 	show_effect_popups(target^, r)
+// 	return
+// }

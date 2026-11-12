@@ -84,6 +84,15 @@ draw_tile_indicator_Pixel_Coord :: proc(p: [2]f32, direction := Tile_Indicator_D
 	draw_tile_indicator_Pixels(p.x, p.y, direction, tint)
 }
 
+// A tile-selection arrow at each targeted character's entity.
+draw_tile_indicator_Target_Selection :: proc(ts: Target_Selection, direction := Tile_Indicator_Direction.Right, tint := rl.WHITE) {
+	targets := make([dynamic]^Character, context.temp_allocator)
+	target_selection_characters(ts, &targets)
+	for c in targets {
+		draw_tile_indicator_Pixel_Coord(entity_top_left(c.eid), direction, tint)
+	}
+}
+
 draw_tile_indicator_Tile :: proc(tile: Tile, direction := Tile_Indicator_Direction.Right, tint := rl.WHITE) {
 	p := tile_to_pixel(tile)
 	draw_tile_indicator_Pixel_Coord(p, direction, tint)
@@ -92,5 +101,6 @@ draw_tile_indicator_Tile :: proc(tile: Tile, direction := Tile_Indicator_Directi
 draw_tile_indicator :: proc {
 	draw_tile_indicator_Pixels,
 	draw_tile_indicator_Pixel_Coord,
+	draw_tile_indicator_Target_Selection,
 	draw_tile_indicator_Tile,
 }

@@ -78,7 +78,7 @@ init_new_game :: proc() {
 	game_data.party_membership = {true, false, false, false, false, false}
 	for item_name in Item_Name {
 		if item_name != .None {
-			game_data.inventory[item_name] = 1
+			game_data.inventory[item_name] = 50
 		}
 	}
 	game_data.money = Money(MONEY_MAX / 8)

@@ -3,6 +3,11 @@ Potion,Potion,10,Heals 50 hitpoints.
 Super Potion,Super_Potion,100,Heals 500 hitpoints.
 Antidote,Antidote,10,Cures poison.
 Poisonous Mushroom,Poisonous_Mushroom,50,Looks non-poisonous.
+Eye Drops,Eye_Drops,10,Cures Blindness.
+Ink Bomb,Ink_Bomb,500,"Makes a huge, incriminating mess."
+Incense,Incense,40,Cures Confusion.
+Double-Fried Po’ Boy,Double_Fried_Poboy,80,Looks very rich.
+Suspicious Ham Hock,Zombify_One,,Kinda funky looking|
 Thingamajig,,,"It's a, uhm, er|\nWell, it's what it would say on the tin, if it came in a tin."
 Doodad,,,"These are a dime a dozen, and dimes aren't worth much in this economy."
 Deluxe Doodad,,,Worth several dimes a dozen.

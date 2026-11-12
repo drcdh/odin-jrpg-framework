@@ -164,6 +164,10 @@ tweens_update :: proc(dt: f32) {
 	arrived := make([dynamic]Entity_Id, context.temp_allocator)
 	it := hm.iterator_make(&game.tweens)
 	for t, h in hm.iterate(&it) {
+		// a waiting entity's tweens wait with it
+		if ep, on_entity := t.target.(Entity_Prop); on_entity {
+			if e, ok := entity_get(ep.entity); ok && !entity_updating(e^) do continue
+		}
 		if tween_step(t, dt) do continue
 		if _, alive := target_get(t.target); alive && t.arrive {
 			append(&arrived, t.target.(Entity_Prop).entity)

@@ -102,6 +102,7 @@ battle_menu_end :: proc() {
 }
 
 battle_menu_check_selection_valid :: proc() {
+	if !battle_active() do return
 	c := battle.combatants[battle_menu.c_idx]
 	if !ready(c^) || is_uncontrollable(c^) do battle_menu_next_combatant()
 }
@@ -252,8 +253,6 @@ battle_menu_update :: proc() {
 			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, skills[battle_menu.skill].targeting)
 		}
 	}
-
-	battle_menu_redraw_content()
 }
 
 // ******************************

@@ -4,6 +4,8 @@ import "core:log"
 import "core:math"
 import "core:math/rand"
 
+TICKS_PER_WORLD_STEP :: 10
+
 Character :: struct {
 	base_stats:    Stats,
 	exp_to_next:   Maybe(int),
@@ -19,6 +21,7 @@ Character :: struct {
 	skills:        Charged_Skills,
 	eid:           Entity_Id,
 	// battle stuff
+	c_idx:         int,
 	charge:        Charge, // charge to get turn
 	controller:    ^Character, // TODO: will become part of status struct data
 	team:          Team,
@@ -68,10 +71,49 @@ instakill :: proc(c: ^Character) {
 	remove_all_statuses(c)
 }
 
+stagger_character :: proc(c: ^Character, stagger: int) {
+	if skill_play_idx, ok := get_combatant_skill_play(c).?; ok {
+		log.infof("staggering %s skill charge by %d", c.name, stagger)
+		delay_charge(&battle.skill_plays[skill_play_idx].charge, Ticks(stagger))
+	} else {
+		log.infof("staggering %s turn charge by %d", c.name, stagger)
+		delay_charge(&c.charge, Ticks(stagger))
+	}
+}
+
+interrupt_windup :: proc(c: ^Character) {
+	if !c.windup {
+		log.infof("Tried to interrupt %s but they weren't winding up", c.name)
+		return
+	}
+	c.windup = false
+	interrupt_skill_play(c)
+	reset_character_charge(c)
+	update_character_sprite(c^)
+	log.infof("Break! %s is interrupted", c.name)
+}
+
+@(require_results) // This is to ensure restorations affected by sick are properly displayed in popups
+restore_hitpoints :: proc(c: ^Character, hp_gain: int) -> int {
+	hp_gain := hp_gain
+	sick := has_status(c^, .Sick)
+	if sick do hp_gain /= 2
+	prev := c.hitpoints
+	max_hp := int(get_stat(c^, .Hitpoints))
+	c.hitpoints = min(c.hitpoints + hp_gain, max_hp)
+	update_character_sprite(c^)
+	log.infof("%s gained %d hitpoints%s: %d -> %d/%d", c.name, hp_gain, " (Sick)" if sick else "", prev, c.hitpoints, max_hp)
+	return hp_gain
+}
+
 take_damage :: proc(c: ^Character, hp_loss: int) {
+	prev := c.hitpoints
 	c.hitpoints = max(0, c.hitpoints - hp_loss)
+	log.infof("%s took %d damage: %d -> %d/%.0f", c.name, hp_loss, prev, c.hitpoints, get_stat(c^, .Hitpoints))
 	if c.hitpoints == 0 {
+		log.infof("%s hitpoints went to zero", c.name)
 		remove_all_statuses(c)
+		queue_downed(c)
 	}
 }
 
@@ -121,6 +163,14 @@ character_battle_tick :: proc(c: ^Character) {
 
 	// Haste and Slow affect character turn charge by modifying Speed, so don't do anything to ticks here
 	update_charge(&c.charge, ticks)
+}
+
+character_world_tick :: proc(c: ^Character) {
+	if has_status(c^, .Poison) {
+		take_poison_damage(c)
+	}
+	ticks := TICKS_PER_WORLD_STEP * f32(get_stat(c^, .Speed))/SPEED_PAR
+	charge_skills(&c.skills, ticks, migraine = has_status(c^, .Migraine), sprain = has_status(c^, .Sprain), battle = false)
 }
 
 new_character_charge :: proc(c: Character) -> Charge {
