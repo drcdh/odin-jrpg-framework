@@ -4,11 +4,12 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 case "${1:-build}" in
-	check)   odin check src -debug -vet ;;
-	run)     odin run   src -debug -vet -out:jrpg ;;
-	build)   odin build src -debug -vet -out:jrpg ;;
-	release) odin build src -o:speed -vet -out:jrpg-release ;;
-	loaded)  odin build src -o:speed -out:jrpg-release-loaded -define:COMPILE_LOAD=true ;;
-	test)    odin test  src/game -debug -vet -define:ODIN_TEST_THREADS=1 -out:test-jrpg ;;
-	*)       echo "unknown target: $1" >&2; exit 1 ;;
+	check)     odin check src -debug -vet ;;
+	run)       odin run   src -debug -vet -out:jrpg ;;
+	build)     odin build src -debug -vet -out:jrpg ;;
+	release)   odin build src -o:speed -vet -out:jrpg-release ;;
+	loaded)    odin build src -o:speed -out:jrpg-release-loaded -define:COMPILE_LOAD=true ;;
+	test)      odin test  src/game -debug -vet -define:ODIN_TEST_THREADS=1 -out:test-jrpg ;;
+	testbuild) odin build src/game -build-mode:test -debug -define:ODIN_TEST_THREADS=1 -out:test-jrpg ;;
+	*)         echo "unknown target: $1" >&2; exit 1 ;;
 esac

@@ -1,4 +1,5 @@
 build/
+coverage/
 saves/
 *_data.odin
 .~lock.*

@@ -8,6 +8,13 @@ Content in this repo is just to demonstrate the features. This repo can be forke
 ### Requirements
 Python, pytiled-parser, Tiled, Aseprite/LibreSprite.
 
+### Tests and Coverage
+Run unit tests with:
+- `build.sh test`
+
+Generate a coverage report with:
+- `build.sh testbuild && kcov --include-path="$PWD/src/game" coverage/ ./test-jrpg`
+
 ### Windows build from Linux
 Get the Windows SDK via [xwin](https://github.com/Jake-Shadle/xwin):
 - `sudo apt install cargo`
