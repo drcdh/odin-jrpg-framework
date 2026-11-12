@@ -253,8 +253,6 @@ battle_menu_update :: proc() {
 			battle_menu.targets = target_update(m.x, m.y, battle_menu.targets, skills[battle_menu.skill].targeting)
 		}
 	}
-
-	battle_menu_redraw_content()
 }
 
 // ******************************

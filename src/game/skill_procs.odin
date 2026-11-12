@@ -187,7 +187,7 @@ skill_proc_ultimagnitude_9000 :: proc(actor: ^Character, targets: []^Character) 
 
 	skill_say(name)
 	lunge_forward(actor^)
-	results: [dynamic]ASI_Result; defer clear(&results)
+	results: [dynamic]ASI_Result; defer delete(results)
 	for target in targets {
 		r: ASI_Result
 		if downed(target^) {
@@ -279,8 +279,8 @@ skill_proc_heal_some :: proc(name: string, heal_data: Heal_Data, sound: Sound_Na
 	skill_say(name)
 	item_forward(actor^)
 
-	results: [dynamic]Heal_Result; defer clear(&results)
-	gains: [dynamic]int; defer clear(&gains)
+	results: [dynamic]Heal_Result; defer delete(results)
+	gains: [dynamic]int; defer delete(gains)
 
 	for target in targets {
 		r: Heal_Result
@@ -357,7 +357,7 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 	skill_say(name)
 	lunge_forward(actor^)
 
-	results: [dynamic]ASI_Result; defer clear(&results)
+	results: [dynamic]ASI_Result; defer delete(results)
 
 	for target in targets {
 		r: ASI_Result

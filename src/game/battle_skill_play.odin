@@ -12,7 +12,7 @@ process_skill_play :: proc(_: Entity_Id) {
 
 	actor := battle.combatants[sp.actor_idx]
 	skill := skills[sp.skill_name]
-	targets: [dynamic]^Character; defer clear(&targets)
+	targets: [dynamic]^Character; defer delete(targets)
 	target_selection_characters(sp.targets, &targets)
 	skill.procedure(actor, targets[:]) // blocks
 

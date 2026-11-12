@@ -71,6 +71,32 @@ run_for :: proc(seconds: f32) {
 	for _ in 0..<int(math.round(seconds / FRAME)) do update(FRAME)
 }
 
+// Runs full updates until script `s` finishes. False if it's still running
+// after `max_seconds` of game time, so a stuck script fails instead of hanging.
+run_script :: proc(s: Script_Id, max_seconds: f32 = 10) -> bool {
+	for _ in 0 ..< int(math.round(max_seconds / FRAME)) {
+		if !script_alive(s) do return true
+		update(FRAME)
+	}
+	return !script_alive(s)
+}
+
+@(private = "file") skill_run_actor: ^Character
+@(private = "file") skill_run_targets: [MAX_COMBATANTS]^Character
+@(private = "file") skill_run_count: int
+@(private = "file") skill_run_name: Skill_Name
+
+// Plays skill `k`'s proc in a script, as the game does, and waits for it (see
+// run_script). Needs headless_init: procs talk and pop up.
+run_skill :: proc(actor: ^Character, targets: []^Character, k: Skill_Name, max_seconds: f32 = 10) -> bool {
+	skill_run_actor, skill_run_name = actor, k
+	skill_run_count = copy(skill_run_targets[:], targets)
+	s := spawn(proc(_: Entity_Id) {
+		skills[skill_run_name].procedure(skill_run_actor, skill_run_targets[:skill_run_count])
+	}, name = "test skill")
+	return run_script(s, max_seconds)
+}
+
 // Tween tests work in raw pixels; spawn_entity snaps pos to a tile center, so override it.
 @(private = "file")
 spawn_at :: proc(pos: [2]f32) -> Entity_Id {
@@ -1338,25 +1364,26 @@ palette_swaps_are_cached :: proc(t: ^testing.T) {
 // --- World menu ---
 
 @(test)
-world_menu_pauses_and_cancel_restores_the_clock :: proc(t: ^testing.T) {
+world_menu_holds_world_entities_until_cancel :: proc(t: ^testing.T) {
 	headless_init(); defer headless_shutdown()
+	world_e := spawn_at({0, 0})
+	battle_e := spawn_at({0, 0})
+	if e, ok := entity_get(battle_e); ok do e.battle = true // e.g. an item animation
+	tween_to(world_e, .Pos_X, {10, 0, 0, 0}, 1)
+	tween_to(battle_e, .Pos_X, {10, 0, 0, 0}, 1)
+
 	world_menu_enter()
 	testing.expect(t, world_menu_active(), "the menu should open")
-	testing.expect(t, game.clock.paused, "the menu should pause the world")
-	before := time()
 	run_for(0.5)
-	testing.expect_value(t, time(), before)
+	expect_near(t, entity_pos(world_e).x, 0) // the world waits behind the menu
+	expect_near(t, entity_pos(battle_e).x, 5) // battle entities keep going
 	tap(.DOWN) // moves the cursor; the menu stays open
 	testing.expect(t, world_menu_active(), "DOWN shouldn't close the menu")
 	tap(.CANCEL)
 	testing.expect(t, !world_menu_active(), "CANCEL should close the menu")
-	testing.expect(t, !game.clock.paused, "closing should unpause")
 
-	// A world paused before the menu opened stays paused after it closes.
-	set_paused(true)
-	world_menu_enter()
-	world_menu_exit()
-	testing.expect(t, game.clock.paused, "closing should restore the earlier pause")
+	run_for(0.5)
+	testing.expect(t, entity_pos(world_e).x > 0, "the world should move again after the menu closes")
 }
 
 @(test)
@@ -1454,8 +1481,9 @@ item_in_world_menu_pops_up_its_result :: proc(t: ^testing.T) {
 	pc := get_party_member(0)
 	pc.stats[Stat_Name.Hitpoints] = 100
 	pc.hitpoints = 1
-	r := use_skill(nil, pc, .Potion)
-	testing.expect_value(t, r.hp_change, 50)
+	world_menu_enter() // skips the skill's banner and places the PC's entity
+	defer world_menu_exit()
+	testing.expect(t, run_skill(nil, {pc}, .Potion), "the potion never finished")
 	testing.expect_value(t, pc.hitpoints, 51)
 	testing.expect_value(t, popup_count(), 1)
 	run_for(1.1) // popups run on raw_dt, which run_for advances too

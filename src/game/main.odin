@@ -162,7 +162,9 @@ update :: proc(frame_dt: f32) {
 }
 
 draw :: proc() {
+	// menu panes render to their own textures, so outside the frame's texture mode
 	redraw_world_menu_content()
+	if battle_active() do battle_menu_redraw_content()
 
 	rl.BeginTextureMode(texture)
 	rl.ClearBackground({30, 30, 40, 255})
