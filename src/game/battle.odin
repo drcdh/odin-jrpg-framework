@@ -151,8 +151,6 @@ pause_battle :: proc(paused := true) {
 }
 
 battle_tick :: proc() {
-	// clear(&battle.skill_result)
-
 	// Poison gets a tick to itself so its results are never shown with a skill play's.
 	// TODO: Character statuses will have data for status-specific procedures (e.g. poison dmg, paralysis or sleep wearing off)
 	battle.poison_ticks += 1
@@ -167,18 +165,6 @@ battle_tick :: proc() {
 		character_battle_tick(c)
 	}
 
-	// // remove invalid Skill_Plays
-	// // TODO: do this when a character is interrupted or downed in the specific procedure
-	// for i := 0; i < len(battle.skill_plays); {
-	// 	c := battle.combatants[battle.skill_plays[i].actor_idx]
-	// 	if !winding_up(c^) || !alive(c^) {
-	// 		fmt.printfln("removing Battle_Skill_Play %d after combatant interrupted or downed", i)
-	// 		remove_skill_play(i)
-	// 	} else {
-	// 		i += 1
-	// 	}
-	// }
-
 	for &s in battle.skill_plays {
 		update_skill_play(&s)
 	}
@@ -187,7 +173,7 @@ battle_tick :: proc() {
 		if charge_full(battle.skill_plays[i].charge) {
 			battle.skill_play = battle.skill_plays[i] // copy skill play
 			remove_skill_play(i)
-			battle.script = spawn(process_skill_play_2)
+			battle.script = spawn(process_skill_play)
 			break
 		} else {
 			i += 1
@@ -243,41 +229,6 @@ queue_battle_skill :: proc(actor_idx: int, targets: Target_Selection, skill_name
 	update_character_sprite(battle.combatants[actor_idx]^)
 	append(&battle.skill_plays, Battle_Skill_Play{actor_idx, targets, skill_name, new_charge(max=Ticks(skill.windup))})
 }
-
-// process_skill_play :: proc(skill_play: Battle_Skill_Play) {
-// 	fmt.printfln("Processing skill play: %#v", skill_play)
-//
-// 	skill := skills[skill_play.skill_name]
-// 	actor := battle.combatants[skill_play.actor_idx]
-// 	actor.windup = false
-//
-// 	battle.results_actor = skill_play.actor_idx
-// 	battle.results_skill = skill_play.skill_name
-//
-// 	affect :: proc(skill_play: Battle_Skill_Play, actor: ^Character, target_idx: int, skill: Skill) {
-// 		r := do_skill(actor, battle.combatants[target_idx], skill)
-// 		append(&battle.skill_result, Battle_Effect_Result{
-// 			source     = .Skill,
-// 			actor_idx  = skill_play.actor_idx,
-// 			target_idx = target_idx,
-// 			skill_name = skill_play.skill_name,
-// 			result     = r,
-// 		})
-// 	}
-//
-// 	switch targets in skill_play.targets {
-// 	case Target_One_Player:
-// 		affect(skill_play, actor, battle.players[targets.i], skill)
-// 	case Target_One_Baddy:
-// 		affect(skill_play, actor, battle.baddies[targets.i], skill)
-// 	case Target_All_Players:
-// 		for target_idx in battle.players do affect(skill_play, actor, target_idx, skill)
-// 	case Target_All_Baddies:
-// 		for target_idx in battle.baddies do affect(skill_play, actor, target_idx, skill)
-// 	case Target_All:
-// 		for _, target_idx in battle.combatants do affect(skill_play, actor, target_idx, skill)
-// 	}
-// }
 
 // TODO: per-combatant poison timers and severity
 battle_poison_tick :: proc() -> bool {
@@ -337,9 +288,7 @@ battle_clear :: proc() {
 // call when we're ready to switch back to world
 battle_deactivate :: proc() {
 	clear(&battle.skill_plays)
-	// clear(&battle.skill_result)
 	script_cancel(battle.script)
-	// clear(&battle.results)
 	clear_popups()
 	battle_menu_end()
 	for c_idx in battle.players {
@@ -356,8 +305,6 @@ battle_destroy :: proc() {
 	delete(battle.baddies)
 	delete(battle.combatants)
 	delete(battle.skill_plays)
-	// delete(battle.skill_result)
-	// delete(battle.results)
 	battle = {}
 }
 
@@ -373,9 +320,6 @@ battle_result :: proc() -> Maybe(Battle_Result) {
 	return battle.result
 }
 
-// One entity per combatant, so battle.combatants[c_idx] shows
-// battle.combatants[c_idx]. start_encounter adds the baddies in
-// formation order, then the party in PC order.
 @(private = "file")
 spawn_combatants :: proc(name: Encounter_Name) {
 	log.infof("spawning combatants for encounter %v", name)
@@ -570,92 +514,6 @@ set_autobattle :: proc(v := true) {
 	autobattle = v
 }
 
-// Shows what the last tick's skill play did, one script per target (see
-// show_skill_result), MULTI_TARGET_DELAY apart. The battle pauses until they
-// have all finished, then ends if a team has won.
-// process_skill_results :: proc() {
-// 	if len(battle.skill_result) == 0 do return
-// 	log.info("processing skill results")
-// 	assert(!script_alive(battle.results_script), "a skill play is already being shown")
-// 	clear(&battle.results)
-// 	append(&battle.results, ..battle.skill_result[:])
-// 	battle.paused = true
-// 	log.infof("starting show_skill_results: len(battle.results) = %d", len(battle.results))
-// 	battle.results_script = spawn(show_skill_results, name = "skill results")
-// }
-
-// @(private = "file")
-// show_skill_results :: proc(_: Entity_Id) {
-// 	ATTACK_TIME :: .25 // time to animate approach and retreat
-// 	PARTY_DX :: 2 // distance players move horizontally in tiles
-//
-// 	// passive effects (e.g. poison) have no actor, text, or animations
-// 	is_skill := battle.results[0].source == .Skill
-//
-// 	actor: ^Character
-// 	actor_eid: Entity_Id
-//
-// 	if is_skill {
-// 		say(skills[battle.results_skill].name, hurry=true, justify=.Center, lines=1, line_width=-1, pause=1.5)
-//
-// 		actor = battle.combatants[battle.results_actor]
-// 		actor_eid = actor.eid
-// 		if actor.team == .Baddy {
-// 			move_entity(actor_eid, {1, 0}, ATTACK_TIME)
-// 		} else {
-// 			set_sprite_tag_of(actor_eid, .RArm)
-// 			freeze_anim(actor_eid, 1)
-// 			wait_all(tween_jump(actor_eid, -PARTY_DX, 1, ATTACK_TIME))
-// 			set_sprite_tag_of(actor_eid, .Walk)
-// 			freeze_anim(actor_eid, 1)
-// 		}
-// 	}
-//
-// 	scripts: sa.Small_Array(MAX_COMBATANTS, Script_Id)
-// 	for r, i in battle.results {
-// 		if i > 0 && !pause(MULTI_TARGET_DELAY) do return
-// 		sa.push(&scripts, spawn(show_skill_result, battle.combatants[r.target_idx].eid, name = "skill result"))
-// 	}
-// 	for s in sa.slice(&scripts) {
-// 		if !wait_script(s) do return
-// 	}
-//
-// 	if is_skill {
-// 		if actor.team == .Baddy {
-// 			move_entity(actor_eid, {-1, 0}, ATTACK_TIME)
-// 		} else {
-// 			set_sprite_tag_of(actor_eid, .Walk)
-// 			play_anim(actor_eid)
-// 			move_entity(actor_eid, {PARTY_DX, 0}, ATTACK_TIME)
-// 			update_character_sprite(actor^)
-// 		}
-// 	}
-//
-// 	battle_menu_check_selection_valid()
-//
-// 	battle_menu_set_stale(.Baddies)
-// 	battle_menu_set_stale(.Party)
-// 	if result, over := check_win().?; over {
-// 		log.infof("battle result non-nil: %v", result)
-// 		battle.result = result
-// 		if result == .Win {
-// 			if battle.win_proc != nil {
-// 				spawn(battle.win_proc)
-// 			} else {
-// 				spawn(default_win_proc)
-// 			}
-// 		} else if result == .Lose {
-// 			if battle.lose_proc != nil {
-// 				spawn(battle.lose_proc)
-// 			} else {
-// 				spawn(default_lose_proc)
-// 			}
-// 		}
-// 	} else {
-// 		battle.paused = false
-// 	}
-// }
-
 default_start_proc :: proc(_: Entity_Id) {
 	play_music(.Battle)
 	fade_screen(0, .25)
@@ -706,58 +564,6 @@ continue_lose_proc :: proc(_: Entity_Id) {
 	battle_deactivate()
 	fade_screen(0, .5)
 }
-
-// @(private = "file")
-// show_skill_result :: proc(target_id: Entity_Id) {
-// 	effect_result, found := skill_result_for(target_id)
-// 	if !found {
-// 		log.errorf("show_skill_result called for target_id %v but no effect result found", target_id)
-// 		return
-// 	}
-// 	r := effect_result.result
-// 	c := battle.combatants[effect_result.target_idx]
-// 	if downed(c^) && !r.downed {
-// 		log.warnf("effect result tried to down the already downed combatant %s (c_idx=%d)", c.name, effect_result.target_idx)
-// 		return
-// 	}
-//
-// 	if effect_result.source == .Skill {
-// 		if c.team == .Player {
-// 			if new_tag, ok := effect_reaction_tag(r).?; ok {
-// 				set_sprite_tag_of(target_id, new_tag)
-// 				play_anim(target_id)
-// 			}
-// 		}
-//
-// 		skill := skills[effect_result.skill_name]
-// 		play_sound(skill.sound)
-// 		if !play_skill_anim(target_id, skill.animation) do return
-// 	}
-//
-// 	// the new look (statuses, health) replaces the reaction pose; a downed
-// 	// target's look comes from player_down or baddy_down instead
-// 	if !r.downed do update_character_sprite(c^)
-//
-// 	if n := show_effect_popups(c^, r); n > 1 {
-// 		if !pause(POPUP_GAP * f32(n - 1)) do return
-// 	}
-//
-// 	if r.downed {
-// 		if c.team == .Player {
-// 			player_down(target_id)
-// 		} else {
-// 			baddy_down(target_id)
-// 		}
-// 	}
-// }
-
-// @(private = "file")
-// skill_result_for :: proc(target: Entity_Id) -> (Battle_Effect_Result, bool) {
-// 	for r in battle.results {
-// 		if battle.combatants[r.target_idx].eid == target do return r, true
-// 	}
-// 	return {}, false
-// }
 
 baddy_down :: proc(self: Entity_Id) {
 	log.infof("downing baddy eid=%v", self)
