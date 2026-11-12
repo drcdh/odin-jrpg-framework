@@ -1,44 +1,37 @@
-name,target,offensive,ally_only,effect_type,constant,power,psy_power,pierce,psy_pierce,hit_acc,risk,ranged,sts_acc,status,stg_acc,stagger,int_acc,windup,cost,cooldown,animation,sound,description
-Potion,One,,x,Heal,50,,,,,,,,,,,,,10,50,,Heal,Warp,
-Super Potion,One,,x,Heal,500,,,,,,,,,,,,,10,50,,Heal,Warp,
-Antidote,One,,x,Heal,,,,,,,,,100,Poison,,,,10,50,,Heal,Warp,
-Poisonous Mushroom,One,,x,Attack,,,,,,,,,100,Poison,,,,10,50,,Heal,Warp,
-Level Up,One,,x,Level_Up,1,,,,,,,,,,,,,,,,Heal,Warp,
-Suicide,One,,x,Death,,,,,,100,,,,,,,,,,,Heal,Blerp,
-Small Smoke Bomb,One,x,,Attack,,,,,,,,,,,,50,90,20,50,,Smack,Warp,
-Smack,One,x,,Attack,,60,,,,,,,,,,,,,,,Smack,Whack,Basic smack.
-Punch,One,x,,Attack,,80,,,,,150,,,,,,,,,,Smack,Whack,"Biff, pow, socko, and/or wham!"
-Smash,One,x,,Attack,,100,,,,,,,,,,,,,,,Smack,Whack,Use weight to your destructive advantage.
-Slash,One,x,,Attack,,100,,,,,,,,,,,,,,,Slash,Whack,Aim sharp side towards enemy.
-Bite,One,x,,Attack,,150,,,,,,,,,,,,,,,Ffvi_Stars,Whack,Chomp!
-Stab,One,x,,Attack,,80,,50,,,,,,,,,,,,,Stab,Whack,Poke in the nooks 'n' crannies.
-Wild Swing,One,x,,Attack,,200,,,,,300,,,,,,,,,60,Slash,Whack,Powerful but risky attack.
-Slash All,Team,x,,Attack,,100,,,,,,,,,,,,30,150,100,Slash,Whack,Attack all enemies simultaneously.
-Quake Smash,Team,x,,Attack,,300,,,,,,ranged,,,,,,60,150,500,Smack,Whack,Slam your weapon on the ground so hard it cracks the earth.
-Tickle,One,x,,Attack,,,,,,,200,,,,30,10,10,,,,Ffvi_Stars,Warp,Distract an enemy.
-Tangle,One,x,,Attack,,,100,,,,,ranged,,,100,200,100,40,,300,Green_Swirl,Whack,Grow vines to trap and restrict an enemy.
-Pommel Strike,One,x,,Attack,,20,,,,,200,,100,Confuse,100,50,,,110,,Smack,Whack,Concussive force confuses an enemy.
-Plague Bite,One,x,,Attack,,150,,,,,,,100,Poison,,,,,,200,Ffvi_Stars,Whack,Icky chomp!
-Fire,Some,x,,Attack,,,100,,,,,ranged,,,,,,,,,Small_Flame,Warp,Singe an enemy.
-Gust,One,x,,Attack,,,10,,,,,ranged,,,90,10,2,,,,Blue_Swirl,Warp,Stagger an enemy slightly with a gust of wind.
-Frost,One,x,,Attack,,,80,30,,,,ranged,,,75,20,,,,200,Blue_Stars,Warp,Chill an enemy.
-Heal,One,,,Heal,,,100,,,,,,,,,,,20,,50,Heal,Warp,Heal an ally.
-Heal All,Team,,,Heal,,,50,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
-Healing Hymn,Team,,,Heal,,,70,,,,,,,,,,,50,,100,Heal,Warp,Heal all allies.
-Mind Control,One,x,,Attack,,,,,,,,ranged,100,Control,,,,50,,200,Heal,Warp,Attempt to control an enemy's actions.
-Ultimagnitude 9000,All,x,,Attack,,1000,1000,50,50,,,ranged,,,,90,90,500,500,0,Heal,Warp,Flip the table of reality.
-Super Hyper Slash,One,x,,Attack,,1000,,150,,,,,,,,,,500,500,,Slash,Whack,God stays out of the way.
-Debug Stagger,One,x,,Attack,,,,,,,,,,,,50,,,,,,,you shouldn’t be here
-Debug Interrupt,One,x,,Attack,,,,,,,,,,,,50,100,,,,,,you shouldn’t be here
-Berserk,Some,x,,Attack,,,,,,,,,100,Berserk,,,,,,,Wave_Berserk,Warp,
-Blind,Some,x,,Attack,,,,,,,,,100,Blind,,,,,,,Wave_Blind,Warp,
-Confuse,Some,x,,Attack,,,,,,,,,100,Confuse,,,,,,,Wave_Confuse,Warp,
-Migraine,Some,x,,Attack,,,,,,,,,100,Migraine,,,,,,,Wave_Migraine,Warp,
-Paralyze,Some,x,,Attack,,,,,,,,,100,Paralyze,,,,,,,Wave_Paralyze,Warp,
-Poison,Some,x,,Attack,,,,,,,,,100,Poison,,,,,,,Wave_Poison,Warp,
-Rage,Some,x,,Attack,,,,,,,,,100,Rage,,,,,,,Wave_Rage,Warp,
-Sick,Some,x,,Attack,,,,,,,,,100,Sick,,,,,,,Wave_Sick,Warp,
-Sleep,Some,x,,Attack,,,,,,,,,100,Sleep,,,,,,,Wave_Sleep,Warp,
-Slow,Some,x,,Attack,,,,,,,,,100,Slow,,,,,,,Wave_Slow,Warp,
-Sprain,Some,x,,Attack,,,,,,,,,100,Sprain,,,,,,,Wave_Sprain,Warp,
-Zombify,Some,x,,Attack,,,,,,,,,100,Zombie,,,,,,,Wave_Zombie,Warp,
+name,target,offensive,ally_only,risk,ranged,windup,cost,cooldown,description,proc
+Smack,One,x,,,,,,,Basic smack.,
+Punch,One,x,,150,,,,,"Biff, pow, socko, and/or wham!",
+Smash,One,x,,,,,,,Use weight to your destructive advantage.,
+Slash,One,x,,,,,,,Aim sharp side towards enemy.,
+Bite,One,x,,,,,,,Chomp!,
+Stab,One,x,,,,,,,Poke in the nooks 'n' crannies.,
+Wild Swing,One,x,,300,,,,60,Powerful but risky attack.,
+Slash All,Team,x,,,,30,150,100,Attack all enemies simultaneously.,
+Quake Smash,Team,x,,,ranged,60,150,500,Slam your weapon on the ground so hard it cracks the earth.,
+Tickle,One,x,,200,,,,,Distract an enemy.,
+Tangle,One,x,,,ranged,40,,300,Grow vines to trap and restrict an enemy.,
+Pommel Strike,One,x,,200,,,110,,Concussive force confuses an enemy.,
+Plague Bite,One,x,,,,,,200,Icky chomp!,
+Fire,Some,x,,,ranged,,,,Singe an enemy.,
+Gust,One,x,,,ranged,,,,Stagger an enemy slightly with a gust of wind.,
+Frost,One,x,,,ranged,,,200,Chill an enemy.,
+Heal,One,,,,,20,,50,Heal an ally.,
+Heal All,Team,,,,,50,,100,Heal all allies.,
+Healing Hymn,Team,,,,,50,,100,Heal all allies.,
+Mind Control,One,x,,,ranged,50,,200,Attempt to control an enemy's actions.,
+Ultimagnitude 9000,All,x,,,ranged,500,500,0,Flip the table of reality.,
+Super Hyper Slash,One,x,,,,500,500,,God stays out of the way.,
+Debug Stagger,One,x,,,,,,,you shouldn’t be here,
+Debug Interrupt,One,x,,,,,,,you shouldn’t be here,
+Berserk,Some,x,,,,,,,,
+Blind,Some,x,,,,,,,,
+Confuse,Some,x,,,,,,,,
+Migraine,Some,x,,,,,,,,
+Paralyze,Some,x,,,,,,,,
+Poison,Some,x,,,,,,,,
+Rage,Some,x,,,,,,,,
+Sick,Some,x,,,,,,,,
+Sleep,Some,x,,,,,,,,
+Slow,Some,x,,,,,,,,
+Sprain,Some,x,,,,,,,,
+Zombify,Some,x,,,,,,,,

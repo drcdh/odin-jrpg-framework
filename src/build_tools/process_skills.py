@@ -7,19 +7,8 @@ ROOT = "./content/skills"
 DEST = "./src/game"
 
 DEFAULTS = dict(
-	constant=0,
-	power=0,
-	psy_power=0,
-	pierce=0,
-	psy_pierce=0,
-	hit_acc=100,
 	risk=100,
 	ranged="false",
-	sts_acc=100,
-	status="nil",
-	stg_acc=100,
-	stagger=0,
-	int_acc=0,
 	# traits="???",
 )
 TYPES = dict(
@@ -54,7 +43,7 @@ def odin_skill(row):
 		# "animation": ("." + row["animation"]) if row["animation"] else "nil",
 		# "sound": ("." + row["sound"]) if row["sound"] else "nil",
 		"description": process_text(row.get("description", "")),
-		"procedure": "skill_proc_" + name_to_enum(row["name"]).lower(),
+		"procedure": "skill_proc_" + name_to_enum(row["proc"] or row["name"]).lower(),
 	}
 def write_skill(f, oskill):
 	f.write("\t{{ \"{name}\", {target}, {offensive}, {windup}, {cost}, {cooldown}, \"{description}\", {procedure} }},\n".format(**oskill))

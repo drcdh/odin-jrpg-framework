@@ -91,7 +91,8 @@ interrupt_windup :: proc(c: ^Character) {
 	log.infof("Break! %s is interrupted", c.name)
 }
 
-restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
+@(require_results) // This is to ensure restorations affected by sick are properly displayed in popups
+restore_hitpoints :: proc(c: ^Character, hp_gain: int) -> int {
 	hp_gain := hp_gain
 	sick := has_status(c^, .Sick)
 	if sick do hp_gain /= 2
@@ -100,6 +101,7 @@ restore_hitpoints :: proc(c: ^Character, hp_gain: int) {
 	c.hitpoints = min(c.hitpoints + hp_gain, max_hp)
 	update_character_sprite(c^)
 	log.infof("%s gained %d hitpoints%s: %d -> %d/%d", c.name, hp_gain, " (Sick)" if sick else "", prev, c.hitpoints, max_hp)
+	return hp_gain
 }
 
 take_damage :: proc(c: ^Character, hp_loss: int) {

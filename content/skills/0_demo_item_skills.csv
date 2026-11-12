@@ -1,0 +1,13 @@
+name,target,offensive,ally_only,risk,ranged,windup,cost,cooldown,description,proc
+Potion,One,,x,,,10,50,,,
+Super Potion,One,,x,,,10,50,,,
+Antidote,One,,x,,,10,50,,,
+Poisonous Mushroom,One,,x,,,10,50,,,
+Level Up,One,,x,,,,,,,
+Suicide,One,,x,,,,,,,
+Eye Drops,One,,,,,10,50,,,
+Ink Bomb,Team,,,,,20,50,,,
+Incense,One,,,,,50,50,,,
+Double Fried Poboy,One,,x,,,20,80,,,
+Zombify One,One,,,,,,,,,Zombify
+Small Smoke Bomb,One,x,,,,20,50,,,

@@ -27,8 +27,7 @@ skill_proc_poisonous_mushroom :: proc(actor: ^Character, targets: []^Character) 
 	item_forward(actor^)
 	play_sound(.Warp)
 	run_anim(target_eid, .Wave_Poison)
-	restore_hitpoints(target, 20)
-	popup(target_eid, rl.GREEN, "%d", 20, dmg=true)
+	popup(target_eid, rl.GREEN, "%d", restore_hitpoints(target, 20), dmg=true)
 	try_add_status(actor, target, sts_acc=100, status=.Poison)
 	walk_back(actor^)
 }
@@ -53,6 +52,33 @@ skill_proc_suicide :: proc(actor: ^Character, targets: []^Character) {
 	play_sound(.Warp)
 	run_anim(target_eid, .Wave_Zombie)
 	instakill(target)
+	walk_back(actor^)
+}
+
+skill_proc_eye_drops :: proc(actor: ^Character, targets: []^Character) {
+	assert(len(targets) == 1)
+	skill_proc_remove_status_single_target_item("Eye Drops", 100, .Blind, actor, targets[0])
+}
+
+skill_proc_ink_bomb :: proc(actor: ^Character, targets: []^Character) {
+	skill_proc_add_status("Ink Bomb", .Blind, 100, .Warp, .Wave_Blind, actor, targets)
+}
+
+skill_proc_incense :: proc(actor: ^Character, targets: []^Character) {
+	assert(len(targets) == 1)
+	skill_proc_remove_status_single_target_item("Incense", 100, .Confuse, actor, targets[0])
+}
+
+skill_proc_double_fried_poboy :: proc(actor: ^Character, targets: []^Character) {
+	assert(len(targets) == 1)
+	skill_say("Double-Fried Po' Boy")
+	target := targets[0]
+	target_eid := target.eid
+	item_forward(actor^)
+	play_sound(.Warp)
+	run_anim(target_eid, .Wave_Sick)
+	popup(target_eid, rl.GREEN, "%d", restore_hitpoints(target, 200), dmg=true)
+	try_add_status(actor, target, sts_acc=100, status=.Sick)
 	walk_back(actor^)
 }
 
@@ -280,8 +306,7 @@ skill_proc_heal_some :: proc(name: string, heal_data: Heal_Data, sound: Sound_Na
 		case .Ineffective:
 			popup(target_eid, rl.GRAY, "Ine", dmg=true)
 		case .Effective:
-			popup(target_eid, rl.GREEN, "%d", gains[i], dmg=true)
-			restore_hitpoints(target, gains[i])
+			popup(target_eid, rl.GREEN, "%d", restore_hitpoints(target, gains[i]), dmg=true)
 		}
 	}
 
@@ -295,7 +320,7 @@ skill_proc_remove_status_single_target_item :: proc(name: string, sts_acc: int, 
 	item_forward(actor^)
 	play_sound(.Warp)
 	run_anim(target_eid, .Heal)
-	try_remove_status(target, sts_acc=sts_acc, status=.Poison)
+	try_remove_status(target, sts_acc=sts_acc, status=status)
 	walk_back(actor^)
 }
 

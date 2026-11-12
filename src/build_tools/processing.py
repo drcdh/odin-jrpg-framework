@@ -3,6 +3,8 @@ def name_to_enum(name):
 		.replace("-", "_") \
 		.replace(" ", "_") \
 		.replace("'", "") \
+		.replace("’", "") \
+		.replace("‘", "") \
 		.title()
 
 def process_text(text, width=28):
