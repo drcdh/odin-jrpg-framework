@@ -4,6 +4,8 @@ import "core:log"
 import "core:math"
 import "core:math/rand"
 
+TICKS_PER_WORLD_STEP :: 10
+
 Character :: struct {
 	base_stats:    Stats,
 	exp_to_next:   Maybe(int),
@@ -161,6 +163,14 @@ character_battle_tick :: proc(c: ^Character) {
 
 	// Haste and Slow affect character turn charge by modifying Speed, so don't do anything to ticks here
 	update_charge(&c.charge, ticks)
+}
+
+character_world_tick :: proc(c: ^Character) {
+	if has_status(c^, .Poison) {
+		take_poison_damage(c)
+	}
+	ticks := TICKS_PER_WORLD_STEP * f32(get_stat(c^, .Speed))/SPEED_PAR
+	charge_skills(&c.skills, ticks, migraine = has_status(c^, .Migraine), sprain = has_status(c^, .Sprain), battle = false)
 }
 
 new_character_charge :: proc(c: Character) -> Charge {

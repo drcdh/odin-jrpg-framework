@@ -59,7 +59,7 @@ modify_charged_skills :: proc(cs: ^Charged_Skills, new_skill_set: Skill_Set) {
 charge_skill :: proc(cs: ^Charged_Skill, ticks: Ticks, migraine, sprain: bool, battle := false) {
 	k := cs.skill
 	if skills[k].cooldown == 0 do return // cantrip
-	if battle { 	//|| k.world {
+	if battle || is_world_skill(k) { // world skills also recharge as the party walks
 		// Migraine and Sprain affect skill cooldown
 		update_charge(&cs.charge, migraine_sprain_modify_charge(ticks, k, migraine, sprain))
 	}

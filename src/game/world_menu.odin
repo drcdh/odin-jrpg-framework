@@ -18,7 +18,7 @@ World_Menu_UI_Data :: struct {
 	skill_sel: Selection,
 	inven_sel: Selection,
 	save_sel:  Selection,
-	item_name: Item_Name, // item being targeted
+	targets:   Target_Selection,
 }
 
 @(private = "file")
@@ -126,9 +126,12 @@ set_ui_state :: proc(s: World_Menu_UI_State) {
 	case .Character, .Equipment, .Skills:
 		place_selected_pc()
 	case .Item_Target:
-		menu.item_name = inventory_order[menu.inven_sel.select_idx]
+		menu.targets = default_target_selection(inventory_order[menu.inven_sel.select_idx])
 		place_party_targeting()
 	case .Skill_Target:
+		pc_idx := get_pc_idx(menu.party_idx)
+		pc := playable_characters[pc_idx]
+		menu.targets = default_target_selection(pc.skills[menu.skill_sel.select_idx].skill)
 		place_party_targeting()
 	}
 }
@@ -287,7 +290,14 @@ world_menu_update :: proc() {
 		if get_input(.CANCEL) {
 			set_ui_state(.Party)
 		} else if get_input(.ENTER) {
-			// TODO
+			pc := get_party_member(menu.party_idx)
+			if len(pc.skills) == 0 {
+				play_sound(.Blerp)
+			} else if cs := pc.skills[menu.skill_sel.select_idx]; is_world_skill(cs.skill) && charge_full(cs.charge) {
+				set_ui_state(.Skill_Target)
+			} else {
+				play_sound(.Blerp)
+			}
 		} else if dx, ok := get_x_input().?; ok {
 			menu.party_idx += dx
 			menu.party_idx %%= party_size()
@@ -302,7 +312,31 @@ world_menu_update :: proc() {
 		}
 
 	case .Skill_Target:
-	// TODO
+		if get_input(.CANCEL) {
+			set_ui_state(.Skills)
+		} else if get_input(.ENTER) {
+			spawn(proc(_: Entity_Id) {
+				actor := get_party_member(menu.party_idx)
+				cs := &actor.skills[menu.skill_sel.select_idx]
+				if !charge_full(cs.charge) {
+					play_sound(.Blerp) // e.g. ENTER pressed again while it played
+					return
+				}
+				reset_charge(&cs.charge)
+				targets: [dynamic]^Character; defer delete(targets)
+				target_selection_characters(menu.targets, &targets)
+				skills[cs.skill].procedure(actor, targets[:]) // blocks
+				log.infof("%s used skill %s", actor.name, skills[cs.skill].name)
+				pause(.5) // FIXME: wait for popups
+				set_stale(.Top)
+				set_stale(.Skills)
+				set_stale(.Targeting)
+				set_ui_state(.Skills)
+			}, name = "world menu use skill")
+		} else if m := get_menu_input(); m.x != 0 || m.y != 0 {
+			k := get_party_member(menu.party_idx).skills[menu.skill_sel.select_idx].skill
+			menu.targets = world_target_update(m.x, m.y, menu.targets, skills[k].targeting)
+		}
 
 	case .Inventory:
 		if get_input(.CANCEL) {
@@ -310,10 +344,10 @@ world_menu_update :: proc() {
 			set_ui_state(.Top)
 		} else if get_input(.ENTER) {
 			item_name := inventory_order[menu.inven_sel.select_idx]
-			if _, consumable := items[item_name].data.(Consumable); consumable {
+			if is_world_consumable(item_name) {
 				set_ui_state(.Item_Target)
 			} else {
-				fmt.printfln("%v isn't a Consumable", item_name)
+				log.infof("%v can't be used outside battle", item_name)
 				play_sound(.Blerp)
 			}
 		} else if dy, ok := get_y_input().?; ok {
@@ -326,32 +360,32 @@ world_menu_update :: proc() {
 			set_ui_state(.Inventory)
 		} else if get_input(.ENTER) {
 			spawn(proc(_: Entity_Id) {
-				item_name := menu.item_name
+				item_name := inventory_order[menu.inven_sel.select_idx]
 				if game_data.inventory[item_name] == 0 {
 					play_sound(.Blerp)
 					return
 				}
 				if consumable, ok := items[item_name].data.(Consumable); ok {
 					remove_item(item_name)
-					pc := get_party_member(menu.party_idx)
-					targets: [dynamic]^Character; defer clear(&targets)
-					append(&targets, pc)
+					targets: [dynamic]^Character; defer delete(targets)
+					target_selection_characters(menu.targets, &targets)
 					skills[consumable].procedure(nil, targets[:]) // blocks
 					if game_data.inventory[item_name] == 0 {
-						pause(1) // FIXME: wait for popups
+						pause(.5) // FIXME: wait for popups
 						set_ui_state(.Inventory)
 					}
 					set_stale(.Top)
 					set_stale(.Inventory)
 					set_stale(.Targeting)
-					log.infof("Used item %s on %s", item_name, pc.name)
+					log.infof("Used item %s", item_name)
 				} else {
 					log.warnf("Uh oh! Tried to use non-consumable %s", item_name)
 				}
 			}, name = "world menu use item")
-		} else if dx, ok := get_x_input().?; ok {
-			menu.party_idx += dx
-			menu.party_idx %%= party_size()
+		} else if m := get_menu_input(); m.x != 0 || m.y != 0 {
+			if k, ok := items[inventory_order[menu.inven_sel.select_idx]].data.(Consumable); ok {
+				menu.targets = world_target_update(m.x, m.y, menu.targets, skills[k].targeting)
+			}
 		}
 
 	case .System:
@@ -675,9 +709,25 @@ draw_skills_content :: proc() {
 		if r >= len(pc.skills) {break}
 		cs := pc.skills[r + origin_idx]
 		k := cs.skill
-		// draw_text(1, 5 + .5 * f32(r), fmt.ctprintf("%-12s % 3.0f", skills[k].name, 100 * f16(cs.charge) / CHARGE_MAX))
-		draw_text(1, 5 + .5 * f32(r), fmt.ctprint(skills[k].name))
-		// TODO: draw charge for world-usable skills
+		world := is_world_skill(k)
+		tint := rl.WHITE if world && charge_full(cs.charge) else rl.GRAY
+		draw_text(1, 5 + .5 * f32(r), fmt.ctprint(skills[k].name), tint)
+		if world {
+			GAUGE_WIDTH :: 2 // tiles
+			gauge_tint := rl.WHITE
+			// Migraine and Sprain affect cooldown
+			if has_status(pc, .Migraine) && is_psychic_skill(k) do gauge_tint = rl.ColorTint(gauge_tint, rl.BLUE)
+			if has_status(pc, .Sprain) && is_physical_skill(k) do gauge_tint = rl.ColorTint(gauge_tint, rl.ORANGE)
+			draw_charge(
+				tile_to_pixel(15 - GAUGE_WIDTH, 5 + .5 * f32(r)),
+				cs.charge,
+				gauge_tint,
+				rl.PURPLE,
+				rl.GRAY,
+				rl.YELLOW,
+				{GAUGE_WIDTH * TILE_SIZE, 8},
+			)
+		}
 		if r + origin_idx == selection_row(menu.skill_sel) {
 			draw_text(1, 3.5, strings.clone_to_cstring(skills[k].description, context.temp_allocator))
 		}
@@ -771,7 +821,7 @@ draw_targeting :: proc() {
 	rl.DrawTexturePro(texture, src, dest, {}, 0, rl.WHITE)
 	draw_entities(battle = true) // the party
 
-	draw_tile_indicator(targeting_slot(menu.party_idx), direction = Tile_Indicator_Direction.Down)
+	draw_tile_indicator(menu.targets, direction = Tile_Indicator_Direction.Down)
 }
 
 @(private = "file")

@@ -26,7 +26,7 @@ skill_proc_poisonous_mushroom :: proc(actor: ^Character, targets: []^Character) 
 	target_eid := target.eid
 	item_forward(actor^)
 	play_sound(.Warp)
-	run_anim(target_eid, .Wave_Poison)
+	run_skill_anim(target_eid, .Wave_Poison)
 	popup(target_eid, rl.GREEN, "%d", restore_hitpoints(target, 20), dmg=true)
 	try_add_status(actor, target, sts_acc=100, status=.Poison)
 	walk_back(actor^)
@@ -38,7 +38,7 @@ skill_proc_level_up :: proc(actor: ^Character, targets: []^Character) {
 	target_eid := target.eid
 	item_forward(actor^)
 	play_sound(.Warp)
-	run_anim(target_eid, .Heal)
+	run_skill_anim(target_eid, .Heal)
 	set_level(target, target.level + 1) // also sets skills
 	popup(target_eid, rl.PURPLE, "%d", 1, dmg=true)
 	walk_back(actor^)
@@ -50,7 +50,7 @@ skill_proc_suicide :: proc(actor: ^Character, targets: []^Character) {
 	target_eid := target.eid
 	item_forward(actor^)
 	play_sound(.Warp)
-	run_anim(target_eid, .Wave_Zombie)
+	run_skill_anim(target_eid, .Wave_Zombie)
 	instakill(target)
 	walk_back(actor^)
 }
@@ -76,7 +76,7 @@ skill_proc_double_fried_poboy :: proc(actor: ^Character, targets: []^Character) 
 	target_eid := target.eid
 	item_forward(actor^)
 	play_sound(.Warp)
-	run_anim(target_eid, .Wave_Sick)
+	run_skill_anim(target_eid, .Wave_Sick)
 	popup(target_eid, rl.GREEN, "%d", restore_hitpoints(target, 200), dmg=true)
 	try_add_status(actor, target, sts_acc=100, status=.Sick)
 	walk_back(actor^)
@@ -293,7 +293,7 @@ skill_proc_heal_some :: proc(name: string, heal_data: Heal_Data, sound: Sound_Na
 		append(&results, r)
 		append(&gains, g)
 		play_sound(sound)
-		run_anim(target.eid, sprite, flip_x = target.team == .Player)
+		run_skill_anim(target.eid, sprite, flip_x = target.team == .Player)
 	}
 
 	for r, i in results {
@@ -319,7 +319,7 @@ skill_proc_remove_status_single_target_item :: proc(name: string, sts_acc: int, 
 	target_eid := target.eid
 	item_forward(actor^)
 	play_sound(.Warp)
-	run_anim(target_eid, .Heal)
+	run_skill_anim(target_eid, .Heal)
 	try_remove_status(target, sts_acc=sts_acc, status=status)
 	walk_back(actor^)
 }
@@ -378,7 +378,7 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 		case .Hit:
 			play_sound(sound)
 		}
-		run_anim(target.eid, sprite, flip_x = target.team == .Player)
+		run_skill_anim(target.eid, sprite, flip_x = target.team == .Player)
 	}
 
 	for r, i in results {
@@ -403,7 +403,7 @@ skill_proc_add_status :: proc(name: string, status: Status_Name, sts_acc: int, s
 	for target in targets {
 		target_eid := target.eid
 		play_sound(sound)
-		run_anim(target_eid, sprite)
+		run_skill_anim(target_eid, sprite)
 		try_add_status(actor, target, sts_acc=sts_acc, status=status)
 	}
 	walk_back(actor^)
@@ -460,6 +460,13 @@ walk_back :: proc(actor: Character) {
 		move_entity(actor_eid, {PLAYER_DX, 0}, TIME)
 		update_character_sprite(actor)
 	}
+}
+
+@(private = "file")
+run_skill_anim :: proc(target: Entity_Id, sprite: Sprite_Name, flip_x := false) -> bool {
+	// this helper exists just so it's easy to toggle animations in world menu
+	if battle_active() do return run_anim(target=target, sprite=sprite, flip_x=flip_x)
+	return true
 }
 
 @(private = "file")

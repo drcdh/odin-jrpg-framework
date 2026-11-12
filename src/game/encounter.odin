@@ -29,18 +29,14 @@ add_combatant :: proc(c: ^Character) {
 	case .Baddy:
 		append(&battle.baddies, c_idx)
 	case .Player:
+		assert(c_idx == get_party_idx(c))
 		append(&battle.players, c_idx)
 	}
 	append(&battle.combatants, c)
 }
 
 add_combatants_for_encounter :: proc(name: Encounter_Name) {
-	for spot in encounters[name].baddies {
-		baddy_id := spot.baddy_id
-		if baddy_id == .None do continue
-		log.infof("adding combatant %s (%v)", baddy_templates[baddy_id].name, baddy_id)
-		add_combatant(new_baddy(baddy_templates[baddy_id]))
-	}
+	// player character c_idx should be equal to their party_idx
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
 			for &cs in playable_characters[pc_idx].skills {
@@ -48,6 +44,12 @@ add_combatants_for_encounter :: proc(name: Encounter_Name) {
 			}
 			add_combatant(&playable_characters[pc_idx])
 		}
+	}
+	for spot in encounters[name].baddies {
+		baddy_id := spot.baddy_id
+		if baddy_id == .None do continue
+		log.infof("adding combatant %s (%v)", baddy_templates[baddy_id].name, baddy_id)
+		add_combatant(new_baddy(baddy_templates[baddy_id]))
 	}
 	battle.encounter = &encounters[name]
 }

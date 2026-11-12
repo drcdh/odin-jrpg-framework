@@ -189,7 +189,7 @@ heal_party :: proc(f: f16 = 1) {
 	}
 }
 
-get_party_idx :: proc(character: ^Character) -> (int, bool) {
+get_party_idx :: proc(character: ^Character) -> (int, bool) #optional_ok {
 	party_idx: int
 	for pc_idx in 0 ..< NUM_PC {
 		if game_data.party_membership[pc_idx] {
@@ -206,10 +206,7 @@ do_party_step_effects :: proc() {
 	game_data.steps += 1
 	for &pc, pc_idx in playable_characters {
 		if game_data.party_membership[pc_idx] {
-			if has_status(pc, .Poison) {
-				take_poison_damage(&pc)
-			}
-			charge_skills(&pc.skills, 1, migraine = has_status(pc, .Migraine), sprain = has_status(pc, .Sprain), battle = false)
+			character_world_tick(&pc)
 		}
 	}
 }

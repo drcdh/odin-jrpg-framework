@@ -76,6 +76,15 @@ draw_sprite_top_left :: proc(s: Sprite_State, top_left: [2]f32) {
 	draw_sprite(s, top_left + s.origin * sprite_size(s) * [2]f32{abs(s.scale.x), abs(s.scale.y)})
 }
 
+// The top-left corner of `eid`'s sprite, whatever its origin (the inverse of
+// draw_sprite_top_left).
+entity_top_left :: proc(eid: Entity_Id) -> [2]f32 {
+	e, ok := entity_get(eid)
+	if !ok do return {}
+	s := e.sprite
+	return e.pos - s.origin * sprite_size(s) * [2]f32{abs(s.scale.x), abs(s.scale.y)}
+}
+
 // Draws `c`'s entity sprite with its top-left corner at `top_left` (menus).
 draw_character_sprite :: proc(c: Character, top_left: [2]f32) {
 	if e, ok := entity_get(c.eid); ok do draw_sprite_top_left(e.sprite, top_left)
