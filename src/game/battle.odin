@@ -11,8 +11,6 @@ SPEED_PAR :: 30
 
 TAKE_TURN_DELAY :: .5 // seconds
 
-MULTI_TARGET_DELAY :: .2 // seconds
-
 POISON_PERIOD :: 5 // seconds of battle time between poison damage
 
 BATTLE_POPUP_TIME :: f32(1)
@@ -35,22 +33,6 @@ Battle_Skill_Play :: struct {
 	targets:    Target_Selection,
 	skill_name: Skill_Name,
 	charge:     Charge,
-}
-
-// Where an effect result came from. Passive effects (poison, and later other
-// periodic effects) have no actor and are shown without skill banners or animations.
-Battle_Effect_Source :: enum {
-	Skill,
-	Passive,
-}
-
-// What a skill play or passive effect did to one target
-Battle_Effect_Result :: struct {
-	source:     Battle_Effect_Source,
-	actor_idx:  int,        // ignored unless source == .Skill
-	target_idx: int,
-	skill_name: Skill_Name, // ignored unless source == .Skill
-	result:     Effect_Result,
 }
 
 // Battle_Proc :: proc(start := false, result: Maybe(Battle_Result) = nil) -> bool // return true to do default init/win/lose stuff
@@ -776,22 +758,6 @@ continue_lose_proc :: proc(_: Entity_Id) {
 // 	}
 // 	return {}, false
 // }
-
-@(private = "file")
-effect_reaction_tag :: proc(r: Effect_Result) -> Maybe(Sprite_Tag) {
-	if r.hit == .Miss do return nil
-	if r.hit == .Evade do return .LArm
-	if r.hp_change < 0 do return .Hit
-	if r.hp_change > 0 || r.levels > 0 do return .Cheer
-	if r.stagger || r.interrupted do return .Kneeled
-	switch r.status_result {
-	case .Added:                                  return .Kneeled
-	case .Removed:                                return .Cheer
-	case .Ineffective, .Resisted, .Remove_Missed:
-	case .None:
-	}
-	return nil
-}
 
 baddy_down :: proc(self: Entity_Id) {
 	log.infof("downing baddy eid=%v", self)

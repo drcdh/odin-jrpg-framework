@@ -218,30 +218,6 @@ change_baddy_selection :: proc(t, d: int) -> int {
 	return target
 }
 
-get_single_target :: proc(target_selection: Target_Selection) -> (target_idx: int, ok: bool) #optional_ok {
-	#partial switch ts in target_selection {
-	case Target_One_Baddy:
-		target_idx, ok = battle.baddies[ts.i], true
-	case Target_One_Player:
-		target_idx, ok = battle.players[ts.i], true
-	}
-	assert(ok, "get_single_target got other than Target_One_Baddy or Target_One_Player")
-	if !ok do log.errorf("get_single_target got %v", target_selection)
-	return
-}
-
-get_team_target :: proc(target_selection: Target_Selection) -> (team: Team, ok: bool) #optional_ok {
-	#partial switch ts in target_selection {
-	case Target_All_Baddies:
-		team, ok = .Baddy, true
-	case Target_All_Players:
-		team, ok = .Player, true
-	}
-	assert(ok, "get_team_target got other than Target_All_Baddies or Target_All_Players")
-	if !ok do log.errorf("get_team_target got %v", target_selection)
-	return
-}
-
 target_selection_characters :: proc(target_selection: Target_Selection, targets: ^[dynamic]^Character) {
 	assert(battle_active(), "battle not active")
 	assert(len(targets) == 0, "targets should be empty")

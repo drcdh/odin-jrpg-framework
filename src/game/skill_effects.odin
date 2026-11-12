@@ -6,13 +6,6 @@ import "core:math/rand"
 
 VERBOSE :: #config(VERBOSE, false) // log the damage formula
 
-Effect_Type :: enum {
-	Attack,
-	Heal,
-	Level_Up,
-	Death,
-}
-
 Attack_Data :: struct {
 	acc:        int,
 	constant:   int,
@@ -231,22 +224,6 @@ try_interrupt_hit :: proc(actor, target: Character, skill_acc: int) -> Hit_Resul
 	return .Hit
 }
 
-try_status_hit :: proc(target: Character, status_effect: Status_Effect) -> Hit_Result {
-	acc := Stat(status_effect.acc)
-	log.infof("rolling for %v on %s with accuracy = %.0f", status_effect.status, target.name, acc)
-	roll := Stat(rand.int_max(100)) // [0, n)
-	if roll >= acc {
-		log.infof("Miss (%s)", target.name)
-		return .Miss
-	}
-	// if roll >= acc - get_stat(target, resist_status_stat(status_effect.status)) {
-	// 	log.infof("Resist (%s)", target.name)
-	// 	return .Evade
-	// }
-	log.infof("Hit (%s)", target.name)
-	return .Hit
-}
-
 // effect_attack :: proc(actor, target: ^Character, effect: Effect_Data) -> (r: Effect_Result) {
 // 	acc := Stat(effect.hit_acc) // percentage
 // 	// TODO: accuracy is affected by Berserk, Blind, etc.
@@ -349,28 +326,6 @@ try_add_status :: proc(actor, target: ^Character, sts_acc: int, status: Status_N
 	return .Added
 }
 
-@(private = "file")
-_add_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
-	s, ok := status.?
-	if !ok do return .None
-	// Think of prior status as affecting the accuracy of incoming status, NOT as granting resistance
-	acc := Stat(sts_acc) * interstatus_accuracy_mod(target^, s)
-	roll := Stat(rand.int_max(100))
-	if roll >= acc {
-		log.infof("Ineffective status %s on %s (rolled %.0f >= %.0f)", s, target.name, roll, acc)
-		return .Ineffective
-	}
-	res := Stat(0) // TODO: get_stat(target, resistance_stat(status))
-	if roll >= acc - res {
-		log.infof("%s resisted status %s (rolled %.0f >= %.0f)", target.name, s, roll, acc - res)
-		return .Resisted
-	}
-	log.infof("Adding status %s to %s (rolled %.0f < %.0f)", s, target.name, roll, acc - res)
-	add_status(target, s)
-	// FIXME: Character.controller needs to get set when adding .Control status
-	return .Added
-}
-
 try_remove_status :: proc(target: ^Character, sts_acc: int, status: Status_Name) -> Status_Result {
 	acc := Stat(sts_acc)
 	roll := Stat(rand.int_max(100))
@@ -380,21 +335,6 @@ try_remove_status :: proc(target: ^Character, sts_acc: int, status: Status_Name)
 	}
 	log.infof("Removing status %s from %s (rolled %.0f < %.0f)", status, target.name, roll, acc)
 	remove_status(target, status)
-	return .Removed
-}
-
-@(private = "file")
-_remove_status :: proc(target: ^Character, sts_acc: int, status: Maybe(Status_Name)) -> Status_Result {
-	s, ok := status.?
-	if !ok do return .None
-	acc := Stat(sts_acc)
-	roll := Stat(rand.int_max(100))
-	if roll >= acc {
-		log.infof("Missed removing status %s on %s (rolled %.0f >= %.0f)", s, target.name, roll, acc)
-		return .Remove_Missed
-	}
-	log.infof("Removing status %s from %s (rolled %.0f < %.0f)", s, target.name, roll, acc)
-	remove_status(target, s)
 	return .Removed
 }
 

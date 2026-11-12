@@ -28,7 +28,7 @@ skill_proc_poisonous_mushroom :: proc(actor: ^Character, targets: []^Character) 
 	play_sound(.Warp)
 	run_anim(target_eid, .Wave_Poison)
 	restore_hitpoints(target, 20)
-	popup_2(target_eid, rl.GREEN, "%d", 20, dmg=true)
+	popup(target_eid, rl.GREEN, "%d", 20, dmg=true)
 	try_add_status(actor, target, sts_acc=100, status=.Poison)
 	walk_back(actor^)
 }
@@ -41,7 +41,7 @@ skill_proc_level_up :: proc(actor: ^Character, targets: []^Character) {
 	play_sound(.Warp)
 	run_anim(target_eid, .Heal)
 	set_level(target, target.level + 1) // also sets skills
-	popup_2(target_eid, rl.PURPLE, "%d", 1, dmg=true)
+	popup(target_eid, rl.PURPLE, "%d", 1, dmg=true)
 	walk_back(actor^)
 }
 
@@ -276,11 +276,11 @@ skill_proc_heal_some :: proc(name: string, heal_data: Heal_Data, sound: Sound_Na
 		switch r {
 		case .None:
 		case .Miss:
-			popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
+			popup(target_eid, rl.GRAY, "Mi", dmg=true)
 		case .Ineffective:
-			popup_2(target_eid, rl.GRAY, "Ine", dmg=true)
+			popup(target_eid, rl.GRAY, "Ine", dmg=true)
 		case .Effective:
-			popup_2(target_eid, rl.GREEN, "%d", gains[i], dmg=true)
+			popup(target_eid, rl.GREEN, "%d", gains[i], dmg=true)
 			restore_hitpoints(target, gains[i])
 		}
 	}
@@ -299,43 +299,6 @@ skill_proc_remove_status_single_target_item :: proc(name: string, sts_acc: int, 
 	walk_back(actor^)
 }
 
-// @(private = "file")
-// skill_proc_basic_attack_some :: proc(actor: ^Character, targets: []^Character, name: string, sound: Sound_Name, sprite: Sprite_Name, acc: Stat = 100, attack: Attack_Data = {}, stagger: Stagger_Data = {}) {
-// 	assert(len(targets) == 1); target := targets[0]
-// 	skill_say(name)
-// 	target_eid := target.eid
-// 	lunge_forward(actor^)
-//
-// 	hit_result := attack_hit(actor^, target^, acc)
-//
-// 	switch hit_result {
-// 	case .None:
-// 	case .Evade:
-// 		// play_sound(.Ting)
-// 	case .Hit:
-// 		play_sound(sound)
-// 	case .Miss:
-// 		// play_sound(.Whiff)
-// 	}
-//
-// 	// after play_sound because it doesn't block but run_anim does
-// 	run_anim(target_eid, .Slash, flip_x = target.team == .Player)
-//
-// 	switch hit_result {
-// 	case .None:
-// 	case .Evade:
-// 		popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
-// 	case .Hit:
-// 		damage, _ := attack_damage(actor^, target^, attack)
-// 		take_damage(target, damage)
-// 		popup_2(target_eid, rl.WHITE, "%d", damage, dmg=true)
-// 	case .Miss:
-// 		popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
-// 	}
-//
-// 	walk_back(actor^)
-// }
-
 top_result :: proc(asi_result: ASI_Result) -> Hit_Result {
 	if r := asi_result.attack_result;  r != .None do return r
 	if r := asi_result.stagger_result; r != .None do return r
@@ -353,17 +316,18 @@ show_attack_results :: proc(target: ^Character, r: ASI_Result) {
 	switch top_result(r) {
 	case .None:
 	case .Miss:
-		popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
+		popup(target_eid, rl.GRAY, "Mi", dmg=true)
 	case .Evade:
-		popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
+		popup(target_eid, rl.GRAY, "Eva", dmg=true)
 	case .Resist:
-		popup_2(target_eid, rl.GRAY, "Res", dmg=true)
+		popup(target_eid, rl.GRAY, "Res", dmg=true)
 	case .Hit:
 	}
-	if r.attack_result == .Hit do popup_2(target_eid, rl.WHITE, "%d", r.damage, dmg=true)
+	if r.attack_result == .Hit do popup(target_eid, rl.WHITE, "%d", r.damage, dmg=true)
 	// TODO: shudder animation for stagger hit
 }
 
+@(private = "file")
 skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character, status_effects: []Status_Effect = {}) {
 	skill_say(name)
 	lunge_forward(actor^)
@@ -406,39 +370,6 @@ skill_proc_basic_attack_some :: proc(name: string, attack: Attack_Data, sound: S
 
 	walk_back(actor^)
 }
-
-// @(private = "file")
-// skill_proc_basic_stagger_one :: proc(name: string, stg_acc, stagger, int_acc: int, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character) {
-// 	assert(len(targets) == 1); target := targets[0]
-// 	skill_say(name)
-// 	target_eid := target.eid
-// 	lunge_forward(actor^)
-// 	hit_result := attack_hit(actor^, target^, Stat(stg_acc))
-// 	switch hit_result {
-// 	case .None:
-// 	case .Evade:
-// 		// play_sound(.Ting)
-// 	case .Hit:
-// 		play_sound(sound)
-// 	case .Miss:
-// 		// play_sound(.Whiff)
-// 	}
-// 	run_anim(target_eid, .Slash, flip_x = target.team == .Player)
-// 	switch hit_result {
-// 	case .None:
-// 	case .Evade:
-// 		popup_2(target_eid, rl.GRAY, "Eva", dmg=true)
-// 	case .Hit:
-// 		if target.windup && rand.int_max(100) < int_acc {
-// 			interrupt_windup(target)
-// 		} else if stagger > 0 {
-// 			stagger_character(target, stagger)
-// 		}
-// 	case .Miss:
-// 		popup_2(target_eid, rl.GRAY, "Mi", dmg=true)
-// 	}
-// 	walk_back(actor^)
-// }
 
 @(private = "file")
 skill_proc_add_status :: proc(name: string, status: Status_Name, sts_acc: int, sound: Sound_Name, sprite: Sprite_Name, actor: ^Character, targets: []^Character) {
