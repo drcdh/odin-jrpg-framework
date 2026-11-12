@@ -281,6 +281,7 @@ battle_clear :: proc() {
 	clear(&battle.players)
 	clear(&battle.baddies)
 	clear(&battle.combatants)
+	clear(&battle.new_downed)
 	battle.encounter = nil
 	battle.result = nil
 }
@@ -304,6 +305,7 @@ battle_destroy :: proc() {
 	delete(battle.players)
 	delete(battle.baddies)
 	delete(battle.combatants)
+	delete(battle.new_downed)
 	delete(battle.skill_plays)
 	battle = {}
 }
@@ -335,7 +337,8 @@ spawn_combatants :: proc(name: Encounter_Name) {
 		s := baddy_templates[baddy_id].texture
 		sprite = create_sprite_state(s, play = true, layer = COMBATANT_LAYER)
 		tile := BADDY_ORIGIN + 2 * Tile{i32(spot.tile.x), i32(spot.tile.y)}
-		battle.combatants[baddy_idx].eid = spawn_combatant(baddy_templates[baddy_id].name, tile, sprite)
+		c_idx := battle.baddies[baddy_idx]
+		battle.combatants[c_idx].eid = spawn_combatant(baddy_templates[baddy_id].name, tile, sprite)
 	}
 
 	dy: i32 = 2
