@@ -74,6 +74,7 @@ add_status_Character :: proc(c: ^Character, status: Status_Name) {
 		reset_character_charge(c)
 		interrupt_windup(c)
 	}
+	battle_menu_check_selection_valid()
 }
 
 add_status :: proc {
