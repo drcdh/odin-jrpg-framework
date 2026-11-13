@@ -3,7 +3,7 @@
  <object name="encounter_region" width="112" height="96">
   <properties>
    <property name="background" value=""/>
-   <property name="region" value="BLAH"/>
+   <property name="region" value="Overworld_Grass_B"/>
   </properties>
  </object>
 </template>

@@ -160,7 +160,7 @@ setup_rat_battle :: proc() -> (baddy, player: ^Character) {
 	headless_init() // spawns entities and runs skill scripts; undo with headless_shutdown
 	init_new_game()
 	game_data.party_membership = {true, false, false, false, false, false}
-	encounter_init(.Rat, nil, nil, nil) // start_encounter fades the screen, so it must run in a script
+	encounter_init(.Rat, nil, nil, nil, nil) // start_encounter fades the screen, so it must run in a script
 	// The start proc has its moment before any skill play; skip it, or the first
 	// update would spawn it and unpause the battle mid-play (encounter_init pauses it).
 	battle.start_proc_run = true

@@ -33,4 +33,6 @@ draw_bb :: proc(bb: Battle_Background) {
 @(rodata) // TODO: derive this from Tiled
 region_backgrounds := [Encounter_Region]Maybe(Battle_Background) {
 	.None = nil,
+	.Overworld_Grass_A = .Grass,
+	.Overworld_Grass_B = .Grass,
 }

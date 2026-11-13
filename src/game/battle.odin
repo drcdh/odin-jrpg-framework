@@ -250,12 +250,12 @@ battle_poison_tick :: proc() -> bool {
 roll_for_counter :: proc(actor, target: ^Character, risk: f32 = 1) {
 }
 
-encounter_init :: proc(encounter_name: Encounter_Name, start_proc, win_proc, lose_proc: Script_Proc) {
+encounter_init :: proc(encounter_name: Encounter_Name, background: Maybe(Battle_Background), start_proc, win_proc, lose_proc: Script_Proc) {
 	battle_clear()
 	add_combatants_for_encounter(encounter_name) // writes data and creates baddy Characters
 	spawn_combatants(encounter_name) // spawns Entities
 	battle.encounter = &encounters[encounter_name]
-	battle.background = world.level_map.background
+	battle.background = background.? or_else world.level_map.background
 	battle_menu_start()
 	battle.camera.zoom = 1
 	battle.active = true

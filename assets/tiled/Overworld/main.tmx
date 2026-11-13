@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="60" height="50" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="29">
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="60" height="50" tilewidth="16" tileheight="16" infinite="0" nextlayerid="12" nextobjectid="34">
  <properties>
   <property name="edge_level" value=""/>
   <property name="map_mode" value="WRAP"/>
@@ -331,6 +331,32 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <objectgroup id="9" name="Stuff">
+  <object id="6" name="boat_spawn" x="40" y="682">
+   <point/>
+  </object>
+  <object id="12" name="Orthros_Spawn" x="896" y="752">
+   <point/>
+  </object>
+  <object id="28" name="suspicious_pebble" x="184" y="568">
+   <point/>
+  </object>
+ </objectgroup>
+ <objectgroup id="11" name="Regions">
+  <object id="30" name="encounter_region" x="228" y="628">
+   <properties>
+    <property name="region" value="Overworld_Grass_B"/>
+   </properties>
+   <polygon points="0,0 88,0 88,84 32,84 32,24 0,24"/>
+  </object>
+  <object id="33" name="encounter_region" x="164" y="680">
+   <properties>
+    <property name="background" value="Grass"/>
+    <property name="region" value="Overworld_Grass_A"/>
+   </properties>
+   <polygon points="0,0 68,0 68,76 16,76 0,76"/>
+  </object>
+ </objectgroup>
  <objectgroup id="10" name="Doors">
   <object id="22" template="../DOOR.tx" x="792" y="188">
    <properties>
@@ -368,17 +394,6 @@
     <property name="level" value="Grove"/>
     <property name="warp" type="bool" value="true"/>
    </properties>
-  </object>
- </objectgroup>
- <objectgroup id="9" name="Stuff">
-  <object id="6" name="boat_spawn" x="40" y="682">
-   <point/>
-  </object>
-  <object id="12" name="Orthros_Spawn" x="896" y="752">
-   <point/>
-  </object>
-  <object id="28" name="suspicious_pebble" x="184" y="568">
-   <point/>
   </object>
  </objectgroup>
 </map>

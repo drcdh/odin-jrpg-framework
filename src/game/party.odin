@@ -209,6 +209,7 @@ do_party_step_effects :: proc() {
 			character_world_tick(&pc)
 		}
 	}
+	try_random_encounter(current_level(), entity_tile(player()))
 }
 
 party_apply :: proc(f: proc(_, _: int)) {
