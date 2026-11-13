@@ -169,7 +169,7 @@ wait_tile_clear :: proc(id: Entity_Id, tile: Tile, loc := #caller_location) -> b
 	return wait_until(proc(data: rawptr) -> bool {
 		blocked := (^Blocked)(data)
 		return !tile_occupied(blocked.tile, blocked.id)
-	}, &b, loc)
+	}, rawptr(&b), loc)
 }
 
 // Walks one tile at a time, x first and then y, facing each step's direction.
