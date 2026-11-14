@@ -16,39 +16,45 @@ delete_pcs :: proc() {
 	playable_characters = {}
 }
 
-// HP, Vg, Sp, St, PP, WP, Ar, PD, Ev
+// ****************** HP, Vg, Sp, St, PP, WP, Ar, PD, Ev
+BASE_STATS_1 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
+BASE_STATS_2 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
+BASE_STATS_3 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
+BASE_STATS_4 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
+BASE_STATS_5 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
+BASE_STATS_6 :: Stats{60, 30, 30, 30, 20,  5,  0, 20,  5}
 
 // Frees the previous PCs first, so it can run again (new game, load).
 init_pcs :: proc() {
 	delete_pcs()
 	playable_characters = {
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_1,
 			name = strings.clone("One"),
 			equipment = new_equipment(mainhand = .Sword, body = .Shirt, feet = .Boots),
 		},
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_2,
 			name = strings.clone("Two"),
 			equipment = new_equipment(mainhand = .Knife, body = .Shirt, feet = .Boots),
 		},
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_3,
 			name = strings.clone("Three"),
 			equipment = new_equipment(),
 		},
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_4,
 			name = strings.clone("Four"),
 			equipment = new_equipment(),
 		},
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_5,
 			name = strings.clone("Five"),
 			equipment = new_equipment(),
 		},
 		{
-			base_stats = {60, 30, 30, 30, 20, 5, 0, 20, 5},
+			base_stats = BASE_STATS_6,
 			name = strings.clone("Six"),
 			equipment = new_equipment(),
 		},
